@@ -141,5 +141,24 @@ Governing process: the gated workflow in `~/.claude/CLAUDE.md` (Stage 1 plan →
 
 ---
 
+## Phase 11 — Bulk product import (CSV / XLSX)
+
+**Goal:** Superadmins (and makerspace admins, scoped) import products from spreadsheets via the themed admin — preview + confirm, not raw DB writes.
+
+**Deliverables**
+- `django-import-export` + `unfold.contrib.import_export` (themed Import/Export on the Products changelist; supports CSV/XLSX/XLS/TSV/JSON).
+- `ProductResource` defining the field mapping + validation (non-negative quantities, required fields, valid `public_availability_mode`).
+- Makerspace target (per-import dropdown vs per-row `makerspace` slug column — decide at plan time).
+- Create-or-update keyed on (`makerspace`, `name`); downloadable template.
+
+**Decisions locked:** **on-screen column-mapping UI** (upload any sheet → map columns → preview → apply); **upsert** keyed on (`makerspace`, `name`); a "box" column maps to a real **`Box`** record by code. Requires the **Box model slice** below first.
+
+**Dependencies:** Phase 1 (admin) ✅; **Box model slice** (below); benefits from Phase 2 (admins import only into assigned makerspaces). **Risk:** importing must respect makerspace scoping + non-negative quantity constraints; the mapping wizard holds state across upload→map→confirm. **Test focus:** valid import creates/updates rows, bad rows rejected with row-level errors, cross-tenant import blocked, box-code resolves to the right Box.
+
+### Box model slice (pulled from Phase 5, prerequisite for Phase 11)
+`Box` (makerspace-scoped: globally-unique opaque `code` = QR payload, label, optional location, description, `is_active`) + `InventoryProduct.box` FK (nullable, validated same-makerspace). QR rendered via `segno` in the admin (+ print action) so the box carries a scannable tag. The actual scan-during-handout step is the **issue flow (Phase 6)**; QR scan *history* is full Phase 5. **Depends on:** Phase 1. **Test focus:** `code` globally unique; product↔box link; unique label per makerspace; cross-makerspace box rejected by `InventoryProduct.clean()`.
+
+---
+
 ### Execution order
-1 → 2 → 3 → (4 ∥ 5) → 6 → 7, with 8/9/10 layered after 2/4 as capacity allows. MVP core = phases 2–7.
+1 → 2 → 3 → (4 ∥ 5) → 6 → 7, with 8/9/10 layered after 2/4 as capacity allows. Phase 11 (bulk import) can slot in early after Phase 2, since the admin + inventory model already exist. MVP core = phases 2–7.

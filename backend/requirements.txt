@@ -9,3 +9,4 @@ gunicorn>=22
 pytest>=8
 pytest-django>=4.8
 whitenoise>=6.7
+segno

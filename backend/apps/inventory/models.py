@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.makerspaces.models import Makerspace
@@ -13,6 +14,13 @@ class InventoryProduct(models.Model):
     makerspace = models.ForeignKey(
         Makerspace,
         on_delete=models.CASCADE,
+        related_name="products",
+    )
+    box = models.ForeignKey(
+        "boxes.Box",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
         related_name="products",
     )
     name = models.CharField(max_length=200)
@@ -69,3 +77,9 @@ class InventoryProduct(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name} ({self.makerspace.slug})"
+
+    def clean(self):
+        if self.box_id and self.box.makerspace_id != self.makerspace_id:
+            raise ValidationError(
+                {"box": "Box must belong to the same makerspace as the product."}
+            )
