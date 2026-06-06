@@ -91,12 +91,13 @@ permission classes), and CORS is credentialed per registered origin — never `*
 10. API hardening: HMAC server-client signing, rate limits, third-party onboarding
 ```
 
-MVP core = phases 2–7. **The entire multi-client `ApiClient` registry — both the
-publishable-key browser path and HMAC server-signing — is deferred to Phase 10**
-(decided at plan time). A working single-client `FrontendHMACMiddleware` already guards
-the public surface (`backend/apps/inventory/middleware.py`); it stays as-is until Phase 10
-replaces it with the registry. Phase 2 therefore does **not** build `ApiClient`; it builds
-staff JWT auth + RBAC + scoping + the `/api/v1/` versioning skeleton.
+MVP core = phases 2–7. **Scope revised by user request:** the per-makerspace, admin-managed
+`ApiClient` registry (client_id + Fernet-encrypted secret + allowed origins) and an
+**append-only audit-log foundation** (model + `record()` service + read-only scoped admin)
+are now built in **Phase 2**, not deferred. `FrontendHMACMiddleware` is upgraded to a
+multi-client DB lookup. Still Phase 10: the publishable-key (non-secret browser) path,
+rate limits, and third-party onboarding. Later phases keep calling `audit.record(...)` for
+their own state changes (the §11 event list fills in as workflows land).
 
 ## 6. Open questions (resolved at the owning phase, not now)
 

@@ -1465,7 +1465,849 @@ git commit -m "feat(auth-fe): login page + protected /admin route"
 
 ---
 
-## Task 14: Full backend suite + manual smoke
+## Task 14: `ApiClient` model + encrypted secret (new app `apps/apiclients/`)
+
+**Files:**
+- Modify: `backend/requirements.txt` (add `cryptography`), `backend/config/settings.py`
+- Create: `backend/apps/apiclients/__init__.py`, `apps.py`, `crypto.py`, `models.py`
+- Test: `backend/tests/test_apiclients.py`
+
+- [ ] **Step 1: Dependency + settings**
+
+Add to `requirements.txt`: `cryptography>=42`. In `settings.py` add `"apps.apiclients",`
+to `INSTALLED_APPS` and:
+
+```python
+# Fernet key for encrypting ApiClient secrets at rest. Generate with:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+API_CLIENT_ENC_KEY = env("API_CLIENT_ENC_KEY")
+# When True, requests to HMAC_PROTECTED_PATH_PREFIXES must carry a valid signed client.
+API_CLIENT_AUTH_REQUIRED = env.bool("API_CLIENT_AUTH_REQUIRED", default=False)
+```
+
+Add `API_CLIENT_ENC_KEY` to `backend/.env`, `backend/.env.example`, and the backend
+service `environment:` in `docker-compose.yml` (tests load `config.settings`, so the key
+must be present in the test env too).
+
+- [ ] **Step 2: App config + crypto helper**
+
+`apps/apiclients/apps.py`:
+
+```python
+from django.apps import AppConfig
+
+
+class ApiClientsConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.apiclients"
+```
+
+`apps/apiclients/crypto.py`:
+
+```python
+from cryptography.fernet import Fernet
+from django.conf import settings
+
+
+def _fernet():
+    return Fernet(settings.API_CLIENT_ENC_KEY.encode())
+
+
+def encrypt_secret(raw):
+    return _fernet().encrypt(raw.encode())
+
+
+def decrypt_secret(token):
+    return _fernet().decrypt(bytes(token)).decode()
+```
+
+- [ ] **Step 3: Write the failing test**
+
+`backend/tests/test_apiclients.py`:
+
+```python
+import pytest
+
+from apps.apiclients.models import ApiClient
+from apps.makerspaces.models import Makerspace
+
+pytestmark = pytest.mark.django_db
+
+
+def test_issue_returns_raw_secret_and_stores_it_encrypted():
+    s = Makerspace.objects.create(name="Kochi", slug="kochi")
+    client, raw = ApiClient.issue(
+        label="Kochi public", makerspace=s, allowed_origins=["http://localhost:5000"]
+    )
+    assert client.client_id.startswith("ck_")
+    assert client.get_secret() == raw                 # round-trips
+    assert bytes(client.secret_encrypted) != raw.encode()  # NOT plaintext at rest
+```
+
+- [ ] **Step 4: Run to verify it fails**
+
+Run: `docker compose exec backend pytest tests/test_apiclients.py -q`
+Expected: FAIL (`ModuleNotFoundError: apps.apiclients.models`).
+
+- [ ] **Step 5: Implement the model**
+
+`apps/apiclients/models.py`:
+
+```python
+import secrets
+
+from django.conf import settings
+from django.db import models
+
+from apps.apiclients.crypto import decrypt_secret, encrypt_secret
+from apps.makerspaces.models import Makerspace
+
+
+def generate_client_id():
+    return f"ck_{secrets.token_urlsafe(18)}"
+
+
+class ApiClient(models.Model):
+    """A signed API client (client_id + HMAC secret) scoped to a makerspace.
+
+    Secret is stored ENCRYPTED (Fernet), not hashed — HMAC verification needs the raw
+    secret back. `makerspace=None` is a global client (superadmin only)."""
+
+    label = models.CharField(max_length=200)
+    client_id = models.CharField(
+        max_length=64, unique=True, default=generate_client_id, editable=False
+    )
+    secret_encrypted = models.BinaryField(editable=False)
+    makerspace = models.ForeignKey(
+        Makerspace, null=True, blank=True, on_delete=models.CASCADE,
+        related_name="api_clients",
+    )
+    allowed_origins = models.JSONField(default=list, blank=True)  # exact scheme://host[:port]
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="created_api_clients",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def set_secret(self, raw):
+        self.secret_encrypted = encrypt_secret(raw)
+
+    def get_secret(self):
+        return decrypt_secret(self.secret_encrypted)
+
+    @classmethod
+    def issue(cls, *, label, makerspace=None, allowed_origins=None, created_by=None):
+        raw = secrets.token_urlsafe(32)
+        obj = cls(
+            label=label, makerspace=makerspace,
+            allowed_origins=allowed_origins or [], created_by=created_by,
+        )
+        obj.set_secret(raw)
+        obj.save()
+        return obj, raw  # raw secret shown to the operator exactly once
+
+    def __str__(self):
+        return f"{self.label} ({self.client_id})"
+```
+
+- [ ] **Step 6: Migrate + test + commit**
+
+```bash
+docker compose exec backend python manage.py makemigrations apiclients
+docker compose exec backend python manage.py migrate
+docker compose exec backend pytest tests/test_apiclients.py -q   # PASS
+git add backend/requirements.txt backend/config/settings.py backend/apps/apiclients backend/tests/test_apiclients.py backend/.env.example docker-compose.yml
+git commit -m "feat(apiclients): ApiClient model with Fernet-encrypted secret"
+```
+
+---
+
+## Task 15: Themed admin for ApiClient (superadmin + scoped admin)
+
+**Files:**
+- Create: `backend/apps/apiclients/admin.py`
+- Modify: `backend/config/unfold.py` (sidebar entry)
+- Test: `backend/tests/test_apiclients.py`
+
+- [ ] **Step 1: Add failing scoping test**
+
+Append to `tests/test_apiclients.py`:
+
+```python
+from django.contrib.auth import get_user_model
+
+from apps.accounts.models import User
+from apps.apiclients.admin import ApiClientAdmin
+from apps.makerspaces.models import MakerspaceMembership
+from django.contrib.admin.sites import AdminSite
+from rest_framework.test import APIRequestFactory
+
+
+def _admin_user(username, role=User.Role.ADMIN):
+    return get_user_model().objects.create_user(
+        username=username, email=f"{username}@e.com", role=role
+    )
+
+
+def test_admin_changelist_scoped_to_own_makerspace():
+    a, b = Makerspace.objects.create(name="A", slug="a"), Makerspace.objects.create(name="B", slug="b")
+    ApiClient.issue(label="A-client", makerspace=a)
+    ApiClient.issue(label="B-client", makerspace=b)
+    admin_user = _admin_user("scoped")
+    MakerspaceMembership.objects.create(user=admin_user, makerspace=a, role="admin")
+
+    req = APIRequestFactory().get("/")
+    req.user = admin_user
+    qs = ApiClientAdmin(ApiClient, AdminSite()).get_queryset(req)
+    assert {c.makerspace_id for c in qs} == {a.id}  # cannot see B's client
+```
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `docker compose exec backend pytest tests/test_apiclients.py::test_admin_changelist_scoped_to_own_makerspace -q`
+Expected: FAIL (`ModuleNotFoundError: apps.apiclients.admin`).
+
+- [ ] **Step 3: Implement the admin**
+
+`apps/apiclients/admin.py`:
+
+```python
+import secrets
+
+from django.contrib import admin, messages
+from unfold.admin import ModelAdmin
+
+from apps.accounts import rbac
+from apps.accounts.models import User
+from apps.apiclients.models import ApiClient
+from apps.makerspaces.models import Makerspace
+
+MANAGER_ROLES = (User.Role.SUPERADMIN, User.Role.ADMIN)
+
+
+def _is_superadmin(user):
+    return user.is_superuser or user.role == User.Role.SUPERADMIN
+
+
+@admin.register(ApiClient)
+class ApiClientAdmin(ModelAdmin):
+    list_display = ("label", "client_id", "makerspace", "is_active", "created_at")
+    list_filter = ("is_active", "makerspace")
+    readonly_fields = ("client_id", "created_by", "created_at", "updated_at")
+    fields = (
+        "label", "makerspace", "allowed_origins", "is_active",
+        "client_id", "created_by", "created_at", "updated_at",
+    )
+
+    # Only superadmin + makerspace admins reach this admin at all.
+    def has_module_permission(self, request):
+        u = request.user
+        return bool(u.is_authenticated and u.is_active and (
+            u.is_superuser or u.role in MANAGER_ROLES
+        ))
+
+    has_view_permission = has_module_permission
+    has_add_permission = has_module_permission
+    has_change_permission = has_module_permission
+    has_delete_permission = has_module_permission
+
+    # Admins see/edit only clients in their assigned makerspaces (superadmin: all).
+    def get_queryset(self, request):
+        return rbac.scope_by_makerspace(
+            request.user, super().get_queryset(request), "makerspace_id"
+        )
+
+    # Admins can only target their own makerspaces and MUST pick one (no global client).
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "makerspace" and not _is_superadmin(request.user):
+            scope = rbac.resolve_scope(request.user)
+            ids = [] if scope is rbac.ALL else scope
+            kwargs["queryset"] = Makerspace.objects.filter(id__in=ids)
+            kwargs["required"] = True
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    # Generate + reveal the secret once at creation.
+    def save_model(self, request, obj, form, change):
+        new_secret = None
+        if not change:
+            obj.created_by = request.user
+            new_secret = secrets.token_urlsafe(32)
+            obj.set_secret(new_secret)
+        super().save_model(request, obj, form, change)
+        if new_secret:
+            messages.warning(
+                request,
+                f"Client secret for {obj.client_id} (shown once — copy it now): {new_secret}",
+            )
+```
+
+- [ ] **Step 4: Sidebar entry**
+
+In `config/unfold.py`, add a `_can_view_api_clients(request)` predicate (superadmin or
+admin role) and an "API Clients" item under a sensible section linking to
+`admin:apiclients_apiclient_changelist`.
+
+- [ ] **Step 5: Run + commit**
+
+```bash
+docker compose exec backend pytest tests/test_apiclients.py -q   # PASS
+docker compose exec backend python manage.py check               # no issues
+git add backend/apps/apiclients/admin.py backend/config/unfold.py backend/tests/test_apiclients.py
+git commit -m "feat(apiclients): scoped Unfold admin, secret shown once"
+```
+
+---
+
+## Task 16: Upgrade `FrontendHMACMiddleware` to multi-client DB lookup
+
+**Files:**
+- Modify: `backend/apps/inventory/middleware.py`
+- Test: `backend/tests/test_apiclients.py`
+
+- [ ] **Step 1: Add failing middleware tests**
+
+Append to `tests/test_apiclients.py`:
+
+```python
+import hashlib
+import hmac
+import time
+
+from django.test import override_settings
+from rest_framework.test import APIClient
+
+PUBLIC = "/api/v1/public/makerspaces/"
+
+
+def _sign(client_obj, raw_secret, path, origin):
+    ts = str(int(time.time()))
+    msg = b"\n".join([b"GET", path.encode(), ts.encode(), b""])
+    sig = hmac.new(raw_secret.encode(), msg, hashlib.sha256).hexdigest()
+    return {
+        "HTTP_X_CLIENT_ID": client_obj.client_id,
+        "HTTP_X_TIMESTAMP": ts,
+        "HTTP_X_SIGNATURE": sig,
+        "HTTP_ORIGIN": origin,
+    }
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=True)
+def test_valid_signed_client_passes():
+    obj, raw = ApiClient.issue(label="ok", allowed_origins=["http://localhost:5000"])
+    resp = APIClient().get(PUBLIC, **_sign(obj, raw, PUBLIC, "http://localhost:5000"))
+    assert resp.status_code == 200
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=True)
+def test_unknown_client_rejected():
+    resp = APIClient().get(PUBLIC, HTTP_X_CLIENT_ID="ck_nope", HTTP_X_TIMESTAMP="1",
+                           HTTP_X_SIGNATURE="x", HTTP_ORIGIN="http://localhost:5000")
+    assert resp.status_code == 401
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=True)
+def test_disallowed_origin_rejected():
+    obj, raw = ApiClient.issue(label="ok2", allowed_origins=["http://localhost:5000"])
+    resp = APIClient().get(PUBLIC, **_sign(obj, raw, PUBLIC, "https://evil.test"))
+    assert resp.status_code == 401
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=True)
+def test_inactive_client_rejected():
+    obj, raw = ApiClient.issue(label="off", allowed_origins=["http://localhost:5000"])
+    obj.is_active = False
+    obj.save()
+    resp = APIClient().get(PUBLIC, **_sign(obj, raw, PUBLIC, "http://localhost:5000"))
+    assert resp.status_code == 401
+
+
+def test_auth_not_required_lets_public_through():
+    # Default API_CLIENT_AUTH_REQUIRED=False → unsigned public request still works.
+    Makerspace.objects.create(name="Open", slug="open", public_inventory_enabled=True)
+    assert APIClient().get(PUBLIC).status_code == 200
+```
+
+- [ ] **Step 2: Run to verify failures**
+
+Run: `docker compose exec backend pytest tests/test_apiclients.py -k "client or origin or public" -q`
+Expected: signed/unknown/origin/inactive tests FAIL (middleware still uses single env client).
+
+- [ ] **Step 3: Rewrite the middleware**
+
+Replace the body of `apps/inventory/middleware.py` so validation is DB-driven and
+**fails safe** (any error → deny):
+
+```python
+import hashlib
+import hmac
+import logging
+import time
+from urllib.parse import urlsplit
+
+from django.conf import settings
+from django.http import JsonResponse
+
+logger = logging.getLogger(__name__)
+
+
+class FrontendHMACMiddleware:
+    """Validate signed client requests for protected API paths using the ApiClient registry."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if self._should_validate(request) and not self._is_valid(request):
+            return JsonResponse({"detail": "Invalid client signature."}, status=401)
+        return self.get_response(request)
+
+    def _should_validate(self, request):
+        if request.method == "OPTIONS" or not settings.API_CLIENT_AUTH_REQUIRED:
+            return False
+        return any(
+            request.path.startswith(p) for p in settings.HMAC_PROTECTED_PATH_PREFIXES
+        )
+
+    def _is_valid(self, request):
+        try:
+            from apps.apiclients.models import ApiClient
+
+            client_id = request.headers.get("X-Client-Id", "")
+            timestamp = request.headers.get("X-Timestamp", "")
+            signature = request.headers.get("X-Signature", "")
+            if not (client_id and timestamp and signature):
+                return False
+
+            client = ApiClient.objects.filter(
+                client_id=client_id, is_active=True
+            ).first()
+            if client is None:
+                return False
+
+            if not self._origin_ok(request, client):
+                return False
+
+            try:
+                skew = abs(int(time.time()) - int(timestamp))
+            except ValueError:
+                return False
+            if skew > settings.HMAC_MAX_CLOCK_SKEW_SECONDS:
+                return False
+
+            message = b"\n".join([
+                request.method.upper().encode(),
+                request.get_full_path().encode(),
+                timestamp.encode(),
+                request.body,
+            ])
+            expected = hmac.new(
+                client.get_secret().encode(), message, hashlib.sha256
+            ).hexdigest()
+            return hmac.compare_digest(signature, expected)
+        except Exception:  # fail safe — never 500 the request flow
+            logger.exception("ApiClient signature validation failed")
+            return False
+
+    def _origin_ok(self, request, client):
+        if not client.allowed_origins:
+            return True  # no origin restriction configured for this client
+        raw = request.headers.get("Origin") or request.headers.get("Referer", "")
+        if not raw:
+            return False
+        parts = urlsplit(raw)
+        candidate = f"{parts.scheme}://{parts.netloc}" if parts.scheme else ""
+        return candidate in set(client.allowed_origins)
+```
+
+- [ ] **Step 4: Run + commit**
+
+```bash
+docker compose exec backend pytest tests/test_apiclients.py -q   # all PASS
+git add backend/apps/inventory/middleware.py backend/tests/test_apiclients.py
+git commit -m "feat(apiclients): multi-client HMAC middleware with per-client origins"
+```
+
+---
+
+## Task 17: Seed an ApiClient for the existing frontend (non-breaking)
+
+**Files:**
+- Modify: `backend/apps/inventory/management/commands/seed_demo.py`
+
+- [ ] **Step 1:** In `seed_demo`, create (idempotently) an `ApiClient` whose secret is the
+current `HMAC_SECRET` so the existing public frontend keeps signing successfully when
+`API_CLIENT_AUTH_REQUIRED` is later turned on. Set `client_id` explicitly from
+`HMAC_CLIENT_ID` and `allowed_origins` from `CORS_ALLOWED_ORIGINS`. Skip if
+`HMAC_CLIENT_ID`/`HMAC_SECRET` are empty.
+
+```python
+from django.conf import settings
+from apps.apiclients.models import ApiClient
+
+if settings.HMAC_CLIENT_ID and settings.HMAC_SECRET:
+    client, _ = ApiClient.objects.get_or_create(
+        client_id=settings.HMAC_CLIENT_ID,
+        defaults={"label": "Legacy frontend", "allowed_origins": list(settings.CORS_ALLOWED_ORIGINS)},
+    )
+    client.set_secret(settings.HMAC_SECRET)
+    client.allowed_origins = list(settings.CORS_ALLOWED_ORIGINS)
+    client.save()
+```
+
+- [ ] **Step 2:** Run `docker compose exec backend python manage.py seed_demo` → no errors;
+re-running is idempotent.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add backend/apps/inventory/management/commands/seed_demo.py
+git commit -m "feat(apiclients): seed legacy frontend client in seed_demo"
+```
+
+---
+
+## Task 18: Audit log app + append-only model + `record()` service (`apps/audit/`)
+
+**Files:**
+- Modify: `backend/config/settings.py` (add `"apps.audit"`)
+- Create: `backend/apps/audit/__init__.py`, `apps.py`, `models.py`, `services.py`
+- Test: `backend/tests/test_audit.py`
+
+- [ ] **Step 1: Add failing tests**
+
+`backend/tests/test_audit.py`:
+
+```python
+import pytest
+from django.contrib.auth import get_user_model
+
+from apps.accounts.models import User
+from apps.audit import services
+from apps.audit.models import AuditLog
+from apps.makerspaces.models import Makerspace
+
+pytestmark = pytest.mark.django_db
+
+
+def _user(username="su", role=User.Role.SUPERADMIN):
+    return get_user_model().objects.create_user(
+        username=username, email=f"{username}@e.com", role=role
+    )
+
+
+def test_record_creates_entry():
+    actor = _user()
+    s = Makerspace.objects.create(name="L", slug="l")
+    entry = services.record(actor, "auth.login", makerspace=s, entity_id="42")
+    assert entry.pk and entry.action == "auth.login"
+    assert entry.actor_id == actor.id and entry.makerspace_id == s.id
+    assert entry.entity_id == "42"
+
+
+def test_auditlog_is_append_only():
+    entry = services.record(_user(), "auth.login")
+    entry.action = "tampered"
+    with pytest.raises(ValueError):
+        entry.save()
+    with pytest.raises(ValueError):
+        entry.delete()
+```
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `docker compose exec backend pytest tests/test_audit.py -q`
+Expected: FAIL (`ModuleNotFoundError: apps.audit.models`).
+
+- [ ] **Step 3: Implement app config, model, service**
+
+`apps/audit/apps.py`:
+
+```python
+from django.apps import AppConfig
+
+
+class AuditConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.audit"
+```
+
+`apps/audit/models.py`:
+
+```python
+from django.conf import settings
+from django.db import models
+
+from apps.makerspaces.models import Makerspace
+
+
+class AuditLog(models.Model):
+    """Append-only record of a state-changing action (PRD §11)."""
+
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="audit_entries",
+    )
+    makerspace = models.ForeignKey(
+        Makerspace, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="audit_entries",
+    )
+    action = models.CharField(max_length=100)
+    entity_type = models.CharField(max_length=100, blank=True)
+    entity_id = models.CharField(max_length=64, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [models.Index(fields=["makerspace", "action", "created_at"])]
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValueError("AuditLog is append-only; entries cannot be modified.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("AuditLog is append-only; entries cannot be deleted.")
+
+    def __str__(self):
+        return f"{self.action} by {self.actor_id} @ {self.created_at:%Y-%m-%d %H:%M}"
+```
+
+`apps/audit/services.py`:
+
+```python
+from apps.audit.models import AuditLog
+
+
+def record(actor, action, *, makerspace=None, entity_type="", entity_id="", metadata=None):
+    """Append one audit entry. Anonymous/None actor is stored as null (system action)."""
+    return AuditLog.objects.create(
+        actor=actor if getattr(actor, "is_authenticated", False) else None,
+        makerspace=makerspace,
+        action=action,
+        entity_type=entity_type,
+        entity_id=str(entity_id),
+        metadata=metadata or {},
+    )
+```
+
+- [ ] **Step 4: Migrate + test + commit**
+
+```bash
+docker compose exec backend python manage.py makemigrations audit
+docker compose exec backend python manage.py migrate
+docker compose exec backend pytest tests/test_audit.py -q   # PASS
+git add backend/config/settings.py backend/apps/audit backend/tests/test_audit.py
+git commit -m "feat(audit): append-only AuditLog model + record() service"
+```
+
+---
+
+## Task 19: Read-only scoped audit-log admin (superadmin all; admin if granted)
+
+**Files:**
+- Create: `backend/apps/audit/admin.py`
+- Modify: `backend/config/unfold.py` (sidebar entry)
+- Test: `backend/tests/test_audit.py`
+
+- [ ] **Step 1: Add failing tests**
+
+Append to `tests/test_audit.py`:
+
+```python
+from django.contrib.admin.sites import AdminSite
+from django.contrib.auth.models import Permission
+from rest_framework.test import APIRequestFactory
+
+from apps.audit.admin import AuditLogAdmin
+from apps.makerspaces.models import MakerspaceMembership
+
+
+def _req(user):
+    r = APIRequestFactory().get("/")
+    r.user = user
+    return r
+
+
+def test_admin_module_permission_requires_grant_for_admin_role():
+    admin_user = _user("a1", role=User.Role.ADMIN)
+    ma = AuditLogAdmin(AuditLog, AdminSite())
+    assert ma.has_module_permission(_req(admin_user)) is False  # not granted
+    perm = Permission.objects.get(codename="view_auditlog")
+    admin_user.user_permissions.add(perm)
+    admin_user = get_user_model().objects.get(pk=admin_user.pk)  # refresh perm cache
+    assert ma.has_module_permission(_req(admin_user)) is True
+
+
+def test_admin_changelist_scoped_to_makerspace():
+    a = Makerspace.objects.create(name="A", slug="a")
+    b = Makerspace.objects.create(name="B", slug="b")
+    services.record(_user("x"), "x.act", makerspace=a)
+    services.record(_user("y"), "y.act", makerspace=b)
+    admin_user = _user("a2", role=User.Role.ADMIN)
+    MakerspaceMembership.objects.create(user=admin_user, makerspace=a, role="admin")
+    ma = AuditLogAdmin(AuditLog, AdminSite())
+    qs = ma.get_queryset(_req(admin_user))
+    assert {e.makerspace_id for e in qs} == {a.id}
+
+
+def test_superadmin_sees_all_and_admin_is_readonly():
+    su = _user("s9")
+    ma = AuditLogAdmin(AuditLog, AdminSite())
+    assert ma.has_add_permission(_req(su)) is False
+    assert ma.has_change_permission(_req(su)) is False
+    assert ma.has_delete_permission(_req(su)) is False
+```
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `docker compose exec backend pytest tests/test_audit.py -k admin -q`
+Expected: FAIL (`ModuleNotFoundError: apps.audit.admin`).
+
+- [ ] **Step 3: Implement the admin**
+
+`apps/audit/admin.py`:
+
+```python
+from django.contrib import admin
+from unfold.admin import ModelAdmin
+
+from apps.accounts import rbac
+from apps.accounts.models import User
+from apps.audit.models import AuditLog
+
+
+@admin.register(AuditLog)
+class AuditLogAdmin(ModelAdmin):
+    list_display = ("created_at", "action", "actor", "makerspace", "entity_type", "entity_id")
+    list_filter = ("action", "makerspace", "created_at")
+    search_fields = ("action", "entity_id", "actor__username")
+
+    # Append-only + read-only in the admin.
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_module_permission(self, request):
+        u = getattr(request, "user", None)
+        if not (u and u.is_authenticated and u.is_active):
+            return False
+        if u.is_superuser or u.role == User.Role.SUPERADMIN:
+            return True
+        # Admins only if explicitly granted the view permission (superadmin grants it).
+        return u.role == User.Role.ADMIN and u.has_perm("audit.view_auditlog")
+
+    def has_view_permission(self, request, obj=None):
+        return self.has_module_permission(request)
+
+    # Admins see only their makerspaces' entries (superadmin: all).
+    def get_queryset(self, request):
+        return rbac.scope_by_makerspace(
+            request.user, super().get_queryset(request), "makerspace_id"
+        )
+```
+
+- [ ] **Step 4: Sidebar entry**
+
+In `config/unfold.py`, add an "Audit Log" item gated by a predicate mirroring
+`has_module_permission` (superadmin, or admin with `audit.view_auditlog`), linking to
+`admin:audit_auditlog_changelist`.
+
+- [ ] **Step 5: Run + commit**
+
+```bash
+docker compose exec backend pytest tests/test_audit.py -q   # PASS
+git add backend/apps/audit/admin.py backend/config/unfold.py backend/tests/test_audit.py
+git commit -m "feat(audit): read-only scoped audit-log admin, permission-gated for admins"
+```
+
+---
+
+## Task 20: Emit audit entries for Phase-2 actions
+
+**Files:**
+- Modify: `backend/apps/accounts/views.py` (login, logout)
+- Modify: `backend/apps/apiclients/admin.py` (client created)
+- Test: `backend/tests/test_audit.py`
+
+- [ ] **Step 1: Add failing test**
+
+Append to `tests/test_audit.py`:
+
+```python
+from rest_framework.test import APIClient
+
+
+def test_login_emits_audit_entry():
+    get_user_model().objects.create_user(
+        username="loguser", email="l@e.com", password="pw-strong-123",
+        role=User.Role.ADMIN,
+    )
+    APIClient().post(
+        "/api/v1/auth/login",
+        {"username": "loguser", "password": "pw-strong-123"}, format="json",
+    )
+    assert AuditLog.objects.filter(action="auth.login", actor__username="loguser").exists()
+```
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `docker compose exec backend pytest tests/test_audit.py -k login_emits -q`
+Expected: FAIL (no audit entry yet).
+
+- [ ] **Step 3: Wire emission**
+
+In `LoginView.post` (after `serializer.is_valid`), before returning:
+
+```python
+from apps.audit import services as audit
+# ...
+        audit.record(serializer.user, "auth.login")
+```
+
+In `LogoutView.post`, after resolving the cookie, record the logout (actor resolved from
+the token if possible, else None):
+
+```python
+        actor = None
+        if cookie:
+            try:
+                actor = User.objects.filter(pk=RefreshToken(cookie).get("user_id")).first()
+            except TokenError:
+                actor = None
+        audit.record(actor, "auth.logout")
+```
+
+In `ApiClientAdmin.save_model`, after creating a new client:
+
+```python
+        if new_secret:
+            from apps.audit import services as audit
+            audit.record(
+                request.user, "apiclient.created",
+                makerspace=obj.makerspace, entity_type="ApiClient", entity_id=obj.client_id,
+            )
+            messages.warning(request, f"Client secret ... : {new_secret}")
+```
+
+- [ ] **Step 4: Run + commit**
+
+```bash
+docker compose exec backend pytest tests/test_audit.py -q   # PASS
+git add backend/apps/accounts/views.py backend/apps/apiclients/admin.py backend/tests/test_audit.py
+git commit -m "feat(audit): emit entries for login, logout, api-client creation"
+```
+
+---
+
+## Task 21: Full backend suite + manual smoke
 
 - [ ] **Step 1:** `docker compose exec backend pytest -q` → all pass (incl. existing `test_public_inventory.py`).
 - [ ] **Step 2:** `docker compose exec backend python manage.py check` → no issues.

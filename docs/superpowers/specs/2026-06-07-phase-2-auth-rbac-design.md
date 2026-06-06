@@ -23,11 +23,20 @@ browser-facing publishable-client gate that connects the existing public fronten
    `/api/v1/` (non-breaking).
 4. `restricted`/`suspended` accounts are blocked.
 
-Non-goals here (decided at plan time): the `ApiClient` registry / publishable keys / HMAC
-server-signing — **all deferred to Phase 10**. The existing single-client
-`FrontendHMACMiddleware` (`apps/inventory/middleware.py`) stays untouched and keeps
-guarding the public surface. Also out of scope: request workflow, evidence, QR, and a
-user-management REST API (staff are managed in the Django admin).
+**In scope (added by user request):**
+- An `ApiClient` registry (`apps/apiclients/`) — per-makerspace HMAC clients (client_id +
+  Fernet-encrypted secret + allowed origins) managed in the themed Django admin by
+  **superadmin** (all) and **admin** (own makerspaces only; guest-admin none). The existing
+  `FrontendHMACMiddleware` is upgraded to a multi-client DB lookup. Publishable-key
+  (non-secret browser) path + third-party onboarding remain Phase 10.
+- An **append-only audit-log foundation** (`apps/audit/`) — `AuditLog` model +
+  `audit.record(...)` service + a **read-only, makerspace-scoped admin** where superadmin
+  sees all entries and an admin sees their makerspace's entries **only if granted the
+  `audit.view_auditlog` permission**. Phase 2 emits entries for login, logout, and
+  API-client creation; later phases reuse the same service.
+
+Non-goals here: request workflow, evidence, QR, and a user-management REST API (staff are
+managed in the Django admin).
 
 ## 2. Decisions locked (from brainstorming)
 
