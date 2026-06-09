@@ -8,10 +8,10 @@ from apps.boxes.models import Box
 
 @admin.register(Box)
 class BoxAdmin(ModelAdmin):
-    list_display = ("label", "makerspace", "code", "is_active", "updated_at")
+    list_display = ("label", "makerspace", "parent", "code", "is_active", "updated_at")
     list_filter = ("makerspace", "is_active")
     search_fields = ("label", "code", "location")
-    autocomplete_fields = ("makerspace",)
+    autocomplete_fields = ("makerspace", "parent")
     readonly_fields = ("code", "qr_preview", "created_at", "updated_at")
 
     def qr_preview(self, obj):

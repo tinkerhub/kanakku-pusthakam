@@ -4,7 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-**Implementation has started.** The first vertical slice is in place: project scaffold plus the **public inventory browse** feature (read-only) end-to-end across the stack. Everything else in the PRD (auth/login, request submission, check-in API, Telegram, QR/boxes, evidence, admin panel) is **not yet built**.
+**Implementation has started.** Public inventory browse, staff auth/RBAC foundations,
+API-client HMAC support, QR/box foundations, and Phase 3 audit/evidence
+infrastructure are in place. Request submission, workflow state transitions,
+Check-In API, Telegram, and full issue/return flows are still later phases.
 
 Stack (in use):
 
@@ -48,6 +51,9 @@ cd backend && pytest
 - `backend/config/` — Django project (`settings.py`, `urls.py`, wsgi/asgi). All API routes mounted under `/api/`.
 - `backend/apps/accounts/` — custom `User` model (`AUTH_USER_MODEL`); role + access_status only, no RBAC services yet.
 - `backend/apps/makerspaces/` — `Makerspace` model (tenant root; unique `slug`).
+- `backend/apps/audit/` - append-only `AuditLog` plus `audit.record(...)`.
+- `backend/apps/evidence/` - immutable evidence photo rows, S3-compatible storage
+  helpers, and signed upload/view URL endpoints.
 - `backend/apps/inventory/` — `InventoryProduct` model, `public_availability.py` (availability service — seeds the Inventory Availability Module), `serializers.py` (allowlist-only public serializer), `views.py` (`PublicInventoryListView`), `urls.py`, `management/commands/seed_demo.py`.
 - `backend/tests/` — pytest behavior tests for the public endpoint.
 - `frontend/src/features/inventory/` — `PublicInventoryPage`, `ProductCard`, `AvailabilityBadge`, query hook + API client.
@@ -64,6 +70,28 @@ cd backend && pytest
 - Status label: `available ≤ 0` or `total ≤ 0` → `Unavailable`; `available ≤ ceil(total × 0.2)` → `Limited`; else `Available`.
 
 The API response is DRF-paginated (`PageNumberPagination`, page size 24): `{ count, next, previous, results }`. This is the standing convention for all list endpoints.
+
+### Phase 3 audit + evidence conventions
+
+- Audit writes go through `apps.audit.services.record(actor, action, ...)`.
+  `AuditLog` is append-only in model methods and by Postgres triggers; later
+  workflow phases must emit entries from their state-changing services.
+- Evidence photos live in a private S3-compatible bucket. The DB stores
+  `EvidencePhoto` rows with `makerspace`, `evidence_type`, `object_key`,
+  `uploaded_by`, and `created_at`; request/workflow records will link to these
+  rows in later phases, not the other way around.
+- Evidence upload uses presigned POST, not PUT, with exact MIME binding and a
+  content-length range. Supported MIME types are configured by
+  `EVIDENCE_ALLOWED_MIME`.
+- `AWS_S3_ENDPOINT_URL` is the backend-facing endpoint. `AWS_S3_PUBLIC_ENDPOINT_URL`
+  is used for browser-facing presigned URLs. Host dev defaults both to
+  `http://localhost:9000`; a dockerized backend will need the internal/public
+  split (`http://minio:9000` vs `http://localhost:9000`).
+- Object keys are identifiers, not secrets. Privacy is enforced by the private
+  bucket and short-lived signed URLs, not by hiding object-key values.
+- A presigned POST can overwrite the same object key until it expires. This is
+  an accepted Phase 3 risk; Phase 6 attach logic will record the object ETag so
+  later byte changes are detectable.
 
 ## Learning And Explanation Contract
 

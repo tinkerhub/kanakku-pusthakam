@@ -1,5 +1,6 @@
 import uuid
 
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.makerspaces.models import Makerspace
@@ -15,6 +16,13 @@ class Box(models.Model):
         Makerspace,
         on_delete=models.CASCADE,
         related_name="boxes",
+    )
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="children",
     )
     code = models.CharField(
         max_length=32,
@@ -39,3 +47,19 @@ class Box(models.Model):
 
     def __str__(self):
         return f"{self.label} [{self.makerspace.slug}]"
+
+    def clean(self):
+        if self.parent_id:
+            if self.parent.makerspace_id != self.makerspace_id:
+                raise ValidationError(
+                    {"parent": "Parent box must be in the same makerspace."}
+                )
+            seen = set()
+            node = self.parent
+            while node is not None:
+                if node.pk == self.pk or node.pk in seen:
+                    raise ValidationError(
+                        {"parent": "A box cannot be its own ancestor."}
+                    )
+                seen.add(node.pk)
+                node = node.parent

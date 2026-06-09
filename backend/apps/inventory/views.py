@@ -1,6 +1,7 @@
 from django.http import Http404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.generics import ListAPIView
+from rest_framework.permissions import AllowAny
 
 from apps.inventory.serializers import (
     PublicMakerspaceSerializer,
@@ -14,6 +15,7 @@ from apps.makerspaces.models import Makerspace
     responses=PublicMakerspaceSerializer(many=True),
 )
 class PublicMakerspaceListView(ListAPIView):
+    permission_classes = [AllowAny]
     serializer_class = PublicMakerspaceSerializer
     pagination_class = None
 
@@ -36,6 +38,7 @@ class PublicMakerspaceListView(ListAPIView):
     responses=PublicProductSerializer(many=True),
 )
 class PublicInventoryListView(ListAPIView):
+    permission_classes = [AllowAny]
     serializer_class = PublicProductSerializer
 
     def get_queryset(self):

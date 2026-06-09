@@ -10,6 +10,11 @@ class PublicAvailabilityMode(models.TextChoices):
     HIDDEN = "hidden", "Hidden"
 
 
+class TrackingMode(models.TextChoices):
+    QUANTITY = "quantity", "Quantity"
+    INDIVIDUAL = "individual", "Individual"
+
+
 class InventoryProduct(models.Model):
     makerspace = models.ForeignKey(
         Makerspace,
@@ -25,7 +30,13 @@ class InventoryProduct(models.Model):
     )
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    image_url = models.URLField(blank=True)
+    # Individual-mode availability still derives from the quantity buckets until the
+    # Unit service layer (Phase 6); tracking_mode is just a classification flag for now.
+    tracking_mode = models.CharField(
+        max_length=20,
+        choices=TrackingMode.choices,
+        default=TrackingMode.QUANTITY,
+    )
     total_quantity = models.PositiveIntegerField(default=0)
     available_quantity = models.PositiveIntegerField(default=0)
     reserved_quantity = models.PositiveIntegerField(default=0)

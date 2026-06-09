@@ -1,6 +1,8 @@
+from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from apps.accounts.models import User
+from apps.apiclients.models import ApiClient
 from apps.inventory.models import InventoryProduct, PublicAvailabilityMode
 from apps.makerspaces.models import Makerspace
 
@@ -90,6 +92,16 @@ class Command(BaseCommand):
                 defaults=product_data,
             )
             created_count += int(created)
+
+        # review fix #3: do NOT use get_or_create - secret_encrypted is non-null with no default,
+        # so a create() without it would crash. Fetch-or-instantiate, then set the secret.
+        if settings.HMAC_CLIENT_ID and settings.HMAC_SECRET:
+            client = ApiClient.objects.filter(client_id=settings.HMAC_CLIENT_ID).first()
+            if client is None:
+                client = ApiClient(client_id=settings.HMAC_CLIENT_ID, label="Legacy frontend")
+            client.allowed_origins = list(settings.CORS_ALLOWED_ORIGINS)
+            client.set_secret(settings.HMAC_SECRET)
+            client.save()
 
         self.stdout.write(
             self.style.SUCCESS(

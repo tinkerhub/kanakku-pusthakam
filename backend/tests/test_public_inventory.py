@@ -12,7 +12,7 @@ from apps.makerspaces.models import Makerspace
 
 pytestmark = pytest.mark.django_db
 
-PUBLIC_PRODUCT_FIELDS = {"id", "name", "description", "image_url", "availability"}
+PUBLIC_PRODUCT_FIELDS = {"id", "name", "description", "availability"}
 
 
 @pytest.fixture
@@ -52,7 +52,6 @@ def create_product(makerspace, name="Soldering Iron", **overrides):
         "makerspace": makerspace,
         "name": name,
         "description": f"{name} description",
-        "image_url": "https://example.com/product.jpg",
         "is_public": True,
         "is_archived": False,
         "public_availability_mode": PublicAvailabilityMode.STATUS_ONLY,
@@ -272,14 +271,19 @@ def test_hmac_allows_signed_public_inventory_request(
     api_client,
     public_makerspace,
 ):
-    settings.HMAC_CLIENT_ID = "web-client"
-    settings.HMAC_SECRET = "shared-secret"
+    # New contract: a registered ApiClient signs with its own secret (Phase 2 Task 16).
+    from apps.apiclients.models import ApiClient
+
+    settings.API_CLIENT_AUTH_REQUIRED = True
     settings.HMAC_MAX_CLOCK_SKEW_SECONDS = 300
     settings.HMAC_PROTECTED_PATH_PREFIXES = ["/api/public/"]
+    client, secret = ApiClient.issue(label="web", allowed_origins=["http://testserver"])
     create_product(public_makerspace)
     path = public_inventory_url(public_makerspace)
 
-    response = api_client.get(path, **signed_headers(path))
+    headers = signed_headers(path, client_id=client.client_id, secret=secret)
+    headers["HTTP_ORIGIN"] = "http://testserver"
+    response = api_client.get(path, **headers)
 
     assert response.status_code == 200
 
@@ -291,18 +295,22 @@ def test_hmac_rejects_unsigned_or_invalid_public_inventory_request(
     public_makerspace,
     invalid_signature_case,
 ):
-    settings.HMAC_CLIENT_ID = "web-client"
-    settings.HMAC_SECRET = "shared-secret"
+    from apps.apiclients.models import ApiClient
+
+    settings.API_CLIENT_AUTH_REQUIRED = True
     settings.HMAC_MAX_CLOCK_SKEW_SECONDS = 300
     settings.HMAC_PROTECTED_PATH_PREFIXES = ["/api/public/"]
+    client, secret = ApiClient.issue(label="web", allowed_origins=["http://testserver"])
     create_product(public_makerspace)
     path = public_inventory_url(public_makerspace)
 
     headers = {}
     if invalid_signature_case == "wrong-client":
-        headers = signed_headers(path, client_id="wrong-client")
+        headers = signed_headers(path, client_id="ck_wrong", secret=secret)
     if invalid_signature_case == "wrong-secret":
-        headers = signed_headers(path, secret="wrong-secret")
+        headers = signed_headers(path, client_id=client.client_id, secret="wrong-secret")
+    if headers:
+        headers["HTTP_ORIGIN"] = "http://testserver"
 
     response = api_client.get(path, **headers)
 

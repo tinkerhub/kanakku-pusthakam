@@ -18,6 +18,20 @@ def _can_view_users(request):
     return request.user.has_perm("accounts.view_user")
 
 
+def _can_view_groups(request):
+    return request.user.has_perm("auth.view_group")
+
+
+def _can_view_api_clients(request):
+    user = request.user
+    return bool(
+        user.is_authenticated
+        and user.is_active
+        and user.access_status == "active"
+        and (user.is_superuser or user.role in ("superadmin", "admin"))
+    )
+
+
 UNFOLD = {
     "SITE_TITLE": SITE_NAME,
     "SITE_HEADER": SITE_NAME,
@@ -72,7 +86,27 @@ UNFOLD = {
                         "icon": "person",
                         "link": reverse_lazy("admin:accounts_user_changelist"),
                         "permission": _can_view_users,
-                    }
+                    },
+                    {
+                        "title": _("Groups"),
+                        "icon": "groups",
+                        "link": reverse_lazy("admin:auth_group_changelist"),
+                        "permission": _can_view_groups,
+                    },
+                ],
+            },
+            {
+                "title": _("Integrations"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("API Clients"),
+                        "icon": "vpn_key",
+                        "link": reverse_lazy(
+                            "admin:apiclients_apiclient_changelist"
+                        ),
+                        "permission": _can_view_api_clients,
+                    },
                 ],
             },
         ],

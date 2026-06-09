@@ -66,3 +66,40 @@ def test_product_clean_allows_box_from_same_makerspace():
     product = InventoryProduct(makerspace=makerspace, name="Arduino Kit", box=box)
 
     product.clean()
+
+
+def test_box_clean_allows_parent_from_same_makerspace():
+    makerspace = make_makerspace()
+    parent = Box.objects.create(makerspace=makerspace, label="Parent")
+    child = Box(makerspace=makerspace, label="Child", parent=parent)
+
+    child.clean()
+
+
+def test_box_clean_rejects_parent_from_different_makerspace():
+    makerspace = make_makerspace()
+    other_makerspace = make_makerspace(slug="other", name="Other Makerspace")
+    parent = Box.objects.create(makerspace=other_makerspace, label="Parent")
+    child = Box(makerspace=makerspace, label="Child", parent=parent)
+
+    with pytest.raises(ValidationError):
+        child.clean()
+
+
+def test_box_clean_rejects_direct_self_parent():
+    makerspace = make_makerspace()
+    box = Box.objects.create(makerspace=makerspace, label="A1")
+    box.parent = box
+
+    with pytest.raises(ValidationError):
+        box.clean()
+
+
+def test_box_clean_rejects_two_cycle_parent():
+    makerspace = make_makerspace()
+    parent = Box.objects.create(makerspace=makerspace, label="Parent")
+    child = Box.objects.create(makerspace=makerspace, label="Child", parent=parent)
+    parent.parent = child
+
+    with pytest.raises(ValidationError):
+        parent.clean()

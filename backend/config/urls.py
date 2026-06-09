@@ -9,7 +9,12 @@ from drf_spectacular.views import (
 urlpatterns = [
     path("", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
     path("admin/", admin.site.urls),
-    path("api/", include("apps.inventory.urls")),
+    path("api/", include("apps.inventory.urls")),          # existing, unchanged
+    # Versioned alias of the public routes. Namespaced so it does NOT collide with the
+    # unnamespaced names above — reverse("public-inventory") stays /api/public/...,
+    # while /api/v1/public/... is reachable directly (and via "v1:public-inventory").
+    path("api/v1/", include(("apps.inventory.urls", "inventory"), namespace="v1")),
+    path("api/v1/auth/", include("apps.accounts.urls")),   # staff auth surface
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "docs/",

@@ -26,7 +26,6 @@ class PublicProductSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     name = serializers.CharField(read_only=True)
     description = serializers.CharField(read_only=True)
-    image_url = serializers.URLField(allow_blank=True, read_only=True)
     availability = serializers.SerializerMethodField()
 
     @extend_schema_field(AVAILABILITY_SCHEMA)
