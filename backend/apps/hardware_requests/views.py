@@ -12,11 +12,18 @@ from apps.checkin import client as checkin
 from apps.hardware_requests import workflow
 from apps.hardware_requests.exceptions import ErrorSerializer
 from apps.hardware_requests.models import HardwareRequest
-from apps.hardware_requests.permissions import CanReviewRequest, CanViewHandoverQueue
+from apps.hardware_requests.permissions import (
+    CanAssignBox,
+    CanIssueRequest,
+    CanReviewRequest,
+    CanViewHandoverQueue,
+)
 from apps.hardware_requests.serializers import (
     AdminRequestSerializer,
+    AssignBoxSerializer,
     CheckinVerifyRequestSerializer,
     CheckinVerifyResponseSerializer,
+    IssueRequestSerializer,
     PublicRequestStatusSerializer,
     RejectRequestSerializer,
     RequestSubmitResponseSerializer,
@@ -55,6 +62,9 @@ def _request_queryset():
         "makerspace",
         "requester",
         "accepted_by",
+        "assigned_box",
+        "issued_by",
+        "issue_evidence",
     ).prefetch_related("items__product")
 
 
@@ -203,6 +213,39 @@ class AcceptedRequestsView(generics.ListAPIView):
         return super().get(request, *args, **kwargs)
 
 
+class ActiveLoansView(generics.ListAPIView):
+    permission_classes = [CanViewHandoverQueue]
+    serializer_class = AdminRequestSerializer
+
+    def get_queryset(self):
+        makerspace_id = self.kwargs["makerspace_id"]
+        get_object_or_404(Makerspace, pk=makerspace_id)
+        if not rbac.can(
+            self.request.user,
+            rbac.Action.ISSUE_REQUEST,
+            makerspace_id,
+        ):
+            raise PermissionDenied()
+
+        return (
+            _request_queryset()
+            .filter(
+                makerspace_id=makerspace_id,
+                status__in=[
+                    HardwareRequest.Status.ISSUED,
+                    HardwareRequest.Status.PARTIALLY_RETURNED,
+                ],
+            )
+            .order_by("-issued_at", "-created_at")
+        )
+
+    @extend_schema(
+        responses={200: AdminRequestSerializer(many=True), **ADMIN_LIST_ERROR_RESPONSES},
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+
 class AcceptRequestView(APIView):
     permission_classes = [CanReviewRequest]
 
@@ -253,5 +296,66 @@ class RejectRequestView(APIView):
             request.user,
             hardware_request,
             serializer.validated_data["reason"],
+        )
+        return Response(AdminRequestSerializer(updated).data)
+
+
+class AssignBoxView(APIView):
+    permission_classes = [CanAssignBox]
+
+    @extend_schema(
+        request=AssignBoxSerializer,
+        responses={200: AdminRequestSerializer, **ACTION_ERROR_RESPONSES},
+    )
+    def post(self, request, pk, *args, **kwargs):
+        scoped = rbac.scope_by_makerspace(
+            request.user,
+            _request_queryset(),
+        )
+        hardware_request = get_object_or_404(scoped, pk=pk)
+        if not rbac.can(
+            request.user,
+            rbac.Action.ASSIGN_BOX,
+            hardware_request.makerspace_id,
+        ):
+            raise PermissionDenied()
+
+        serializer = AssignBoxSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        updated = workflow.assign_box(
+            request.user,
+            hardware_request,
+            serializer.validated_data["box_code"],
+        )
+        return Response(AdminRequestSerializer(updated).data)
+
+
+class IssueRequestView(APIView):
+    permission_classes = [CanIssueRequest]
+
+    @extend_schema(
+        request=IssueRequestSerializer,
+        responses={200: AdminRequestSerializer, **ACTION_ERROR_RESPONSES, 503: ERROR_503},
+    )
+    def post(self, request, pk, *args, **kwargs):
+        scoped = rbac.scope_by_makerspace(
+            request.user,
+            _request_queryset(),
+        )
+        hardware_request = get_object_or_404(scoped, pk=pk)
+        if not rbac.can(
+            request.user,
+            rbac.Action.ISSUE_REQUEST,
+            hardware_request.makerspace_id,
+        ):
+            raise PermissionDenied()
+
+        serializer = IssueRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        updated = workflow.issue_request(
+            request.user,
+            hardware_request,
+            serializer.validated_data["evidence_id"],
+            serializer.validated_data["remark"],
         )
         return Response(AdminRequestSerializer(updated).data)

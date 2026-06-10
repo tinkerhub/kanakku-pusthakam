@@ -31,6 +31,11 @@ urlpatterns = [
         name="accepted-requests",
     ),
     path(
+        "admin/makerspace/<int:makerspace_id>/active-loans",
+        views.ActiveLoansView.as_view(),
+        name="active-loans",
+    ),
+    path(
         "admin/requests/<int:pk>/accept",
         views.AcceptRequestView.as_view(),
         name="request-accept",
@@ -39,5 +44,15 @@ urlpatterns = [
         "admin/requests/<int:pk>/reject",
         views.RejectRequestView.as_view(),
         name="request-reject",
+    ),
+    path(
+        "admin/requests/<int:pk>/assign-box",
+        views.AssignBoxView.as_view(),
+        name="request-assign-box",
+    ),
+    path(
+        "admin/requests/<int:pk>/issue",
+        views.IssueRequestView.as_view(),
+        name="request-issue",
     ),
 ]

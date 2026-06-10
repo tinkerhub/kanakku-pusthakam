@@ -4,7 +4,11 @@ from rest_framework.views import exception_handler
 from drf_spectacular.utils import extend_schema_serializer
 
 from apps.checkin.client import CheckinDenied, CheckinUnavailable
+from apps.evidence.storage import StorageUnavailable
 from apps.hardware_requests.workflow import (
+    BoxUnavailable,
+    BoxValidationError,
+    EvidenceNotUploaded,
     InvalidTransition,
     RequesterBlocked,
     RequestValidationError,
@@ -48,6 +52,26 @@ _EXCEPTION_MAP = {
         status.HTTP_400_BAD_REQUEST,
         "validation_error",
         "Invalid request.",
+    ),
+    BoxValidationError: (
+        status.HTTP_400_BAD_REQUEST,
+        "box_validation_error",
+        "Invalid box.",
+    ),
+    BoxUnavailable: (
+        status.HTTP_409_CONFLICT,
+        "box_unavailable",
+        "Box is already out on another loan.",
+    ),
+    EvidenceNotUploaded: (
+        status.HTTP_409_CONFLICT,
+        "evidence_not_uploaded",
+        "Evidence has not been uploaded.",
+    ),
+    StorageUnavailable: (
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "evidence_storage_unavailable",
+        "Evidence storage is unavailable.",
     ),
 }
 

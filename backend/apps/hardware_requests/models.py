@@ -41,6 +41,26 @@ class HardwareRequest(models.Model):
         related_name="+",
     )
     accepted_at = models.DateTimeField(null=True)
+    assigned_box = models.ForeignKey(
+        "boxes.Box",
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    issued_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    issued_at = models.DateTimeField(null=True)
+    issue_evidence = models.OneToOneField(
+        "evidence.EvidencePhoto",
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="issued_request",
+    )
+    issue_remark = models.TextField(blank=True)
     closed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -55,6 +75,18 @@ class HardwareRequest(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["makerspace", "status"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["assigned_box"],
+                condition=models.Q(
+                    status__in=[
+                        "issued",
+                        "partially_returned",
+                    ]
+                ),
+                name="uniq_active_loan_per_box",
+            ),
         ]
 
 

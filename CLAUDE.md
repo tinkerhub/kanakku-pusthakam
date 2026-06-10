@@ -8,9 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 API-client HMAC support, QR/box foundations, Phase 3 audit/evidence
 infrastructure, the 3D Printing Manager (request lifecycle + email
 notifications), and the Hardware Request Workflow (public submission + admin
-accept/reject, with check-in seam and reserve-at-acceptance) are in place.
-Issue/assign-box/return flows (QR scan + evidence attach), Telegram alerts, and
-the real Check-In API are still later phases.
+accept/reject plus issue/handover, with check-in seam, reserve-at-acceptance, box
+scan, issue-photo attach, and reserved-to-issued stock movement) are in place.
+Return flows, Telegram delivery beyond notification seams, and the real Check-In
+API are still later phases.
 
 Stack (in use):
 
@@ -57,6 +58,13 @@ cd backend && pytest
 - `backend/apps/audit/` - append-only `AuditLog` plus `audit.record(...)`.
 - `backend/apps/evidence/` - immutable evidence photo rows, S3-compatible storage
   helpers, and signed upload/view URL endpoints.
+- `backend/apps/boxes/` - Box QR payloads plus immutable `BoxScan` records for
+  handover scan history.
+- `backend/apps/hardware_requests/workflow.py` now also owns `assign_box` and
+  `issue_request`; `views.py` exposes admin active-loans, assign-box, and issue
+  endpoints with 404-before-403 scoping.
+- `backend/apps/inventory/availability.py` owns `reserve_for_request` and
+  `issue_items`; it is the only place available/reserved/issued counts change.
 - `backend/apps/inventory/` — `InventoryProduct` model, `public_availability.py` (availability service — seeds the Inventory Availability Module), `serializers.py` (allowlist-only public serializer), `views.py` (`PublicInventoryListView`), `urls.py`, `management/commands/seed_demo.py`.
 - `backend/apps/printing/` — 3D Printing Manager: `PrintBucket`/`PrintRequest` models, `workflow.py` (single source of truth for status transitions, row-locked + audited), `permissions.py` (`CanManagePrinting`, action-aware 403/404), `emails.py` (fail-safe branded SMTP notifications), `serializers.py`, `views.py`, `urls.py`, `admin.py`. Templates in `backend/templates/email/`.
 - `backend/apps/hardware_requests/` — Hardware Request Workflow (submit + accept/reject): `HardwareRequest`/`HardwareRequestItem` models, `workflow.py` (single source of truth: `submit_request`/`accept_request`/`reject_request`, atomic + row-locked + audited; reserve-at-acceptance), `permissions.py` (`CanReviewRequest`, `CanViewHandoverQueue`), `serializers.py` (strict public-status allowlist), `views.py` (public submit/verify/status under HMAC-protected `public/`; admin queues + accept/reject with 404-before-403 scoping), `exceptions.py` (workflow→HTTP exception handler + `ErrorSerializer`), `notifications.py` (Telegram seam), `urls.py`, `admin.py`.

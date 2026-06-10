@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -63,3 +64,47 @@ class Box(models.Model):
                     )
                 seen.add(node.pk)
                 node = node.parent
+
+
+class BoxScan(models.Model):
+    """Immutable record of a physical box QR scan."""
+
+    class Context(models.TextChoices):
+        ISSUE = "issue", "Issue"
+        RETURN = "return", "Return"
+
+    makerspace = models.ForeignKey(
+        Makerspace,
+        on_delete=models.PROTECT,
+        related_name="box_scans",
+    )
+    box = models.ForeignKey(
+        Box,
+        on_delete=models.PROTECT,
+        related_name="scans",
+    )
+    request = models.ForeignKey(
+        "hardware_requests.HardwareRequest",
+        null=True,
+        # PROTECT (not SET_NULL): the row is immutable (DB trigger rejects UPDATE), so a
+        # SET_NULL on parent-request deletion would fail. Append-only scans must outlive —
+        # and block deletion of — the request they evidence. null=True still allows scans
+        # with no request (future non-request scans).
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    context = models.CharField(max_length=20, choices=Context.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise RuntimeError("BoxScan rows are immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise RuntimeError("BoxScan rows are immutable.")

@@ -57,6 +57,7 @@ class AdminRequestItemSerializer(serializers.Serializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     requested_quantity = serializers.IntegerField(read_only=True)
     accepted_quantity = serializers.IntegerField(read_only=True)
+    issued_quantity = serializers.IntegerField(read_only=True)
 
 
 class AdminRequestSerializer(serializers.Serializer):
@@ -66,7 +67,13 @@ class AdminRequestSerializer(serializers.Serializer):
     status = serializers.CharField(read_only=True)
     requested_for = serializers.CharField(read_only=True)
     rejection_reason = serializers.CharField(read_only=True)
+    assigned_box_label = serializers.CharField(
+        source="assigned_box.label",
+        read_only=True,
+        allow_null=True,
+    )
     accepted_at = serializers.DateTimeField(read_only=True)
+    issued_at = serializers.DateTimeField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
     items = AdminRequestItemSerializer(many=True, read_only=True)
@@ -74,3 +81,16 @@ class AdminRequestSerializer(serializers.Serializer):
 
 class RejectRequestSerializer(serializers.Serializer):
     reason = serializers.CharField(allow_blank=False, trim_whitespace=True)
+
+
+class AssignBoxSerializer(serializers.Serializer):
+    box_code = serializers.CharField()
+
+
+class IssueRequestSerializer(serializers.Serializer):
+    evidence_id = serializers.IntegerField()
+    remark = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+    )
