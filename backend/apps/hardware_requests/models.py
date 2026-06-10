@@ -1,0 +1,85 @@
+import uuid
+
+from django.conf import settings
+from django.db import models
+
+
+class HardwareRequest(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        PENDING_APPROVAL = "pending_approval", "Pending Approval"
+        REJECTED = "rejected", "Rejected"
+        ACCEPTED = "accepted", "Accepted"
+        ISSUED = "issued", "Issued"
+        PARTIALLY_RETURNED = "partially_returned", "Partially Returned"
+        RETURNED = "returned", "Returned"
+        CLOSED_WITH_ISSUE = "closed_with_issue", "Closed with Issue"
+
+    makerspace = models.ForeignKey(
+        "makerspaces.Makerspace",
+        on_delete=models.CASCADE,
+        related_name="hardware_requests",
+    )
+    requester = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="hardware_requests",
+    )
+    requester_username = models.CharField(max_length=150)
+    status = models.CharField(
+        max_length=32,
+        choices=Status.choices,
+        default=Status.PENDING_APPROVAL,
+        db_index=True,
+    )
+    requested_for = models.TextField(blank=True)
+    rejection_reason = models.TextField(blank=True)
+    accepted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    accepted_at = models.DateTimeField(null=True)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    closed_at = models.DateTimeField(null=True)
+    public_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["makerspace", "status"]),
+        ]
+
+
+class HardwareRequestItem(models.Model):
+    request = models.ForeignKey(
+        HardwareRequest,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    product = models.ForeignKey(
+        "inventory.InventoryProduct",
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    requested_quantity = models.PositiveIntegerField()
+    accepted_quantity = models.PositiveIntegerField(default=0)
+    issued_quantity = models.PositiveIntegerField(default=0)
+    returned_quantity = models.PositiveIntegerField(default=0)
+    damaged_quantity = models.PositiveIntegerField(default=0)
+    missing_quantity = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(requested_quantity__gte=1),
+                name="req_item_qty_positive",
+            ),
+        ]

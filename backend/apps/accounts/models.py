@@ -27,3 +27,12 @@ class User(AbstractUser):
         default=AccessStatus.ACTIVE,
     )
     restriction_reason = models.TextField(blank=True)
+
+    class Meta(AbstractUser.Meta):
+        constraints = [
+            models.UniqueConstraint(
+                fields=["external_checkin_user_id"],
+                condition=~models.Q(external_checkin_user_id=""),
+                name="uniq_external_checkin_user_id",
+            ),
+        ]

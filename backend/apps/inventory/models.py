@@ -84,6 +84,18 @@ class InventoryProduct(models.Model):
                 condition=models.Q(lost_quantity__gte=0),
                 name="qty_lost_nonneg",
             ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    total_quantity__gte=(
+                        models.F("available_quantity")
+                        + models.F("reserved_quantity")
+                        + models.F("issued_quantity")
+                        + models.F("damaged_quantity")
+                        + models.F("lost_quantity")
+                    )
+                ),
+                name="qty_sum_within_total",
+            ),
         ]
 
     def __str__(self) -> str:

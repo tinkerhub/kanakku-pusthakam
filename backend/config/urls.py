@@ -14,6 +14,7 @@ urlpatterns = [
     # unnamespaced names above — reverse("public-inventory") stays /api/public/...,
     # while /api/v1/public/... is reachable directly (and via "v1:public-inventory").
     path("api/v1/", include(("apps.inventory.urls", "inventory"), namespace="v1")),
+    path("api/v1/", include("apps.hardware_requests.urls")),
     path("api/v1/auth/", include("apps.accounts.urls")),   # staff auth surface
     path("api/v1/admin/", include("apps.evidence.urls")),
     path("api/v1/printing/", include("apps.printing.urls")),

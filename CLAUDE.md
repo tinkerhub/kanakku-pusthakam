@@ -6,10 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Implementation has started.** Public inventory browse, staff auth/RBAC foundations,
 API-client HMAC support, QR/box foundations, Phase 3 audit/evidence
-infrastructure, and the 3D Printing Manager (request lifecycle + email
-notifications) are in place. Hardware request submission, workflow state
-transitions, Check-In API, Telegram, and full issue/return flows are still
-later phases.
+infrastructure, the 3D Printing Manager (request lifecycle + email
+notifications), and the Hardware Request Workflow (public submission + admin
+accept/reject, with check-in seam and reserve-at-acceptance) are in place.
+Issue/assign-box/return flows (QR scan + evidence attach), Telegram alerts, and
+the real Check-In API are still later phases.
 
 Stack (in use):
 
@@ -58,6 +59,9 @@ cd backend && pytest
   helpers, and signed upload/view URL endpoints.
 - `backend/apps/inventory/` — `InventoryProduct` model, `public_availability.py` (availability service — seeds the Inventory Availability Module), `serializers.py` (allowlist-only public serializer), `views.py` (`PublicInventoryListView`), `urls.py`, `management/commands/seed_demo.py`.
 - `backend/apps/printing/` — 3D Printing Manager: `PrintBucket`/`PrintRequest` models, `workflow.py` (single source of truth for status transitions, row-locked + audited), `permissions.py` (`CanManagePrinting`, action-aware 403/404), `emails.py` (fail-safe branded SMTP notifications), `serializers.py`, `views.py`, `urls.py`, `admin.py`. Templates in `backend/templates/email/`.
+- `backend/apps/hardware_requests/` — Hardware Request Workflow (submit + accept/reject): `HardwareRequest`/`HardwareRequestItem` models, `workflow.py` (single source of truth: `submit_request`/`accept_request`/`reject_request`, atomic + row-locked + audited; reserve-at-acceptance), `permissions.py` (`CanReviewRequest`, `CanViewHandoverQueue`), `serializers.py` (strict public-status allowlist), `views.py` (public submit/verify/status under HMAC-protected `public/`; admin queues + accept/reject with 404-before-403 scoping), `exceptions.py` (workflow→HTTP exception handler + `ErrorSerializer`), `notifications.py` (Telegram seam), `urls.py`, `admin.py`.
+- `backend/apps/checkin/` — fail-closed Check-In API client (`client.py`: `verify()`, `CheckinUnavailable`→503 / `CheckinDenied`→403; `stub` vs `http` backend via `CHECKIN_MODE`, http-mode config validated at boot).
+- `backend/apps/inventory/availability.py` — Inventory Availability quantity math (`reserve_for_request`, row-locked, never-below-zero, `InsufficientStock`). The only place reserve/available counts change.
 - `backend/tests/` — pytest behavior tests (public endpoint, auth/RBAC, audit/evidence, printing).
 - `frontend/src/features/inventory/` — `PublicInventoryPage`, `ProductCard`, `AvailabilityBadge`, query hook + API client.
 - `frontend/src/lib/`, `frontend/src/components/ui/`, `frontend/src/types/` — query client, fetch wrapper, themed primitives, shared types.

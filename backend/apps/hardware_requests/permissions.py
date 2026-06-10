@@ -1,0 +1,36 @@
+from rest_framework.permissions import BasePermission
+
+from apps.accounts import rbac
+from apps.accounts.models import User
+
+
+def _active_authenticated(user):
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and user.access_status == User.AccessStatus.ACTIVE
+    )
+
+
+class CanReviewRequest(BasePermission):
+    def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+        if not _active_authenticated(user):
+            return False
+
+        return bool(
+            rbac.makerspaces_for_action(user, rbac.Action.ACCEPT_REQUEST)
+            or rbac.makerspaces_for_action(user, rbac.Action.REJECT_REQUEST)
+        )
+
+
+class CanViewHandoverQueue(BasePermission):
+    """Accepted-requests (handover) queue: active staff who can issue somewhere.
+
+    rbac.can() does not consider access_status, so a restricted/suspended staff user
+    would otherwise pass a bare IsAuthenticated gate — this enforces active status too."""
+
+    def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+        if not _active_authenticated(user):
+            return False
+        return bool(rbac.makerspaces_for_action(user, rbac.Action.ISSUE_REQUEST))

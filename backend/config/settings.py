@@ -36,6 +36,8 @@ INSTALLED_APPS = [
     "apps.apiclients",
     "apps.boxes",
     "apps.inventory",
+    "apps.hardware_requests",
+    "apps.checkin",
     "apps.printing",
     "apps.audit",
     "apps.evidence",
@@ -127,6 +129,10 @@ EVIDENCE_URL_TTL_SECONDS = env.int("EVIDENCE_URL_TTL_SECONDS", default=300)
 EVIDENCE_MAX_BYTES = env.int("EVIDENCE_MAX_BYTES", default=10485760)
 EVIDENCE_ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"]
 
+CHECKIN_MODE = env("CHECKIN_MODE", default="stub")
+CHECKIN_API_URL = env("CHECKIN_API_URL", default="")
+CHECKIN_TIMEOUT = env.float("CHECKIN_TIMEOUT", default=5.0)
+
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND",
     default="django.core.mail.backends.console.EmailBackend",
@@ -177,6 +183,12 @@ REST_FRAMEWORK = {
     # DENY BY DEFAULT (review fix #4): every view requires auth unless it explicitly
     # opts into AllowAny. Public views are marked AllowAny in Step 3b.
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "EXCEPTION_HANDLER": "apps.hardware_requests.exceptions.workflow_exception_handler",
+    "DEFAULT_THROTTLE_RATES": {
+        "checkin_verify": env("THROTTLE_CHECKIN_VERIFY", default="30/min"),
+        "request_submit": env("THROTTLE_REQUEST_SUBMIT", default="10/min"),
+        "request_status": env("THROTTLE_REQUEST_STATUS", default="60/min"),
+    },
 }
 
 SIMPLE_JWT = {
