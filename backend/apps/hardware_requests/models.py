@@ -115,3 +115,9 @@ class HardwareRequestItem(models.Model):
                 name="req_item_qty_positive",
             ),
         ]
+
+
+from apps.hardware_requests.return_models import (  # noqa: E402
+    RequesterAccountability,
+    ReturnEvent,
+)

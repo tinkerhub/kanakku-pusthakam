@@ -1,0 +1,92 @@
+from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
+from rest_framework import generics
+from rest_framework.exceptions import PermissionDenied
+
+from apps.accounts import rbac
+from apps.hardware_requests.models import HardwareRequest
+from apps.hardware_requests.permissions import CanReviewRequest, CanViewHandoverQueue
+from apps.hardware_requests.serializers import AdminRequestSerializer
+from apps.hardware_requests.view_helpers import (
+    ADMIN_LIST_ERROR_RESPONSES,
+    request_queryset,
+)
+from apps.makerspaces.models import Makerspace
+
+
+class PendingRequestsView(generics.ListAPIView):
+    permission_classes = [CanReviewRequest]
+    serializer_class = AdminRequestSerializer
+
+    def get_queryset(self):
+        makerspace_id = self.kwargs["makerspace_id"]
+        _require_action(self.request.user, rbac.Action.ACCEPT_REQUEST, makerspace_id)
+        return (
+            request_queryset()
+            .filter(
+                makerspace_id=makerspace_id,
+                status=HardwareRequest.Status.PENDING_APPROVAL,
+            )
+            .order_by("-created_at")
+        )
+
+    @extend_schema(
+        responses={200: AdminRequestSerializer(many=True), **ADMIN_LIST_ERROR_RESPONSES},
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+
+class AcceptedRequestsView(generics.ListAPIView):
+    permission_classes = [CanViewHandoverQueue]
+    serializer_class = AdminRequestSerializer
+
+    def get_queryset(self):
+        makerspace_id = self.kwargs["makerspace_id"]
+        _require_action(self.request.user, rbac.Action.ISSUE_REQUEST, makerspace_id)
+        return (
+            request_queryset()
+            .filter(
+                makerspace_id=makerspace_id,
+                status=HardwareRequest.Status.ACCEPTED,
+            )
+            .order_by("-created_at")
+        )
+
+    @extend_schema(
+        responses={200: AdminRequestSerializer(many=True), **ADMIN_LIST_ERROR_RESPONSES},
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+
+class ActiveLoansView(generics.ListAPIView):
+    permission_classes = [CanViewHandoverQueue]
+    serializer_class = AdminRequestSerializer
+
+    def get_queryset(self):
+        makerspace_id = self.kwargs["makerspace_id"]
+        _require_action(self.request.user, rbac.Action.ISSUE_REQUEST, makerspace_id)
+        return (
+            request_queryset()
+            .filter(
+                makerspace_id=makerspace_id,
+                status__in=[
+                    HardwareRequest.Status.ISSUED,
+                    HardwareRequest.Status.PARTIALLY_RETURNED,
+                ],
+            )
+            .order_by("-issued_at", "-created_at")
+        )
+
+    @extend_schema(
+        responses={200: AdminRequestSerializer(many=True), **ADMIN_LIST_ERROR_RESPONSES},
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+
+def _require_action(user, action, makerspace_id):
+    get_object_or_404(Makerspace, pk=makerspace_id)
+    if not rbac.can(user, action, makerspace_id):
+        raise PermissionDenied()

@@ -58,6 +58,9 @@ class AdminRequestItemSerializer(serializers.Serializer):
     requested_quantity = serializers.IntegerField(read_only=True)
     accepted_quantity = serializers.IntegerField(read_only=True)
     issued_quantity = serializers.IntegerField(read_only=True)
+    returned_quantity = serializers.IntegerField(read_only=True)
+    damaged_quantity = serializers.IntegerField(read_only=True)
+    missing_quantity = serializers.IntegerField(read_only=True)
 
 
 class AdminRequestSerializer(serializers.Serializer):
@@ -74,6 +77,7 @@ class AdminRequestSerializer(serializers.Serializer):
     )
     accepted_at = serializers.DateTimeField(read_only=True)
     issued_at = serializers.DateTimeField(read_only=True)
+    closed_at = serializers.DateTimeField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
     items = AdminRequestItemSerializer(many=True, read_only=True)
@@ -94,3 +98,34 @@ class IssueRequestSerializer(serializers.Serializer):
         allow_blank=True,
         default="",
     )
+
+
+class ReturnItemResolutionSerializer(serializers.Serializer):
+    item_id = serializers.IntegerField()
+    returned = serializers.IntegerField(min_value=0, default=0)
+    damaged = serializers.IntegerField(min_value=0, default=0)
+    missing = serializers.IntegerField(min_value=0, default=0)
+
+
+class ReturnRequestSerializer(serializers.Serializer):
+    evidence_id = serializers.IntegerField()
+    box_code = serializers.CharField()
+    remark = serializers.CharField(allow_blank=False, trim_whitespace=True)
+    resolutions = ReturnItemResolutionSerializer(many=True, allow_empty=False)
+
+    def validate(self, attrs):
+        item_ids = [resolution["item_id"] for resolution in attrs["resolutions"]]
+        if len(item_ids) != len(set(item_ids)):
+            raise serializers.ValidationError(
+                {"resolutions": "Duplicate item_id values are not allowed."}
+            )
+        for resolution in attrs["resolutions"]:
+            if (
+                resolution["returned"]
+                + resolution["damaged"]
+                + resolution["missing"]
+            ) == 0:
+                raise serializers.ValidationError(
+                    {"resolutions": "Each resolution must resolve at least one item."}
+                )
+        return attrs

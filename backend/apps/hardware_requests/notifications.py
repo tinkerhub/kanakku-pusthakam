@@ -25,3 +25,15 @@ def notify_request_issued(request):
             "status": request.status,
         },
     )
+
+
+def notify_request_returned(request):
+    """Telegram integration point for returned hardware requests."""
+    logger.info(
+        "Hardware request returned.",
+        extra={
+            "request_id": request.pk,
+            "makerspace_id": request.makerspace_id,
+            "status": request.status,
+        },
+    )

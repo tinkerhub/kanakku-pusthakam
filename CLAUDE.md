@@ -9,9 +9,10 @@ API-client HMAC support, QR/box foundations, Phase 3 audit/evidence
 infrastructure, the 3D Printing Manager (request lifecycle + email
 notifications), and the Hardware Request Workflow (public submission + admin
 accept/reject plus issue/handover, with check-in seam, reserve-at-acceptance, box
-scan, issue-photo attach, and reserved-to-issued stock movement) are in place.
-Return flows, Telegram delivery beyond notification seams, and the real Check-In
-API are still later phases.
+scan, issue-photo attach, return processing/accountability, and stock movement
+through reserved/issued/returned/damaged/lost buckets) are in place. Telegram
+delivery beyond notification seams, the admin SPA, and the real Check-In API are
+still later phases.
 
 Stack (in use):
 
@@ -59,17 +60,18 @@ cd backend && pytest
 - `backend/apps/evidence/` - immutable evidence photo rows, S3-compatible storage
   helpers, and signed upload/view URL endpoints.
 - `backend/apps/boxes/` - Box QR payloads plus immutable `BoxScan` records for
-  handover scan history.
+  issue/return scan history.
 - `backend/apps/hardware_requests/workflow.py` now also owns `assign_box` and
-  `issue_request`; `views.py` exposes admin active-loans, assign-box, and issue
-  endpoints with 404-before-403 scoping.
+  `issue_request`/`return_items`; `views.py` exposes admin active-loans,
+  assign-box, issue, and return endpoints with 404-before-403 scoping.
 - `backend/apps/inventory/availability.py` owns `reserve_for_request` and
-  `issue_items`; it is the only place available/reserved/issued counts change.
+  `issue_items`/`return_items`; it is the only place
+  available/reserved/issued/damaged/lost counts change.
 - `backend/apps/inventory/` — `InventoryProduct` model, `public_availability.py` (availability service — seeds the Inventory Availability Module), `serializers.py` (allowlist-only public serializer), `views.py` (`PublicInventoryListView`), `urls.py`, `management/commands/seed_demo.py`.
 - `backend/apps/printing/` — 3D Printing Manager: `PrintBucket`/`PrintRequest` models, `workflow.py` (single source of truth for status transitions, row-locked + audited), `permissions.py` (`CanManagePrinting`, action-aware 403/404), `emails.py` (fail-safe branded SMTP notifications), `serializers.py`, `views.py`, `urls.py`, `admin.py`. Templates in `backend/templates/email/`.
-- `backend/apps/hardware_requests/` — Hardware Request Workflow (submit + accept/reject): `HardwareRequest`/`HardwareRequestItem` models, `workflow.py` (single source of truth: `submit_request`/`accept_request`/`reject_request`, atomic + row-locked + audited; reserve-at-acceptance), `permissions.py` (`CanReviewRequest`, `CanViewHandoverQueue`), `serializers.py` (strict public-status allowlist), `views.py` (public submit/verify/status under HMAC-protected `public/`; admin queues + accept/reject with 404-before-403 scoping), `exceptions.py` (workflow→HTTP exception handler + `ErrorSerializer`), `notifications.py` (Telegram seam), `urls.py`, `admin.py`.
+- `backend/apps/hardware_requests/` — Hardware Request Workflow (submit + accept/reject + issue + return): `HardwareRequest`/`HardwareRequestItem`, immutable `ReturnEvent`, and immutable `RequesterAccountability` models; `workflow.py` (single source of truth: `submit_request`/`accept_request`/`reject_request`/`assign_box`/`issue_request`/`return_items`, atomic + row-locked + audited; reserve-at-acceptance); `permissions.py` (`CanReviewRequest`, `CanViewHandoverQueue`, `CanReturnRequest`); `serializers.py` (strict public-status allowlist plus return item resolutions); `views.py` (public submit/verify/status under HMAC-protected `public/`; admin queues + accept/reject/assign-box/issue/return with 404-before-403 scoping); `exceptions.py` (workflow→HTTP exception handler + `ErrorSerializer`); `notifications.py` (Telegram seam); `urls.py`, `admin.py`.
 - `backend/apps/checkin/` — fail-closed Check-In API client (`client.py`: `verify()`, `CheckinUnavailable`→503 / `CheckinDenied`→403; `stub` vs `http` backend via `CHECKIN_MODE`, http-mode config validated at boot).
-- `backend/apps/inventory/availability.py` — Inventory Availability quantity math (`reserve_for_request`, row-locked, never-below-zero, `InsufficientStock`). The only place reserve/available counts change.
+- `backend/apps/inventory/availability.py` — Inventory Availability quantity math (`reserve_for_request`, `issue_items`, `return_items`, row-locked, never-below-zero, `InsufficientStock`). The only place reserve/available/issued/damaged/lost counts change.
 - `backend/tests/` — pytest behavior tests (public endpoint, auth/RBAC, audit/evidence, printing).
 - `frontend/src/features/inventory/` — `PublicInventoryPage`, `ProductCard`, `AvailabilityBadge`, query hook + API client.
 - `frontend/src/lib/`, `frontend/src/components/ui/`, `frontend/src/types/` — query client, fetch wrapper, themed primitives, shared types.

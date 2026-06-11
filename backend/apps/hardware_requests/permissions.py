@@ -50,3 +50,11 @@ class CanIssueRequest(BasePermission):
         if not _active_authenticated(user):
             return False
         return bool(rbac.makerspaces_for_action(user, rbac.Action.ISSUE_REQUEST))
+
+
+class CanReturnRequest(BasePermission):
+    def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+        if not _active_authenticated(user):
+            return False
+        return bool(rbac.makerspaces_for_action(user, rbac.Action.RETURN_REQUEST))

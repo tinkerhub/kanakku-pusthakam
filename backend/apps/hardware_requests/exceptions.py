@@ -12,6 +12,7 @@ from apps.hardware_requests.workflow import (
     InvalidTransition,
     RequesterBlocked,
     RequestValidationError,
+    ReturnValidationError,
 )
 from apps.inventory.availability import InsufficientStock
 
@@ -52,6 +53,11 @@ _EXCEPTION_MAP = {
         status.HTTP_400_BAD_REQUEST,
         "validation_error",
         "Invalid request.",
+    ),
+    ReturnValidationError: (
+        status.HTTP_400_BAD_REQUEST,
+        "return_validation_error",
+        "Invalid return.",
     ),
     BoxValidationError: (
         status.HTTP_400_BAD_REQUEST,

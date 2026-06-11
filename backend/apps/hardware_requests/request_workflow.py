@@ -1,0 +1,107 @@
+from django.db import transaction
+from django.utils import timezone
+
+from apps.accounts.models import User
+from apps.audit import services as audit
+from apps.checkin import client as checkin
+from apps.hardware_requests import notifications
+from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
+from apps.hardware_requests.workflow_errors import (
+    InvalidTransition,
+    RequestValidationError,
+    RequesterBlocked,
+)
+from apps.hardware_requests.workflow_utils import (
+    get_or_create_requester,
+    locked_request,
+)
+from apps.inventory import availability
+
+
+def submit_request(makerspace, identifier, items, requested_for=""):
+    result = checkin.verify(makerspace, identifier)
+
+    with transaction.atomic():
+        requester = get_or_create_requester(result.external_id)
+        if requester.access_status != User.AccessStatus.ACTIVE:
+            raise RequesterBlocked("Requester is not active.")
+
+        request = HardwareRequest.objects.create(
+            makerspace=makerspace,
+            requester=requester,
+            requester_username=result.username,
+            status=HardwareRequest.Status.PENDING_APPROVAL,
+            requested_for=requested_for,
+        )
+        HardwareRequestItem.objects.bulk_create(
+            [
+                HardwareRequestItem(
+                    request=request,
+                    product=item["product"],
+                    requested_quantity=item["quantity"],
+                )
+                for item in items
+            ]
+        )
+        audit.record(
+            requester,
+            "request.submitted",
+            makerspace=makerspace,
+            target=request,
+        )
+        transaction.on_commit(lambda: notifications.notify_request_submitted(request))
+        return request
+
+
+def accept_request(actor, request):
+    with transaction.atomic():
+        locked = locked_request(request)
+        if locked.status != HardwareRequest.Status.PENDING_APPROVAL:
+            raise InvalidTransition(
+                f"Cannot accept hardware request with status {locked.status}."
+            )
+
+        for item in locked.items.order_by("product_id"):
+            item.accepted_quantity = item.requested_quantity
+            item.save(update_fields=["accepted_quantity"])
+
+        availability.reserve_for_request(locked)
+
+        locked.status = HardwareRequest.Status.ACCEPTED
+        locked.accepted_by = actor
+        locked.accepted_at = timezone.now()
+        locked.save(
+            update_fields=["status", "accepted_by", "accepted_at", "updated_at"]
+        )
+        audit.record(
+            actor,
+            "request.accepted",
+            makerspace=locked.makerspace,
+            target=locked,
+        )
+        return locked
+
+
+def reject_request(actor, request, reason):
+    reason = str(reason or "").strip()
+    if not reason:
+        raise RequestValidationError("Rejection reason is required.")
+
+    with transaction.atomic():
+        locked = locked_request(request)
+        if locked.status != HardwareRequest.Status.PENDING_APPROVAL:
+            raise InvalidTransition(
+                f"Cannot reject hardware request with status {locked.status}."
+            )
+
+        locked.status = HardwareRequest.Status.REJECTED
+        locked.rejection_reason = reason
+        locked.save(update_fields=["status", "rejection_reason", "updated_at"])
+        audit.record(
+            actor,
+            "request.rejected",
+            makerspace=locked.makerspace,
+            target=locked,
+            meta={"reason": reason},
+        )
+        return locked

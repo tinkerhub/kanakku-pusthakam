@@ -55,4 +55,9 @@ urlpatterns = [
         views.IssueRequestView.as_view(),
         name="request-issue",
     ),
+    path(
+        "admin/requests/<int:pk>/return",
+        views.ReturnRequestView.as_view(),
+        name="request-return",
+    ),
 ]
