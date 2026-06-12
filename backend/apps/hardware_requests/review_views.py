@@ -21,6 +21,8 @@ class AcceptRequestView(APIView):
     permission_classes = [CanReviewRequest]
 
     @extend_schema(
+        tags=["Admin requests"],
+        summary="Accept borrow request",
         request=None,
         responses={200: AdminRequestSerializer, **ACTION_ERROR_RESPONSES},
     )
@@ -41,6 +43,8 @@ class RejectRequestView(APIView):
     permission_classes = [CanReviewRequest]
 
     @extend_schema(
+        tags=["Admin requests"],
+        summary="Reject borrow request",
         request=RejectRequestSerializer,
         responses={200: AdminRequestSerializer, **ACTION_ERROR_RESPONSES},
     )

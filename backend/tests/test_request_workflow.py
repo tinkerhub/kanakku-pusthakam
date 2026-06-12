@@ -21,6 +21,11 @@ from apps.makerspaces.models import Makerspace, MakerspaceMembership
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture(autouse=True)
+def clear_cache_between_tests():
+    cache.clear()
+
+
 def make_user(username, role=User.Role.REQUESTER, **kw):
     return get_user_model().objects.create_user(
         username=username,
@@ -37,8 +42,8 @@ def make_space(slug):
 def make_member(
     username,
     makerspace,
-    membership_role=MakerspaceMembership.Role.ADMIN,
-    role=User.Role.ADMIN,
+    membership_role=MakerspaceMembership.Role.SPACE_MANAGER,
+    role=User.Role.SPACE_MANAGER,
 ):
     user = make_user(username, role=role, access_status=User.AccessStatus.ACTIVE)
     MakerspaceMembership.objects.create(
@@ -70,6 +75,7 @@ def make_hardware_request(
     requester=None,
     quantity=1,
     status=HardwareRequest.Status.PENDING_APPROVAL,
+    contact_email="",
 ):
     requester = requester or make_user(
         f"requester-{makerspace.slug}-{uuid.uuid4().hex[:8]}",
@@ -79,6 +85,7 @@ def make_hardware_request(
         makerspace=makerspace,
         requester=requester,
         requester_username=requester.username,
+        requester_contact_email=contact_email,
         status=status,
     )
     HardwareRequestItem.objects.create(
@@ -103,6 +110,10 @@ def public_status_url(public_token):
     return f"/api/v1/public/requests/{public_token}/status"
 
 
+def public_lookup_url(makerspace):
+    return f"/api/v1/public/{makerspace.slug}/requests/status"
+
+
 def pending_requests_url(makerspace):
     return f"/api/v1/admin/makerspace/{makerspace.id}/pending-requests"
 
@@ -122,6 +133,7 @@ def reject_url(hardware_request):
 def submit_payload(identifier, product, quantity=1):
     return {
         "identifier": identifier,
+        "contact_email": f"{identifier}@example.com",
         "requested_for": "Bench diagnostics",
         "items": [{"product_id": product.id, "quantity": quantity}],
     }
@@ -208,6 +220,8 @@ def test_successful_submission_creates_pending_request_items_audit_and_notifies(
     hardware_request = HardwareRequest.objects.get()
     assert str(hardware_request.public_token) == response.data["public_token"]
     assert hardware_request.status == HardwareRequest.Status.PENDING_APPROVAL
+    assert hardware_request.requester_contact_email == "ext-ok@example.com"
+    assert hardware_request.requester_contact_phone == ""
     item = hardware_request.items.get()
     assert item.product == product
     assert item.requested_quantity == 2
@@ -215,6 +229,48 @@ def test_successful_submission_creates_pending_request_items_audit_and_notifies(
     assert audit.makerspace == makerspace
     assert audit.target_id == str(hardware_request.id)
     notify.assert_called_once_with(hardware_request)
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_submission_requires_email_or_phone_contact():
+    makerspace = make_space("missing-contact")
+    product = make_product(makerspace)
+    payload = submit_payload("ext-missing-contact", product)
+    payload.pop("contact_email")
+
+    response = APIClient().post(
+        public_submit_url(makerspace),
+        payload,
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data["contact"] == ["Email or phone number is required."]
+    assert HardwareRequest.objects.count() == 0
+
+
+@override_settings(
+    API_CLIENT_AUTH_REQUIRED=False,
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+)
+def test_submission_sends_confirmation_email_to_contact(
+    django_capture_on_commit_callbacks,
+    mailoutbox,
+):
+    makerspace = make_space("email-confirm")
+    product = make_product(makerspace)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = APIClient().post(
+            public_submit_url(makerspace),
+            submit_payload("ext-email", product),
+            format="json",
+        )
+
+    assert response.status_code == 201
+    assert len(mailoutbox) == 1
+    assert mailoutbox[0].to == ["ext-email@example.com"]
+    assert "Use your email or phone" in mailoutbox[0].body
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
@@ -367,6 +423,138 @@ def test_public_status_by_token_returns_strict_allowlist_and_unknown_token_404()
     assert missing.status_code == 404
 
 
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_public_request_lookup_is_scoped_to_verified_identity_and_space():
+    makerspace = make_space("lookup-space")
+    other_space = make_space("lookup-other-space")
+    product = make_product(makerspace, name="Bench Meter")
+    other_product = make_product(other_space, name="Other Meter")
+    requester = make_user(
+        "lookup-requester",
+        access_status=User.AccessStatus.ACTIVE,
+        external_checkin_user_id="lookup-id",
+    )
+    other_requester = make_user(
+        "lookup-other-requester",
+        access_status=User.AccessStatus.ACTIVE,
+        external_checkin_user_id="other-lookup-id",
+    )
+    expected = make_hardware_request(
+        makerspace,
+        product,
+        requester=requester,
+        quantity=2,
+    )
+    # A different verified identity in the same space — must not be returned.
+    make_hardware_request(makerspace, product, requester=other_requester)
+    # Same identity in a different space — must not leak across makerspaces.
+    make_hardware_request(other_space, other_product, requester=requester)
+
+    response = APIClient().post(
+        public_lookup_url(makerspace),
+        {"identifier": "lookup-id"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert len(response.data) == 1
+    assert response.data[0]["public_token"] == str(expected.public_token)
+    assert response.data[0]["status"] == HardwareRequest.Status.PENDING_APPROVAL
+    assert response.data[0]["items"] == [
+        {"product_name": "Bench Meter", "requested_quantity": 2}
+    ]
+    all_keys = json_keys(response.data)
+    for forbidden_key in {"requester", "requester_username", "email", "phone"}:
+        assert forbidden_key not in all_keys
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_public_request_lookup_rejects_unrelated_contact_identifier():
+    # Knowing a requester's contact email must NOT surface their requests: lookup
+    # is keyed on the verified Check-In identity, not free-text contact fields.
+    makerspace = make_space("lookup-contact-priv")
+    product = make_product(makerspace, name="Caliper")
+    requester = make_user(
+        "lookup-priv-requester",
+        access_status=User.AccessStatus.ACTIVE,
+        external_checkin_user_id="priv-checkin-id",
+    )
+    req = make_hardware_request(makerspace, product, requester=requester)
+    req.requester_contact_email = "victim@example.com"
+    req.save(update_fields=["requester_contact_email"])
+
+    response = APIClient().post(
+        public_lookup_url(makerspace),
+        {"identifier": "victim@example.com"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data == []
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_same_checked_in_user_has_separate_request_history_per_makerspace():
+    first_space = make_space("same-user-first")
+    second_space = make_space("same-user-second")
+    first_product = make_product(first_space, name="First Space Meter")
+    second_product = make_product(second_space, name="Second Space Meter")
+    contact = "shared@example.com"
+
+    first_payload = submit_payload("shared-checkin-id", first_product)
+    first_payload["contact_email"] = contact
+    second_payload = submit_payload("shared-checkin-id", second_product)
+    second_payload["contact_email"] = contact
+
+    first_submit = APIClient().post(
+        public_submit_url(first_space),
+        first_payload,
+        format="json",
+    )
+    second_submit = APIClient().post(
+        public_submit_url(second_space),
+        second_payload,
+        format="json",
+    )
+
+    assert first_submit.status_code == 201
+    assert second_submit.status_code == 201
+    assert HardwareRequest.objects.filter(requester_contact_email=contact).count() == 2
+
+    first_lookup = APIClient().post(
+        public_lookup_url(first_space),
+        {"identifier": "shared-checkin-id"},
+        format="json",
+    )
+    second_lookup = APIClient().post(
+        public_lookup_url(second_space),
+        {"identifier": "shared-checkin-id"},
+        format="json",
+    )
+
+    assert [item["items"][0]["product_name"] for item in first_lookup.data] == [
+        "First Space Meter"
+    ]
+    assert [item["items"][0]["product_name"] for item in second_lookup.data] == [
+        "Second Space Meter"
+    ]
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_public_request_lookup_returns_empty_for_verified_user_without_requests():
+    makerspace = make_space("lookup-empty")
+
+    response = APIClient().post(
+        public_lookup_url(makerspace),
+        {"identifier": "no-requests-yet"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data == []
+
+
 def test_admin_accept_reserves_inventory_and_writes_audit():
     makerspace = make_space("accept-reserves")
     product = make_product(makerspace, total_quantity=5, available_quantity=5)
@@ -387,6 +575,43 @@ def test_admin_accept_reserves_inventory_and_writes_audit():
     audit = AuditLog.objects.get(action="request.accepted")
     assert audit.makerspace == makerspace
     assert audit.target_id == str(hardware_request.id)
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+def test_accept_and_reject_send_contact_email(django_capture_on_commit_callbacks, mailoutbox):
+    makerspace = make_space("request-status-email")
+    product = make_product(makerspace)
+    accepted_request = make_hardware_request(
+        makerspace,
+        product,
+        contact_email="accepted@example.com",
+    )
+    rejected_request = make_hardware_request(
+        makerspace,
+        product,
+        contact_email="rejected@example.com",
+    )
+    admin = make_member("status-email-admin", makerspace)
+    client = authenticated_client(admin)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        accept_response = client.post(accept_url(accepted_request), format="json")
+    with django_capture_on_commit_callbacks(execute=True):
+        reject_response = client.post(
+            reject_url(rejected_request),
+            {"reason": "Not available today."},
+            format="json",
+        )
+
+    assert accept_response.status_code == 200
+    assert reject_response.status_code == 200
+    assert [message.to for message in mailoutbox] == [
+        ["accepted@example.com"],
+        ["rejected@example.com"],
+    ]
+    assert "approved" in mailoutbox[0].subject
+    assert "rejected" in mailoutbox[1].subject
+    assert "Not available today." in mailoutbox[1].body
 
 
 def test_accept_with_insufficient_stock_rolls_back_and_returns_409():
@@ -473,6 +698,8 @@ def test_guest_admin_cannot_reject_but_can_get_accepted_queue_not_pending_queue(
     response = client.get(accepted_requests_url(makerspace))
     assert response.status_code == 200
     assert [item["id"] for item in response.data["results"]] == [accepted_request.id]
+    assert response.data["results"][0]["items"][0]["id"]
+    assert response.data["results"][0]["items"][0]["product_name"] == product.name
 
     response = client.get(pending_requests_url(makerspace))
     assert response.status_code == 403

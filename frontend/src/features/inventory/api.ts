@@ -1,34 +1,108 @@
-import { apiGet, fetchJson } from "../../lib/api";
+import { apiGet, publicV1Request } from "../../lib/api";
 import type {
+  CheckinVerifyResponse,
   Makerspace,
   PaginatedResponse,
   Product,
+  PublicToolLoan,
+  PublicRequestStatus,
+  RequestSubmitResponse,
 } from "../../types/inventory";
 
 export const publicMakerspacesKey = ["public-makerspaces"] as const;
 
-export const publicInventoryKey = (slug: string) =>
-  ["public-inventory", slug] as const;
+export const publicInventoryKey = (slug: string, page: number, query: string) =>
+  ["public-inventory", slug, page, query] as const;
 
 export async function fetchPublicMakerspaces(): Promise<Makerspace[]> {
   return apiGet<Makerspace[]>("/public/makerspaces/");
 }
 
-// The API is paginated (PAGE_SIZE 24). A public browse must show every public
-// item, so we follow `next` links and accumulate all pages rather than
-// silently dropping everything past the first page.
-export async function fetchPublicInventory(slug: string): Promise<Product[]> {
-  const products: Product[] = [];
-  let page: PaginatedResponse<Product> | null = await apiGet<
-    PaginatedResponse<Product>
-  >(`/public/${slug}/inventory/`);
-
-  while (page) {
-    products.push(...page.results);
-    page = page.next
-      ? await fetchJson<PaginatedResponse<Product>>(page.next)
-      : null;
+export async function fetchPublicInventory(
+  slug: string,
+  page: number,
+  query: string,
+): Promise<PaginatedResponse<Product>> {
+  const params = new URLSearchParams();
+  if (page > 1) {
+    params.set("page", String(page));
+  }
+  if (query.trim()) {
+    params.set("q", query.trim());
   }
 
-  return products;
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return apiGet<PaginatedResponse<Product>>(
+    `/public/${slug}/inventory/${suffix}`,
+  );
+}
+
+export async function verifyCheckin(
+  slug: string,
+  identifier: string,
+): Promise<CheckinVerifyResponse> {
+  return publicV1Request<CheckinVerifyResponse>(
+    `/public/${slug}/checkin/verify`,
+    {
+      method: "POST",
+      body: JSON.stringify({ identifier }),
+    },
+  );
+}
+
+export async function submitPublicRequest(
+  slug: string,
+  payload: {
+    identifier: string;
+    contact_email: string;
+    contact_phone: string;
+    requested_for: string;
+    items: { product_id: number; quantity: number }[];
+  },
+): Promise<RequestSubmitResponse> {
+  return publicV1Request<RequestSubmitResponse>(`/public/${slug}/requests`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchRequestStatus(
+  publicToken: string,
+): Promise<PublicRequestStatus> {
+  return publicV1Request<PublicRequestStatus>(
+    `/public/requests/${publicToken}/status`,
+  );
+}
+
+export async function fetchRequestsByIdentifier(
+  slug: string,
+  identifier: string,
+): Promise<PublicRequestStatus[]> {
+  return publicV1Request<PublicRequestStatus[]>(
+    `/public/${slug}/requests/status`,
+    {
+      method: "POST",
+      body: JSON.stringify({ identifier }),
+    },
+  );
+}
+
+export async function publicToolCheckout(
+  slug: string,
+  payload: { identifier: string; payload: string },
+): Promise<PublicToolLoan> {
+  return publicV1Request<PublicToolLoan>(`/public/${slug}/tools/checkout`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function publicToolReturn(
+  slug: string,
+  payload: { identifier: string; payload: string },
+): Promise<PublicToolLoan> {
+  return publicV1Request<PublicToolLoan>(`/public/${slug}/tools/return`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }

@@ -36,8 +36,8 @@ def make_space(slug):
 def make_member(
     username,
     makerspace,
-    membership_role=MakerspaceMembership.Role.ADMIN,
-    role=User.Role.ADMIN,
+    membership_role=MakerspaceMembership.Role.SPACE_MANAGER,
+    role=User.Role.SPACE_MANAGER,
 ):
     user = make_user(username, role=role, access_status=User.AccessStatus.ACTIVE)
     MakerspaceMembership.objects.create(

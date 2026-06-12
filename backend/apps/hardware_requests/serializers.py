@@ -8,6 +8,17 @@ class RequestItemInputSerializer(serializers.Serializer):
 
 class RequestSubmitSerializer(serializers.Serializer):
     identifier = serializers.CharField()
+    contact_email = serializers.EmailField(
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+    contact_phone = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        max_length=32,
+    )
     requested_for = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -20,6 +31,10 @@ class RequestSubmitSerializer(serializers.Serializer):
         if len(product_ids) != len(set(product_ids)):
             raise serializers.ValidationError(
                 {"items": "Duplicate product_id values are not allowed."}
+            )
+        if not attrs["contact_email"].strip() and not attrs["contact_phone"].strip():
+            raise serializers.ValidationError(
+                {"contact": "Email or phone number is required."}
             )
         return attrs
 
@@ -44,6 +59,15 @@ class PublicRequestStatusSerializer(serializers.Serializer):
     items = PublicRequestItemStatusSerializer(many=True, read_only=True)
 
 
+class PublicRequestLookupSerializer(serializers.Serializer):
+    identifier = serializers.CharField()
+
+
+class PublicRequestListItemSerializer(PublicRequestStatusSerializer):
+    public_token = serializers.UUIDField(read_only=True)
+    requested_for = serializers.CharField(read_only=True)
+
+
 class CheckinVerifyRequestSerializer(serializers.Serializer):
     identifier = serializers.CharField()
 
@@ -53,6 +77,7 @@ class CheckinVerifyResponseSerializer(serializers.Serializer):
 
 
 class AdminRequestItemSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
     product_id = serializers.IntegerField(read_only=True)
     product_name = serializers.CharField(source="product.name", read_only=True)
     requested_quantity = serializers.IntegerField(read_only=True)
@@ -67,6 +92,8 @@ class AdminRequestSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     makerspace_id = serializers.IntegerField(read_only=True)
     requester_username = serializers.CharField(read_only=True)
+    requester_contact_email = serializers.EmailField(read_only=True)
+    requester_contact_phone = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
     requested_for = serializers.CharField(read_only=True)
     rejection_reason = serializers.CharField(read_only=True)

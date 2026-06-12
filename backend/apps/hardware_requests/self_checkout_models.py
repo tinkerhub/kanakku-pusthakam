@@ -1,0 +1,71 @@
+from django.conf import settings
+from django.db import models
+
+
+class PublicToolLoan(models.Model):
+    class Source(models.TextChoices):
+        PUBLIC_SELF_CHECKOUT = "public_self_checkout", "Public Self Checkout"
+        ADMIN_DIRECT = "admin_direct", "Admin Direct"
+
+    class Status(models.TextChoices):
+        CHECKED_OUT = "checked_out", "Checked Out"
+        RETURNED = "returned", "Returned"
+
+    makerspace = models.ForeignKey(
+        "makerspaces.Makerspace",
+        on_delete=models.PROTECT,
+        related_name="public_tool_loans",
+    )
+    qr_code = models.ForeignKey(
+        "boxes.QrCode",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="public_tool_loans",
+    )
+    request = models.OneToOneField(
+        "hardware_requests.HardwareRequest",
+        on_delete=models.PROTECT,
+        related_name="public_tool_loan",
+    )
+    requester = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="public_tool_loans",
+    )
+    target_type = models.CharField(max_length=20)
+    target_id = models.PositiveIntegerField()
+    target_label = models.CharField(max_length=200)
+    asset_ids = models.JSONField(default=list, blank=True)
+    # Every QR bundled into this loan. The qr_code FK holds only the first (the
+    # partial-unique constraint permits one active loan per qr_code); qr_ids tracks
+    # the rest so a secondary QR in a multi-QR direct handout can't be re-issued.
+    qr_ids = models.JSONField(default=list, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.CHECKED_OUT,
+        db_index=True,
+    )
+    source = models.CharField(
+        max_length=32,
+        choices=Source.choices,
+        default=Source.PUBLIC_SELF_CHECKOUT,
+        db_index=True,
+    )
+    checked_out_at = models.DateTimeField(auto_now_add=True)
+    due_at = models.DateTimeField(null=True, blank=True)
+    returned_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["qr_code"],
+                condition=models.Q(status="checked_out"),
+                name="uniq_active_public_tool_loan_per_qr",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["makerspace", "status"]),
+            models.Index(fields=["requester", "status"]),
+        ]

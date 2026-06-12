@@ -40,6 +40,7 @@ def _int_query_param(request, name, *, required=False):
         raise ValidationError({name: "Must be an integer."}) from exc
 
 
+@extend_schema(tags=["Printing"], summary="List or create personal print requests")
 class PrintRequestCreateListView(generics.ListCreateAPIView):
     permission_classes = [IsActiveRequester]
 
@@ -77,6 +78,7 @@ class PrintRequestCreateListView(generics.ListCreateAPIView):
         )
 
 
+@extend_schema(tags=["Printing"], summary="Retrieve personal print request")
 class PrintRequestDetailView(generics.RetrieveAPIView):
     permission_classes = [IsActiveRequester]
     serializer_class = PrintRequestSerializer
@@ -95,6 +97,7 @@ class PrintRequestDetailView(generics.RetrieveAPIView):
         return super().get(request, *args, **kwargs)
 
 
+@extend_schema(tags=["Printing"], summary="List active print buckets")
 class PrintBucketListView(generics.ListAPIView):
     permission_classes = [IsActiveRequester]
     serializer_class = PrintBucketSerializer
@@ -150,6 +153,7 @@ class ManagedPrintRequestQuerysetMixin:
         return qs
 
 
+@extend_schema(tags=["Printing"], summary="List managed print requests")
 class ManagedPrintRequestListView(
     ManagedPrintRequestQuerysetMixin, generics.ListAPIView
 ):
@@ -168,6 +172,7 @@ class ManagedPrintRequestListView(
         return super().get(request, *args, **kwargs)
 
 
+@extend_schema(tags=["Printing"], summary="Retrieve managed print request")
 class ManagedPrintRequestDetailView(
     ManagedPrintRequestQuerysetMixin, generics.RetrieveAPIView
 ):
@@ -179,6 +184,7 @@ class ManagedPrintRequestDetailView(
         return super().get(request, *args, **kwargs)
 
 
+@extend_schema(tags=["Printing"], summary="List completed print requests")
 class PrintedListView(ManagedPrintRequestQuerysetMixin, generics.ListAPIView):
     permission_classes = [CanManagePrinting]
     serializer_class = PrintRequestSerializer
@@ -239,6 +245,7 @@ class PrintRequestActionView(ManagedPrintRequestQuerysetMixin, generics.GenericA
         )
 
 
+@extend_schema(tags=["Printing"], summary="Accept print request")
 class PrintRequestAcceptView(PrintRequestActionView):
     action = "accept"
 
@@ -247,6 +254,7 @@ class PrintRequestAcceptView(PrintRequestActionView):
         return super().post(request, *args, **kwargs)
 
 
+@extend_schema(tags=["Printing"], summary="Reject print request")
 class PrintRequestRejectView(PrintRequestActionView):
     action = "reject"
     request_serializer_class = RejectFailSerializer
@@ -259,6 +267,7 @@ class PrintRequestRejectView(PrintRequestActionView):
         return super().post(request, *args, **kwargs)
 
 
+@extend_schema(tags=["Printing"], summary="Start print request")
 class PrintRequestStartView(PrintRequestActionView):
     action = "start"
 
@@ -267,6 +276,7 @@ class PrintRequestStartView(PrintRequestActionView):
         return super().post(request, *args, **kwargs)
 
 
+@extend_schema(tags=["Printing"], summary="Complete print request")
 class PrintRequestCompleteView(PrintRequestActionView):
     action = "complete"
 
@@ -275,6 +285,7 @@ class PrintRequestCompleteView(PrintRequestActionView):
         return super().post(request, *args, **kwargs)
 
 
+@extend_schema(tags=["Printing"], summary="Mark print request failed")
 class PrintRequestFailView(PrintRequestActionView):
     action = "fail"
     request_serializer_class = RejectFailSerializer

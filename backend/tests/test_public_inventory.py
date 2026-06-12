@@ -15,6 +15,20 @@ pytestmark = pytest.mark.django_db
 PUBLIC_PRODUCT_FIELDS = {"id", "name", "description", "availability"}
 
 
+def test_public_lookup_prefers_slug_over_colliding_public_code():
+    # A user-controlled slug can collide with another makerspace's 4-char public_code.
+    # The lookup must resolve deterministically (slug wins) instead of raising
+    # MultipleObjectsReturned -> 500.
+    from apps.makerspaces.lookup import get_public_makerspace
+
+    by_slug = Makerspace.objects.create(name="Slug Space", slug="ABCD")
+    by_code = Makerspace.objects.create(name="Code Space", slug="code-space")
+    by_code.public_code = "ABCD"
+    by_code.save(update_fields=["public_code"])
+
+    assert get_public_makerspace("ABCD").pk == by_slug.pk
+
+
 @pytest.fixture
 def api_client():
     return APIClient()
@@ -33,6 +47,13 @@ def public_inventory_url(makerspace):
     return reverse(
         "public-inventory",
         kwargs={"makerspace_slug": makerspace.slug},
+    )
+
+
+def public_inventory_code_url(makerspace):
+    return reverse(
+        "public-inventory",
+        kwargs={"makerspace_slug": makerspace.public_code},
     )
 
 
@@ -88,6 +109,23 @@ def test_lists_only_public_non_archived_products(api_client, public_makerspace):
     assert "Archived Product" not in names
 
 
+def test_public_inventory_searches_name_and_description(api_client, public_makerspace):
+    create_product(public_makerspace, name="Oscilloscope")
+    create_product(
+        public_makerspace,
+        name="Bench Supply",
+        description="Regulated soldering station power supply",
+    )
+    create_product(public_makerspace, name="Calipers")
+
+    response = api_client.get(public_inventory_url(public_makerspace), {"q": "solder"})
+
+    assert response.status_code == 200
+    assert [product["name"] for product in response.data["results"]] == [
+        "Bench Supply"
+    ]
+
+
 def test_lists_public_makerspaces(api_client, public_makerspace):
     Makerspace.objects.create(
         name="Private Lab",
@@ -105,8 +143,18 @@ def test_lists_public_makerspaces(api_client, public_makerspace):
 
     assert response.status_code == 200
     assert response.data == [
-        {"name": "Fab Lab", "slug": "fab-lab", "location": "Building A"},
-        {"name": "Public Lab", "slug": "public-lab", "location": ""},
+        {
+            "name": "Fab Lab",
+            "public_code": response.data[0]["public_code"],
+            "slug": "fab-lab",
+            "location": "Building A",
+        },
+        {
+            "name": "Public Lab",
+            "public_code": public_makerspace.public_code,
+            "slug": "public-lab",
+            "location": "",
+        },
     ]
 
 
@@ -246,6 +294,15 @@ def test_unknown_slug_returns_404(api_client):
     assert response.status_code == 404
 
 
+def test_public_inventory_accepts_public_code(api_client, public_makerspace):
+    create_product(public_makerspace, name="Code Product")
+
+    response = api_client.get(public_inventory_code_url(public_makerspace))
+
+    assert response.status_code == 200
+    assert response.data["results"][0]["name"] == "Code Product"
+
+
 def test_public_disabled_returns_404(api_client):
     makerspace = Makerspace.objects.create(
         name="Private Lab",
@@ -288,6 +345,61 @@ def test_hmac_allows_signed_public_inventory_request(
     assert response.status_code == 200
 
 
+def test_frontend_api_client_allows_matching_origin_and_makerspace_code(
+    settings,
+    api_client,
+    public_makerspace,
+):
+    from apps.apiclients.models import ApiClient
+
+    settings.API_CLIENT_AUTH_REQUIRED = True
+    settings.HMAC_PROTECTED_PATH_PREFIXES = ["/api/public/"]
+    ApiClient.issue(
+        label="frontend",
+        makerspace=public_makerspace,
+        allowed_origins=["https://lab.example.com"],
+    )
+    client = public_makerspace.api_clients.get()
+    create_product(public_makerspace)
+
+    response = api_client.get(
+        public_inventory_code_url(public_makerspace),
+        HTTP_X_CLIENT_ID=client.client_id,
+        HTTP_ORIGIN="https://lab.example.com",
+    )
+
+    assert response.status_code == 200
+
+
+def test_frontend_api_client_rejects_other_makerspace_code(
+    settings,
+    api_client,
+    public_makerspace,
+):
+    from apps.apiclients.models import ApiClient
+
+    other = Makerspace.objects.create(
+        name="Other Lab",
+        slug="other-lab",
+        public_inventory_enabled=True,
+    )
+    settings.API_CLIENT_AUTH_REQUIRED = True
+    settings.HMAC_PROTECTED_PATH_PREFIXES = ["/api/public/"]
+    client, _secret = ApiClient.issue(
+        label="frontend",
+        makerspace=public_makerspace,
+        allowed_origins=["https://lab.example.com"],
+    )
+
+    response = api_client.get(
+        public_inventory_code_url(other),
+        HTTP_X_CLIENT_ID=client.client_id,
+        HTTP_ORIGIN="https://lab.example.com",
+    )
+
+    assert response.status_code == 401
+
+
 @pytest.mark.parametrize("invalid_signature_case", ["missing", "wrong-client", "wrong-secret"])
 def test_hmac_rejects_unsigned_or_invalid_public_inventory_request(
     settings,
@@ -327,8 +439,20 @@ def test_openapi_schema_includes_public_inventory_path(api_client):
 
 
 def test_backend_docs_are_not_under_api_prefix(api_client):
-    assert api_client.get("/").status_code == 200
-    assert api_client.get("/docs/").status_code == 200
+    root = api_client.get("/")
+    assert root.status_code == 200
+    assert b"/docs/" in root.content
+    assert b"/redoc/" in root.content
+    assert b"window.location.hash" in root.content
+
+    docs = api_client.get("/docs/")
+    assert docs.status_code == 200
+    assert b"swagger" in docs.content.lower()
+
+    redoc = api_client.get("/redoc/")
+    assert redoc.status_code == 200
+    assert b"redoc" in redoc.content.lower()
+
     assert api_client.get("/schema/").status_code == 200
     assert api_client.get("/api/docs/").status_code == 404
     assert api_client.get("/api/schema/").status_code == 404

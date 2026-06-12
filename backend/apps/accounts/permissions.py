@@ -5,7 +5,7 @@ from rest_framework.permissions import BasePermission, IsAuthenticated
 from apps.accounts import rbac
 from apps.accounts.models import User
 
-STAFF_ROLES = (User.Role.SUPERADMIN, User.Role.ADMIN, User.Role.GUEST_ADMIN)
+STAFF_ROLES = (User.Role.SUPERADMIN, User.Role.SPACE_MANAGER, User.Role.GUEST_ADMIN)
 
 
 def _active_staff(user):
@@ -44,6 +44,9 @@ class HasMakerspaceAction(BasePermission):
     (defaults to the `makerspace_id` URL kwarg)."""
 
     def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+        if getattr(user, "access_status", None) != User.AccessStatus.ACTIVE:
+            return False
         action = getattr(view, "required_action", None)
         if action is None:
             return False
@@ -51,7 +54,7 @@ class HasMakerspaceAction(BasePermission):
             ms_id = view.get_action_makerspace_id(request)
         else:
             ms_id = view.kwargs.get("makerspace_id")
-        return rbac.can(request.user, action, ms_id)
+        return rbac.can(user, action, ms_id)
 
 
 class MakerspaceScopedQuerysetMixin:

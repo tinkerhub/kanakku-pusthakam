@@ -47,12 +47,15 @@ def _verify_http(makerspace, identifier) -> CheckinResult:
     mode = "http"
     slug = getattr(makerspace, "slug", "")
     url = getattr(settings, "CHECKIN_API_URL", "")
+    api_key = getattr(settings, "CHECKIN_API_KEY", "")
     timeout = getattr(settings, "CHECKIN_TIMEOUT", 5.0)
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
 
     try:
         response = requests.post(
             url,
             json={"identifier": identifier, "makerspace": slug},
+            headers=headers,
             timeout=timeout,
         )
     except (requests.ConnectionError, requests.Timeout) as exc:

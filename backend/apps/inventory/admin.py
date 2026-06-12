@@ -8,7 +8,7 @@ from unfold.contrib.filters.admin import (
     RelatedDropdownFilter,
 )
 
-from apps.inventory.models import InventoryProduct
+from apps.inventory.models import InventoryAsset, InventoryProduct
 
 
 @admin.register(InventoryProduct)
@@ -44,3 +44,12 @@ class InventoryProductAdmin(ModelAdmin):
     date_hierarchy = "updated_at"
     list_filter_submit = True
     list_per_page = 50
+
+
+@admin.register(InventoryAsset)
+class InventoryAssetAdmin(ModelAdmin):
+    list_display = ("asset_tag", "product", "makerspace", "box", "status", "updated_at")
+    list_filter = ("makerspace", "status")
+    search_fields = ("asset_tag", "serial_number", "product__name")
+    autocomplete_fields = ("makerspace", "product", "box")
+    list_select_related = ("makerspace", "product", "box")

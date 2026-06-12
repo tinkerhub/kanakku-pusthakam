@@ -39,6 +39,10 @@ class PrintRequestCreateSerializer(serializers.ModelSerializer):
             "color",
             "quantity",
             "source_link",
+            "model_file",
+            "preferred_settings",
+            "estimate_screenshot",
+            "preview_screenshot",
         )
 
     def validate_bucket(self, value):
@@ -83,6 +87,10 @@ class PrintRequestSerializer(serializers.ModelSerializer):
             "color",
             "quantity",
             "source_link",
+            "model_file",
+            "preferred_settings",
+            "estimate_screenshot",
+            "preview_screenshot",
             "status",
             "reason",
             "handled_by",

@@ -30,7 +30,7 @@ def test_membership_links_reverse_relations_and_defaults_to_admin():
         user=user,
     )
 
-    assert membership.role == MakerspaceMembership.Role.ADMIN
+    assert membership.role == MakerspaceMembership.Role.SPACE_MANAGER
     assert user.makerspace_memberships.get() == membership
     assert makerspace.memberships.get() == membership
 

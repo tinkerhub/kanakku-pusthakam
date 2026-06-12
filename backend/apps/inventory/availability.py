@@ -7,6 +7,43 @@ class InsufficientStock(Exception):
     pass
 
 
+def issue_available(product, quantity):
+    """Move `quantity` of a single product straight from available -> issued.
+
+    The no-reservation flows (public self-checkout, admin direct handout) never go
+    through accept/reserve, so they skip the reserved bucket. The caller must
+    already hold a row lock on `product` (select_for_update) inside an atomic
+    block; centralizing the math here keeps the never-below-zero invariant in one
+    place instead of being open-coded in each workflow."""
+    if not connection.in_atomic_block:
+        raise RuntimeError("issue_available must be called inside transaction.atomic().")
+    if product.available_quantity < quantity:
+        raise InsufficientStock(
+            f"Insufficient stock for product {product.pk}: "
+            f"requested {quantity}, available {product.available_quantity}."
+        )
+    product.available_quantity -= quantity
+    product.issued_quantity += quantity
+    product.save(update_fields=["available_quantity", "issued_quantity", "updated_at"])
+
+
+def return_to_available(product, quantity):
+    """Move `quantity` of a single product back from issued -> available.
+
+    Mirror of `issue_available` for the no-reservation return paths. Same locking
+    contract as above."""
+    if not connection.in_atomic_block:
+        raise RuntimeError("return_to_available must be called inside transaction.atomic().")
+    if product.issued_quantity < quantity:
+        raise InsufficientStock(
+            f"Insufficient issued stock for product {product.pk}: "
+            f"returning {quantity}, issued {product.issued_quantity}."
+        )
+    product.issued_quantity -= quantity
+    product.available_quantity += quantity
+    product.save(update_fields=["issued_quantity", "available_quantity", "updated_at"])
+
+
 def reserve_for_request(request):
     if not connection.in_atomic_block:
         raise RuntimeError("reserve_for_request must be called inside transaction.atomic().")

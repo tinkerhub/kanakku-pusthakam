@@ -35,5 +35,6 @@ class PublicProductSerializer(serializers.Serializer):
 
 class PublicMakerspaceSerializer(serializers.Serializer):
     name = serializers.CharField(read_only=True)
+    public_code = serializers.CharField(read_only=True)
     slug = serializers.SlugField(read_only=True)
     location = serializers.CharField(read_only=True)

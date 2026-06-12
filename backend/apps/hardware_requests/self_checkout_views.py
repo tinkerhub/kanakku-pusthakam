@@ -1,0 +1,67 @@
+from drf_spectacular.utils import extend_schema
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
+
+from apps.hardware_requests import self_checkout_workflow
+from apps.hardware_requests.self_checkout_serializers import (
+    PublicToolLoanSerializer,
+    PublicToolScanSerializer,
+)
+from apps.hardware_requests.view_helpers import PUBLIC_ERROR_RESPONSES
+from apps.makerspaces.lookup import get_public_makerspace
+from apps.openapi import PUBLIC_TOOL_SCAN_EXAMPLE, PUBLISHABLE_KEY_PARAMETER
+
+
+class PublicToolCheckoutView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "request_submit"
+
+    @extend_schema(
+        tags=["Public requests"],
+        summary="Check out a public tool by QR",
+        auth=[],
+        parameters=[PUBLISHABLE_KEY_PARAMETER],
+        request=PublicToolScanSerializer,
+        responses={201: PublicToolLoanSerializer, **PUBLIC_ERROR_RESPONSES},
+        examples=[PUBLIC_TOOL_SCAN_EXAMPLE],
+    )
+    def post(self, request, makerspace_slug, *args, **kwargs):
+        makerspace = get_public_makerspace(makerspace_slug)
+        serializer = PublicToolScanSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        loan = self_checkout_workflow.checkout_tool(
+            makerspace,
+            serializer.validated_data["identifier"],
+            serializer.validated_data["payload"],
+        )
+        return Response(PublicToolLoanSerializer(loan).data, status=status.HTTP_201_CREATED)
+
+
+class PublicToolReturnView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "request_submit"
+
+    @extend_schema(
+        tags=["Public requests"],
+        summary="Return a public tool by QR",
+        auth=[],
+        parameters=[PUBLISHABLE_KEY_PARAMETER],
+        request=PublicToolScanSerializer,
+        responses={200: PublicToolLoanSerializer, **PUBLIC_ERROR_RESPONSES},
+        examples=[PUBLIC_TOOL_SCAN_EXAMPLE],
+    )
+    def post(self, request, makerspace_slug, *args, **kwargs):
+        makerspace = get_public_makerspace(makerspace_slug)
+        serializer = PublicToolScanSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        loan = self_checkout_workflow.return_tool(
+            makerspace,
+            serializer.validated_data["identifier"],
+            serializer.validated_data["payload"],
+        )
+        return Response(PublicToolLoanSerializer(loan).data)

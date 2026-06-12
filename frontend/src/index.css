@@ -13,4 +13,55 @@
   #root {
     min-height: 100vh;
   }
+
+  ::selection {
+    @apply bg-accent text-bg;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-line;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-bg;
+  }
+}
+
+@layer components {
+  .desk-shell {
+    @apply min-h-screen bg-bg text-ink;
+    background:
+      radial-gradient(circle at top left, rgb(251 185 5 / 0.06), transparent 28rem),
+      #09090b;
+  }
+
+  .desk-panel {
+    @apply rounded-md border border-line bg-panel shadow-lg shadow-black/20;
+  }
+
+  .desk-input {
+    @apply rounded-md border border-line bg-bg px-3 py-2 text-sm text-ink outline-none transition placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/20;
+  }
+
+  .desk-button {
+    @apply inline-flex items-center justify-center rounded-md border border-line bg-panel px-3 py-2 text-sm font-semibold text-ink transition hover:border-accent/60 hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30;
+  }
+
+  .desk-button-primary {
+    @apply inline-flex items-center justify-center rounded-md bg-accent px-3 py-2 text-sm font-semibold text-bg shadow-sm shadow-accent/20 transition hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent/40;
+  }
+
+  .desk-actions button {
+    @apply inline-flex items-center justify-center rounded-md border border-line bg-bg px-2 py-1 text-sm font-medium text-ink transition hover:border-accent/60 hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30;
+  }
+
+  .desk-panel-body > button,
+  .desk-panel-body > div > button {
+    @apply inline-flex items-center justify-center rounded-md bg-accent px-3 py-2 text-sm font-semibold text-bg transition hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent/40;
+  }
 }

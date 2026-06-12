@@ -10,9 +10,10 @@ infrastructure, the 3D Printing Manager (request lifecycle + email
 notifications), and the Hardware Request Workflow (public submission + admin
 accept/reject plus issue/handover, with check-in seam, reserve-at-acceptance, box
 scan, issue-photo attach, return processing/accountability, and stock movement
-through reserved/issued/returned/damaged/lost buckets) are in place. Telegram
-delivery beyond notification seams, the admin SPA, and the real Check-In API are
-still later phases.
+through reserved/issued/returned/damaged/lost buckets) are in place. The QR/asset
+module, admin REST surface, access-restriction endpoints, Telegram webhook/test
+alert integration, publishable-key public API hardening, and first-pass Space
+Manager (`/admin`) / Guest Admin frontend are also in place.
 
 Stack (in use):
 
@@ -54,26 +55,42 @@ cd backend && pytest
 ### Current source map (real paths)
 
 - `backend/config/` — Django project (`settings.py`, `urls.py`, wsgi/asgi). All API routes mounted under `/api/`.
-- `backend/apps/accounts/` — custom `User` model (`AUTH_USER_MODEL`), JWT auth views, and `rbac.py` (the Auth & RBAC module: `can(...)`, action-scoped `makerspaces_for_action`/`scope_by_action`, makerspace scoping).
+- `backend/apps/accounts/` - custom `User` model (`AUTH_USER_MODEL`), JWT auth views, and `rbac.py` (the Auth & RBAC module: `can(...)`, action-scoped `makerspaces_for_action`/`scope_by_action`, makerspace scoping).
 - `backend/apps/makerspaces/` — `Makerspace` model (tenant root; unique `slug`).
 - `backend/apps/audit/` - append-only `AuditLog` plus `audit.record(...)`.
 - `backend/apps/evidence/` - immutable evidence photo rows, S3-compatible storage
-  helpers, and signed upload/view URL endpoints.
+  helpers, and signed upload/view URL endpoints gated by per-makerspace
+  `UPLOAD_EVIDENCE` permission plus active account status.
 - `backend/apps/boxes/` - Box QR payloads plus immutable `BoxScan` records for
-  issue/return scan history.
+  issue/return scan history, generalized `QrCode`, and immutable `QrScanEvent`
+  records for box/product/asset scans.
+- `backend/apps/admin_api/` - staff REST surface for makerspaces, inventory CRUD,
+  bulk inventory import preview/apply, staff membership management
+  (`users/space-managers`, `users/inventory-managers`, `users/guest-admins`,
+  `users/print-managers`), user restrict/restore, and audit-log reads.
+- `backend/apps/integrations/` - Telegram message delivery, webhook callback
+  routing through the hardware request workflow, and test-alert endpoint. The
+  webhook authenticates Telegram's `X-Telegram-Bot-Api-Secret-Token` header
+  against `TELEGRAM_WEBHOOK_SECRET` (fail-closed when unset) before trusting the
+  attacker-controllable `from.id`; only then does it route accept/reject.
 - `backend/apps/hardware_requests/workflow.py` now also owns `assign_box` and
   `issue_request`/`return_items`; `views.py` exposes admin active-loans,
   assign-box, issue, and return endpoints with 404-before-403 scoping.
-- `backend/apps/inventory/availability.py` owns `reserve_for_request` and
-  `issue_items`/`return_items`; it is the only place
+- `backend/apps/inventory/availability.py` owns `reserve_for_request`,
+  `issue_items`/`return_items`, plus `issue_available`/`return_to_available` (the
+  no-reservation available↔issued path used by public self-checkout and admin
+  direct handout); it is the only place
   available/reserved/issued/damaged/lost counts change.
-- `backend/apps/inventory/` — `InventoryProduct` model, `public_availability.py` (availability service — seeds the Inventory Availability Module), `serializers.py` (allowlist-only public serializer), `views.py` (`PublicInventoryListView`), `urls.py`, `management/commands/seed_demo.py`.
+- `backend/apps/inventory/` — `InventoryProduct` and `InventoryAsset` models, `public_availability.py` (availability service — seeds the Inventory Availability Module), `serializers.py` (allowlist-only public serializer), `views.py` (`PublicInventoryListView`), `urls.py`, `management/commands/seed_demo.py`.
 - `backend/apps/printing/` — 3D Printing Manager: `PrintBucket`/`PrintRequest` models, `workflow.py` (single source of truth for status transitions, row-locked + audited), `permissions.py` (`CanManagePrinting`, action-aware 403/404), `emails.py` (fail-safe branded SMTP notifications), `serializers.py`, `views.py`, `urls.py`, `admin.py`. Templates in `backend/templates/email/`.
 - `backend/apps/hardware_requests/` — Hardware Request Workflow (submit + accept/reject + issue + return): `HardwareRequest`/`HardwareRequestItem`, immutable `ReturnEvent`, and immutable `RequesterAccountability` models; `workflow.py` (single source of truth: `submit_request`/`accept_request`/`reject_request`/`assign_box`/`issue_request`/`return_items`, atomic + row-locked + audited; reserve-at-acceptance); `permissions.py` (`CanReviewRequest`, `CanViewHandoverQueue`, `CanReturnRequest`); `serializers.py` (strict public-status allowlist plus return item resolutions); `views.py` (public submit/verify/status under HMAC-protected `public/`; admin queues + accept/reject/assign-box/issue/return with 404-before-403 scoping); `exceptions.py` (workflow→HTTP exception handler + `ErrorSerializer`); `notifications.py` (Telegram seam); `urls.py`, `admin.py`.
 - `backend/apps/checkin/` — fail-closed Check-In API client (`client.py`: `verify()`, `CheckinUnavailable`→503 / `CheckinDenied`→403; `stub` vs `http` backend via `CHECKIN_MODE`, http-mode config validated at boot).
-- `backend/apps/inventory/availability.py` — Inventory Availability quantity math (`reserve_for_request`, `issue_items`, `return_items`, row-locked, never-below-zero, `InsufficientStock`). The only place reserve/available/issued/damaged/lost counts change.
+- `backend/apps/inventory/availability.py` — Inventory Availability quantity math (`reserve_for_request`, `issue_items`, `return_items`, plus the no-reservation `issue_available`/`return_to_available` helpers; row-locked, never-below-zero, `InsufficientStock`). The only place reserve/available/issued/damaged/lost counts change — the self-checkout and direct-loan workflows delegate their stock mutations here rather than open-coding them.
 - `backend/tests/` — pytest behavior tests (public endpoint, auth/RBAC, audit/evidence, printing).
 - `frontend/src/features/inventory/` — `PublicInventoryPage`, `ProductCard`, `AvailabilityBadge`, query hook + API client.
+- `frontend/src/features/staff/` - first-pass Space Manager and Guest Admin panels:
+  login, request queues, handover/return actions, inventory table, bulk import
+  preview/apply, QR tools, users, and audit logs.
 - `frontend/src/lib/`, `frontend/src/components/ui/`, `frontend/src/types/` — query client, fetch wrapper, themed primitives, shared types.
 
 ### Public availability rule (resolves PRD §5's two overlapping fields)
@@ -100,6 +117,10 @@ The API response is DRF-paginated (`PageNumberPagination`, page size 24): `{ cou
 - Evidence upload uses presigned POST, not PUT, with exact MIME binding and a
   content-length range. Supported MIME types are configured by
   `EVIDENCE_ALLOWED_MIME`.
+- Evidence upload and detail URLs are scoped by the actor's per-makerspace
+  `UPLOAD_EVIDENCE` action and require active account status. They do not rely
+  on global staff roles, so membership-only Inventory Managers can upload/view
+  evidence in their assigned makerspace.
 - `AWS_S3_ENDPOINT_URL` is the backend-facing endpoint. `AWS_S3_PUBLIC_ENDPOINT_URL`
   is used for browser-facing presigned URLs. Host dev defaults both to
   `http://localhost:9000`; a dockerized backend will need the internal/public
@@ -133,7 +154,7 @@ The goal is not just to ship code, but to understand why each production-quality
 
 ## What This System Is
 
-A multi-tenant system for managing community hardware loans across makerspaces. The central concern is **traceability of physical handovers**: every issue and return must produce evidence (QR scans + photos + remarks + audit log) so that accountability for lost/damaged hardware is never ambiguous. Public users browse and request; only staff (admin / guest admin / superadmin) physically issue items.
+A multi-tenant system for managing community hardware loans across makerspaces. The central concern is **traceability of physical handovers**: every issue and return must produce evidence (QR scans + photos + remarks + audit log) so that accountability for lost/damaged hardware is never ambiguous. Public users browse and request; only authorized staff (Space Manager, Inventory Manager, Guest Admin, or Super Admin according to action scope) physically issue items.
 
 ## Architecture: Concepts That Span Multiple Modules
 
@@ -145,7 +166,7 @@ The PRD specifies a layered design where UIs and the Telegram bot are thin clien
 
 ### Module responsibilities (conceptual — no files exist yet)
 
-- **Auth & RBAC** — enforces the 4-role permission matrix AND makerspace scoping on every query. Admins/guest-admins are scoped to assigned makerspaces; superadmin sees all. Also verifies Telegram actors before bot actions and blocks `restricted`/`suspended` requesters. Interface: `can(actor, action, resource)`, `scopeByMakerspace(actor, query)`, `assertTelegramActorCan(...)`.
+- **Auth & RBAC** - enforces the role/action matrix AND makerspace scoping on every query. Super Admin is global; Space Manager, Inventory Manager, Guest Admin, and Print Manager are per-makerspace memberships. Inventory Manager is membership-only and covers the full hardware lifecycle (`view/edit_inventory`, accept/reject, assign box, issue, return, upload evidence, manage QR, view audit) but not printing, staff, or makerspace settings. Also verifies Telegram actors before bot actions and blocks restricted/suspended users. Interface: `can(actor, action, resource)`, `scopeByMakerspace(actor, query)`, `assertTelegramActorCan(...)`.
 - **Request Workflow** — owns the state machine, emits audit logs, triggers Telegram alerts, coordinates inventory reservation/issue/return.
 - **Inventory Availability** — quantity math + asset status for QR-tracked tools.
 - **QR Code & Box** — generates/resolves/revokes QR codes, assigns boxes to requests, tracks scan history.
@@ -164,14 +185,17 @@ The workflow module enforces *allowed* transitions only. `closed_with_issue` and
 
 ## Multi-Tenancy (Makerspace Scoping)
 
-Every domain entity is scoped to a `makerspace_id`. A makerspace owns its inventory, public URL, admins, guest admins, Telegram group chat ID, QR namespace, and audit-log scope. **Any list/query for admin or guest-admin actors must be makerspace-scoped through the Auth module** — forgetting this is a cross-tenant data leak, not just a bug.
+Every domain entity is scoped to a `makerspace_id`. A makerspace owns its inventory, public URL, Space Managers, Inventory Managers, Guest Admins, Telegram group chat ID, QR namespace, and audit-log scope. **Any list/query for makerspace-scoped staff actors must be scoped through the Auth module** - forgetting this is a cross-tenant data leak, not just a bug.
 
 ## Hard Rules Baked Into Workflows (don't regress these)
 
 - Hardware **cannot be issued** without both a box QR scan and an issue photo.
 - Hardware **cannot be returned** without a return photo and a return remark.
-- Issued quantity cannot exceed accepted quantity without admin/superadmin permission.
-- Guest admins can issue accepted requests but **cannot** accept/reject, edit inventory, or manage QR codes.
+- Issued quantity cannot exceed accepted quantity without authorized workflow permission.
+- Guest Admins can issue accepted requests but **cannot** accept/reject, edit inventory, manage QR, return, or create direct handouts. Direct handouts (a loan with no reviewed request) require the dedicated `ISSUE_DIRECT_LOAN` action, granted only to Space Manager + Inventory Manager.
+- Public request lookup verifies the identifier through Check-In and scopes results to that verified identity — it never matches free-text contact fields (no enumeration by known email/phone).
+- Inventory Managers can run the full hardware lifecycle but **cannot** manage printing, staff, or makerspace settings.
+- Evidence endpoints require per-makerspace `UPLOAD_EVIDENCE` plus active status; QR management also checks active status.
 - Evidence photos and QR scan records are **immutable**; audit logs are **append-only**.
 - Public inventory must never expose: storage locations, box IDs, QR codes, scan history, evidence photos, requester history, or hidden counts. Public visibility is governed per-item by `is_public`, `show_public_count`, and `public_availability_mode` (`exact_count | status_only | hidden`).
 

@@ -15,6 +15,7 @@ from apps.accounts.auth_cookies import (
 )
 from apps.accounts.models import User
 from apps.accounts.serializers import LoginSerializer, user_payload
+from apps.openapi import LOGIN_EXAMPLE
 
 
 UserPayloadSerializer = inline_serializer(
@@ -60,6 +61,8 @@ class LoginView(TokenObtainPairView):
     serializer_class = LoginSerializer
 
     @extend_schema(
+        tags=["Auth"],
+        summary="Log in staff user",
         auth=[],
         request=LoginRequestSerializer,
         responses={
@@ -67,6 +70,7 @@ class LoginView(TokenObtainPairView):
             401: OpenApiResponse(description="Invalid credentials or inactive account."),
             403: OpenApiResponse(description="Account access is restricted."),
         },
+        examples=[LOGIN_EXAMPLE],
     )
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -92,6 +96,8 @@ def _refresh_user_is_active(token_str):
 
 class RefreshView(TokenRefreshView):
     @extend_schema(
+        tags=["Auth"],
+        summary="Refresh access token",
         auth=[],
         request=None,
         responses={
@@ -126,6 +132,8 @@ class LogoutView(APIView):
     permission_classes = [AllowAny]  # cookie-based; protected by assert_csrf below
 
     @extend_schema(
+        tags=["Auth"],
+        summary="Log out and clear refresh cookie",
         auth=[],
         request=None,
         responses={
@@ -151,7 +159,8 @@ class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-        auth=["jwtAuth"],
+        tags=["Auth"],
+        summary="Get current staff profile",
         request=None,
         responses={
             200: UserPayloadSerializer,

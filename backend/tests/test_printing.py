@@ -1,6 +1,8 @@
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth import get_user_model
 from django.core import mail
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -26,8 +28,8 @@ def make_space(slug):
 def make_member(
     username,
     makerspace,
-    membership_role=MakerspaceMembership.Role.ADMIN,
-    role=User.Role.ADMIN,
+    membership_role=MakerspaceMembership.Role.SPACE_MANAGER,
+    role=User.Role.SPACE_MANAGER,
 ):
     user = make_user(username, role=role, access_status=User.AccessStatus.ACTIVE)
     MakerspaceMembership.objects.create(
@@ -148,6 +150,78 @@ def test_requester_creates_lists_and_retrieves_only_own_requests():
 
     response = authenticated_client(other_requester).get(request_detail_url(created))
     assert response.status_code == 404
+
+
+def test_requester_uploads_model_settings_and_bambu_screenshots(tmp_path):
+    makerspace = make_space("printing-files")
+    bucket = make_bucket(makerspace)
+    requester = make_user("print-file-requester", access_status=User.AccessStatus.ACTIVE)
+    client = authenticated_client(requester)
+
+    with override_settings(
+        MEDIA_ROOT=tmp_path,
+        STORAGES={
+            "default": {
+                "BACKEND": "django.core.files.storage.FileSystemStorage",
+            },
+            "staticfiles": {
+                "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+            },
+        },
+    ):
+        response = client.post(
+            request_list_url(),
+            {
+                "bucket": bucket.id,
+                "title": "Bracket with files",
+                "quantity": 1,
+                "model_file": SimpleUploadedFile(
+                    "bracket.stl",
+                    b"solid bracket\nendsolid bracket\n",
+                    content_type="model/stl",
+                ),
+                "preferred_settings": "0.2mm layer height, 15% gyroid infill",
+                "estimate_screenshot": SimpleUploadedFile(
+                    "estimate.png",
+                    b"estimate image",
+                    content_type="image/png",
+                ),
+                "preview_screenshot": SimpleUploadedFile(
+                    "preview.png",
+                    b"preview image",
+                    content_type="image/png",
+                ),
+            },
+        )
+
+    assert response.status_code == 201
+    created = PrintRequest.objects.get(pk=response.data["id"])
+    assert created.model_file.name.endswith(".stl")
+    assert created.preferred_settings == "0.2mm layer height, 15% gyroid infill"
+    assert created.estimate_screenshot.name.endswith(".png")
+    assert created.preview_screenshot.name.endswith(".png")
+    assert response.data["model_file"]
+    assert response.data["estimate_screenshot"]
+    assert response.data["preview_screenshot"]
+
+
+def test_requester_upload_rejects_non_model_file():
+    makerspace = make_space("printing-bad-file")
+    bucket = make_bucket(makerspace)
+    requester = make_user("bad-file-requester", access_status=User.AccessStatus.ACTIVE)
+
+    response = authenticated_client(requester).post(
+        request_list_url(),
+        {
+            "bucket": bucket.id,
+            "title": "Bad file",
+            "quantity": 1,
+            "model_file": SimpleUploadedFile("notes.txt", b"not a model"),
+        },
+    )
+
+    assert response.status_code == 400
+    assert PrintRequest.objects.count() == 0
 
 
 def test_request_create_rejects_inactive_bucket_but_allows_other_makerspace_bucket():
@@ -492,7 +566,7 @@ def test_print_email_templates_render_subject_and_branded_html(
     assert len(message.alternatives) == 1
     html, mimetype = message.alternatives[0]
     assert mimetype == "text/html"
-    assert "TinkerSpace" in html
+    assert "Makerspace" in html
     assert "background:#111111;color:#FBB905" in html
 
 
@@ -510,8 +584,8 @@ def test_printbucket_admin_scope_is_action_aware_not_raw_membership():
     user = make_member(
         "dual-role-admin",
         managed,
-        membership_role=MakerspaceMembership.Role.ADMIN,
-        role=User.Role.ADMIN,
+        membership_role=MakerspaceMembership.Role.SPACE_MANAGER,
+        role=User.Role.SPACE_MANAGER,
     )
     MakerspaceMembership.objects.create(
         user=user, makerspace=other, role=MakerspaceMembership.Role.GUEST_ADMIN

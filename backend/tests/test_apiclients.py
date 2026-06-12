@@ -11,6 +11,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 from apps.accounts.models import User
 from apps.apiclients.admin import ApiClientAdmin
 from apps.apiclients.models import ApiClient
+from apps.makerspaces.admin import MakerspaceAdmin
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
 pytestmark = pytest.mark.django_db
@@ -33,7 +34,7 @@ def test_issue_returns_raw_secret_and_stores_it_encrypted():
     assert bytes(client.secret_encrypted) != raw.encode()  # NOT plaintext at rest
 
 
-def _admin_user(username, role=User.Role.ADMIN):
+def _admin_user(username, role=User.Role.SPACE_MANAGER):
     return get_user_model().objects.create_user(
         username=username, email=f"{username}@e.com", role=role
     )
@@ -44,12 +45,30 @@ def test_admin_changelist_scoped_to_own_makerspace():
     ApiClient.issue(label="A-client", makerspace=a)
     ApiClient.issue(label="B-client", makerspace=b)
     admin_user = _admin_user("scoped")
-    MakerspaceMembership.objects.create(user=admin_user, makerspace=a, role="admin")
+    MakerspaceMembership.objects.create(user=admin_user, makerspace=a, role="space_manager")
 
     req = APIRequestFactory().get("/")
     req.user = admin_user
     qs = ApiClientAdmin(ApiClient, AdminSite()).get_queryset(req)
     assert {c.makerspace_id for c in qs} == {a.id}  # cannot see B's client
+
+
+def test_integration_fields_live_on_api_client_admin_not_makerspace_admin():
+    makerspace_admin = MakerspaceAdmin(Makerspace, AdminSite())
+    makerspace_fields = {
+        field
+        for _title, options in makerspace_admin.fieldsets
+        for field in options["fields"]
+    }
+    api_client_admin = ApiClientAdmin(ApiClient, AdminSite())
+
+    assert "public_api_key" not in makerspace_fields
+    assert "cors_allowed_origins" not in makerspace_fields
+    assert "telegram_bot_token" not in makerspace_fields
+    assert "smtp_password" not in makerspace_fields
+    assert "makerspace_public_api_key" in api_client_admin.fields
+    assert "telegram_bot_token" in api_client_admin.fields
+    assert "smtp_password" in api_client_admin.fields
 
 
 PUBLIC = "/api/v1/public/makerspaces/"

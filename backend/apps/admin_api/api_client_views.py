@@ -1,0 +1,112 @@
+from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
+from rest_framework import generics, status
+from rest_framework.response import Response
+
+from apps.accounts import rbac
+from apps.admin_api.api_client_serializers import (
+    ApiClientSerializer,
+    ApiIntegrationSettingsSerializer,
+)
+from apps.admin_api.permissions import IsActiveStaff, require_action
+from apps.apiclients.models import ApiClient
+from apps.apiclients.services import sync_makerspace_origins
+from apps.audit import services as audit
+from apps.makerspaces.models import Makerspace
+
+
+@extend_schema(tags=["API clients"], summary="List or create makerspace API clients")
+class ApiClientListCreateView(generics.ListCreateAPIView):
+    serializer_class = ApiClientSerializer
+    permission_classes = [IsActiveStaff]
+
+    def get_queryset(self):
+        makerspace_id = self.kwargs["makerspace_id"]
+        require_action(self.request.user, rbac.Action.MANAGE_MAKERSPACE, makerspace_id)
+        return (
+            ApiClient.objects.select_related("makerspace")
+            .filter(makerspace_id=makerspace_id)
+            .order_by("label")
+        )
+
+    def create(self, request, *args, **kwargs):
+        makerspace_id = self.kwargs["makerspace_id"]
+        require_action(request.user, rbac.Action.MANAGE_MAKERSPACE, makerspace_id)
+        makerspace = get_object_or_404(Makerspace, pk=makerspace_id)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        client, secret = ApiClient.issue(
+            label=serializer.validated_data["label"],
+            makerspace=makerspace,
+            allowed_origins=serializer.validated_data["allowed_origins"],
+            created_by=request.user,
+        )
+        client.is_active = serializer.validated_data.get("is_active", True)
+        client.save(update_fields=["is_active", "updated_at"])
+        sync_makerspace_origins(makerspace)
+        data = self.get_serializer(client).data
+        data["client_secret"] = secret
+        audit.record(
+            request.user,
+            "api_client.created",
+            makerspace=makerspace,
+            target=client,
+            meta={"allowed_origins": client.allowed_origins},
+        )
+        return Response(data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(tags=["API clients"], summary="Retrieve, update, or delete API client")
+class ApiClientDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ApiClientSerializer
+    permission_classes = [IsActiveStaff]
+    http_method_names = ["get", "patch", "delete", "head", "options"]
+
+    def get_queryset(self):
+        return rbac.scope_by_action(
+            self.request.user,
+            rbac.Action.MANAGE_MAKERSPACE,
+            ApiClient.objects.select_related("makerspace"),
+        )
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        sync_makerspace_origins(instance.makerspace)
+        audit.record(
+            self.request.user,
+            "api_client.updated",
+            makerspace=instance.makerspace,
+            target=instance,
+        )
+
+    def perform_destroy(self, instance):
+        makerspace = instance.makerspace
+        audit.record(
+            self.request.user,
+            "api_client.deleted",
+            makerspace=makerspace,
+            target=instance,
+        )
+        instance.delete()
+        sync_makerspace_origins(makerspace)
+
+
+@extend_schema(tags=["API clients"], summary="Retrieve or update API integration settings")
+class ApiIntegrationSettingsView(generics.RetrieveUpdateAPIView):
+    serializer_class = ApiIntegrationSettingsSerializer
+    permission_classes = [IsActiveStaff]
+    http_method_names = ["get", "patch", "head", "options"]
+
+    def get_object(self):
+        makerspace_id = self.kwargs["makerspace_id"]
+        require_action(self.request.user, rbac.Action.MANAGE_MAKERSPACE, makerspace_id)
+        return get_object_or_404(Makerspace, pk=makerspace_id)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        audit.record(
+            self.request.user,
+            "api_integration.updated",
+            makerspace=instance,
+            target=instance,
+        )

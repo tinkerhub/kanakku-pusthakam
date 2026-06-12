@@ -24,7 +24,7 @@ def test_superadmin_scope_is_all():
 
 
 def test_admin_scope_is_membership_makerspaces():
-    u = make_user("a", role=User.Role.ADMIN)
+    u = make_user("a", role=User.Role.SPACE_MANAGER)
     s1, s2 = make_space("s1"), make_space("s2")
     MakerspaceMembership.objects.create(user=u, makerspace=s1)
     assert rbac.resolve_scope(u) == {s1.id}
@@ -37,7 +37,7 @@ def test_requester_scope_empty():
 
 
 def test_scope_by_makerspace_filters_other_tenants():
-    admin = make_user("a2", role=User.Role.ADMIN)
+    admin = make_user("a2", role=User.Role.SPACE_MANAGER)
     s1, s2 = make_space("t1"), make_space("t2")
     MakerspaceMembership.objects.create(user=admin, makerspace=s1)
     qs = Makerspace.objects.all()
@@ -46,10 +46,10 @@ def test_scope_by_makerspace_filters_other_tenants():
 
 
 def test_can_matrix_admin_vs_guest_admin():
-    admin = make_user("ad", role=User.Role.ADMIN)
+    admin = make_user("ad", role=User.Role.SPACE_MANAGER)
     guest = make_user("gu", role=User.Role.GUEST_ADMIN)
     s = make_space("m1")
-    MakerspaceMembership.objects.create(user=admin, makerspace=s, role="admin")
+    MakerspaceMembership.objects.create(user=admin, makerspace=s, role="space_manager")
     MakerspaceMembership.objects.create(user=guest, makerspace=s, role="guest_admin")
 
     assert rbac.can(admin, rbac.Action.ACCEPT_REQUEST, s.id) is True
@@ -60,9 +60,9 @@ def test_can_matrix_admin_vs_guest_admin():
 
 
 def test_can_denies_out_of_scope_makerspace():
-    admin = make_user("ad2", role=User.Role.ADMIN)
+    admin = make_user("ad2", role=User.Role.SPACE_MANAGER)
     s1, s2 = make_space("x1"), make_space("x2")
-    MakerspaceMembership.objects.create(user=admin, makerspace=s1, role="admin")
+    MakerspaceMembership.objects.create(user=admin, makerspace=s1, role="space_manager")
     assert rbac.can(admin, rbac.Action.ACCEPT_REQUEST, s2.id) is False
 
 
@@ -74,15 +74,48 @@ def test_superadmin_can_everything_including_transfer():
 
 
 def test_admin_cannot_transfer_stock():
-    admin = make_user("ad3", role=User.Role.ADMIN)
+    admin = make_user("ad3", role=User.Role.SPACE_MANAGER)
     s = make_space("z2")
-    MakerspaceMembership.objects.create(user=admin, makerspace=s, role="admin")
+    MakerspaceMembership.objects.create(user=admin, makerspace=s, role="space_manager")
     assert rbac.can(admin, rbac.Action.TRANSFER_STOCK, s.id) is False
+
+
+def test_inventory_manager_gets_full_hardware_actions_only():
+    user = make_user("inventory-manager", role=User.Role.REQUESTER)
+    makerspace = make_space("inventory-manager-space")
+    MakerspaceMembership.objects.create(
+        user=user,
+        makerspace=makerspace,
+        role=MakerspaceMembership.Role.INVENTORY_MANAGER,
+    )
+
+    allowed = {
+        rbac.Action.VIEW_INVENTORY,
+        rbac.Action.EDIT_INVENTORY,
+        rbac.Action.ACCEPT_REQUEST,
+        rbac.Action.REJECT_REQUEST,
+        rbac.Action.ASSIGN_BOX,
+        rbac.Action.ISSUE_REQUEST,
+        rbac.Action.RETURN_REQUEST,
+        rbac.Action.UPLOAD_EVIDENCE,
+        rbac.Action.MANAGE_QR,
+        rbac.Action.VIEW_AUDIT,
+    }
+    denied = {
+        rbac.Action.MANAGE_PRINTING,
+        rbac.Action.MANAGE_STAFF,
+        rbac.Action.MANAGE_MAKERSPACE,
+    }
+
+    for action in allowed:
+        assert rbac.can(user, action, makerspace.id) is True
+    for action in denied:
+        assert rbac.can(user, action, makerspace.id) is False
 
 
 def test_membership_role_overrides_global_role():
     # Globally `admin`, but only a guest_admin member of THIS makerspace.
-    u = make_user("mix", role=User.Role.ADMIN)
+    u = make_user("mix", role=User.Role.SPACE_MANAGER)
     s = make_space("mx")
     MakerspaceMembership.objects.create(user=u, makerspace=s, role="guest_admin")
     assert rbac.can(u, rbac.Action.ACCEPT_REQUEST, s.id) is False  # guest can't accept
@@ -90,7 +123,7 @@ def test_membership_role_overrides_global_role():
 
 
 def test_non_member_denied_even_with_global_staff_role():
-    u = make_user("nm", role=User.Role.ADMIN)
+    u = make_user("nm", role=User.Role.SPACE_MANAGER)
     s = make_space("nm1")  # no membership created
     assert rbac.can(u, rbac.Action.VIEW_INVENTORY, s.id) is False
 
@@ -114,7 +147,7 @@ def test_permission_classes_basic():
 
 def test_isstaff_rejects_suspended_after_login():
     rf = APIRequestFactory()
-    suspended = make_user("p3", role=User.Role.ADMIN,
+    suspended = make_user("p3", role=User.Role.SPACE_MANAGER,
                           access_status=User.AccessStatus.SUSPENDED)
     req = rf.get("/")
     req.user = suspended

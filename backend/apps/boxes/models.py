@@ -108,3 +108,93 @@ class BoxScan(models.Model):
 
     def delete(self, *args, **kwargs):
         raise RuntimeError("BoxScan rows are immutable.")
+
+
+class QrCode(models.Model):
+    class TargetType(models.TextChoices):
+        BOX = "box", "Box"
+        PRODUCT = "product", "Product"
+        ASSET = "asset", "Asset"
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        REVOKED = "revoked", "Revoked"
+
+    makerspace = models.ForeignKey(
+        Makerspace,
+        on_delete=models.CASCADE,
+        related_name="qr_codes",
+    )
+    payload = models.CharField(max_length=64, unique=True, default=generate_box_code)
+    target_type = models.CharField(max_length=20, choices=TargetType.choices)
+    target_id = models.PositiveIntegerField()
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+        db_index=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["makerspace", "target_type", "target_id"],
+                condition=models.Q(status="active"),
+                name="uniq_active_qr_per_target",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.target_type}:{self.target_id} [{self.status}]"
+
+
+class QrScanEvent(models.Model):
+    """Immutable generalized QR scan record for boxes, products, and assets."""
+
+    class Context(models.TextChoices):
+        ISSUE = "issue", "Issue"
+        RETURN = "return", "Return"
+        INVENTORY_CHECK = "inventory_check", "Inventory Check"
+        REASSIGNMENT = "reassignment", "Reassignment"
+
+    makerspace = models.ForeignKey(
+        Makerspace,
+        on_delete=models.PROTECT,
+        related_name="qr_scan_events",
+    )
+    qr_code = models.ForeignKey(
+        QrCode,
+        on_delete=models.PROTECT,
+        related_name="scan_events",
+    )
+    request = models.ForeignKey(
+        "hardware_requests.HardwareRequest",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    context = models.CharField(max_length=32, choices=Context.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise RuntimeError("QrScanEvent rows are immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise RuntimeError("QrScanEvent rows are immutable.")

@@ -44,6 +44,7 @@ class InventoryProduct(models.Model):
     damaged_quantity = models.PositiveIntegerField(default=0)
     lost_quantity = models.PositiveIntegerField(default=0)
     is_public = models.BooleanField(default=True)
+    public_self_checkout_enabled = models.BooleanField(default=False)
     show_public_count = models.BooleanField(default=False)
     public_availability_mode = models.CharField(
         max_length=20,
@@ -106,3 +107,67 @@ class InventoryProduct(models.Model):
             raise ValidationError(
                 {"box": "Box must belong to the same makerspace as the product."}
             )
+
+
+class InventoryAsset(models.Model):
+    class Status(models.TextChoices):
+        AVAILABLE = "available", "Available"
+        RESERVED = "reserved", "Reserved"
+        ISSUED = "issued", "Issued"
+        DAMAGED = "damaged", "Damaged"
+        LOST = "lost", "Lost"
+        RETIRED = "retired", "Retired"
+        MAINTENANCE = "maintenance", "Maintenance"
+
+    makerspace = models.ForeignKey(
+        Makerspace,
+        on_delete=models.CASCADE,
+        related_name="assets",
+    )
+    product = models.ForeignKey(
+        InventoryProduct,
+        on_delete=models.CASCADE,
+        related_name="assets",
+    )
+    box = models.ForeignKey(
+        "boxes.Box",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assets",
+    )
+    asset_tag = models.CharField(max_length=100)
+    serial_number = models.CharField(max_length=100, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.AVAILABLE,
+        db_index=True,
+    )
+    public_self_checkout_enabled = models.BooleanField(default=False)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["makerspace", "asset_tag"],
+                name="uniq_asset_tag_per_makerspace",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["makerspace", "status"]),
+        ]
+
+    def clean(self):
+        errors = {}
+        if self.product_id and self.product.makerspace_id != self.makerspace_id:
+            errors["product"] = "Product must belong to the same makerspace."
+        if self.box_id and self.box.makerspace_id != self.makerspace_id:
+            errors["box"] = "Box must belong to the same makerspace."
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return f"{self.asset_tag} ({self.makerspace.slug})"

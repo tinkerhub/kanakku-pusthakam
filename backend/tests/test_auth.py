@@ -17,7 +17,7 @@ def _allow_test_origin(settings):
     settings.CORS_ALLOWED_ORIGINS = ["http://localhost:5000"]
 
 
-def make_staff(username="boss", role=User.Role.ADMIN, password="pw-strong-123", **kw):
+def make_staff(username="boss", role=User.Role.SPACE_MANAGER, password="pw-strong-123", **kw):
     return get_user_model().objects.create_user(
         username=username, email=f"{username}@e.com", password=password, role=role, **kw
     )
@@ -26,7 +26,7 @@ def make_staff(username="boss", role=User.Role.ADMIN, password="pw-strong-123", 
 def test_login_returns_access_and_sets_refresh_cookie():
     user = make_staff()
     s = Makerspace.objects.create(name="Lab", slug="lab")
-    MakerspaceMembership.objects.create(user=user, makerspace=s, role="admin")
+    MakerspaceMembership.objects.create(user=user, makerspace=s, role="space_manager")
     client = APIClient()
 
     resp = client.post(LOGIN, {"username": "boss", "password": "pw-strong-123"}, format="json")
@@ -34,7 +34,7 @@ def test_login_returns_access_and_sets_refresh_cookie():
     assert resp.status_code == 200
     assert "access" in resp.data
     assert "refresh" not in resp.data  # refresh lives in the cookie, never the body
-    assert resp.data["user"]["role"] == "admin"
+    assert resp.data["user"]["role"] == "space_manager"
     assert resp.data["user"]["makerspaces"][0]["slug"] == "lab"
     assert "refresh_token" in resp.cookies
     assert resp.cookies["refresh_token"]["httponly"] is True
@@ -147,4 +147,4 @@ def test_me_requires_auth_and_returns_profile():
     resp = client.get(ME)
     assert resp.status_code == 200
     assert resp.data["username"] == "meuser"
-    assert resp.data["role"] == "admin"
+    assert resp.data["role"] == "space_manager"

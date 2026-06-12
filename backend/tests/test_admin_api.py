@@ -1,0 +1,401 @@
+import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+from apps.accounts.models import User
+from apps.apiclients.models import ApiClient
+from apps.audit.models import AuditLog
+from apps.inventory.models import InventoryProduct
+from apps.makerspaces.models import MakerspaceMembership
+from tests.return_helpers import (
+    authenticated_client,
+    make_box,
+    make_member,
+    make_product,
+    make_space,
+    make_user,
+)
+
+pytestmark = pytest.mark.django_db
+
+
+def test_bulk_import_preview_rejects_malformed_file():
+    makerspace = make_space("bulk-bad-file")
+    admin = make_member("bulk-bad-file-admin", makerspace)
+    bad = SimpleUploadedFile(
+        "items.json", b"{ not valid json", content_type="application/json"
+    )
+
+    response = authenticated_client(admin).post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory/import/preview",
+        {"file": bad},
+        format="multipart",
+    )
+
+    # Malformed user input must be a 400, not a 500.
+    assert response.status_code == 400
+
+
+def test_sync_makerspace_origins_is_noop_for_global_client():
+    from apps.apiclients.services import sync_makerspace_origins
+
+    # A global client has makerspace=None; syncing must no-op, not crash.
+    sync_makerspace_origins(None)
+
+
+def test_inventory_patch_rejects_cross_makerspace_box():
+    space_a = make_space("inv-box-a")
+    space_b = make_space("inv-box-b")
+    admin = make_member("inv-box-admin", space_a)
+    product = make_product(space_a, name="Bench Vise")
+    box_b = make_box(space_b)
+
+    response = authenticated_client(admin).patch(
+        f"/api/v1/admin/inventory/{product.id}",
+        {"box": box_b.id},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    product.refresh_from_db()
+    assert product.box_id is None
+
+
+def test_inventory_patch_cannot_move_product_across_makerspaces():
+    space_a = make_space("inv-mv-a")
+    space_b = make_space("inv-mv-b")
+    admin = make_member("inv-mv-admin", space_a)
+    product = make_product(space_a, name="Soldering Station")
+
+    response = authenticated_client(admin).patch(
+        f"/api/v1/admin/inventory/{product.id}",
+        {"makerspace": space_b.id, "name": "Renamed"},
+        format="json",
+    )
+
+    # makerspace is read-only, so the move is silently ignored while the rest applies.
+    assert response.status_code == 200
+    product.refresh_from_db()
+    assert product.makerspace_id == space_a.id
+    assert product.name == "Renamed"
+
+
+def test_superadmin_can_restrict_and_restore_user_access():
+    superadmin = make_user(
+        "restrictor",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    target = make_user("target", access_status=User.AccessStatus.ACTIVE)
+    client = authenticated_client(superadmin)
+
+    restricted = client.post(
+        f"/api/v1/admin/users/{target.id}/restrict",
+        {"reason": "Missing tool", "status": User.AccessStatus.RESTRICTED},
+        format="json",
+    )
+    restored = client.post(f"/api/v1/admin/users/{target.id}/restore-access")
+
+    assert restricted.status_code == 200
+    assert restored.status_code == 200
+    target.refresh_from_db()
+    assert target.access_status == User.AccessStatus.ACTIVE
+    assert target.restriction_reason == ""
+    assert {"user.access_restricted", "user.access_restored"} <= set(
+        AuditLog.objects.values_list("action", flat=True)
+    )
+
+
+def test_admin_bulk_import_preview_and_apply_are_makerspace_scoped():
+    makerspace = make_space("bulk-import")
+    admin = make_member("bulk-admin", makerspace)
+    client = authenticated_client(admin)
+    rows = [
+        {
+            "name": "Scope",
+            "total_quantity": "3",
+            "available_quantity": "3",
+            "public_availability_mode": "status_only",
+        }
+    ]
+
+    preview = client.post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory/import/preview",
+        {"rows": rows},
+        format="json",
+    )
+    applied = client.post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory/import/apply",
+        {"rows": rows},
+        format="json",
+    )
+
+    assert preview.status_code == 200
+    assert preview.data["valid"] is True
+    assert applied.status_code == 200
+    assert applied.data["applied"] is True
+    product = InventoryProduct.objects.get(makerspace=makerspace, name="Scope")
+    assert product.total_quantity == 3
+    assert product.available_quantity == 3
+
+
+def test_bulk_import_rejects_bad_quantity_buckets():
+    makerspace = make_space("bulk-bad")
+    admin = make_member("bulk-bad-admin", makerspace)
+    response = authenticated_client(admin).post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory/import/preview",
+        {
+            "rows": [
+                {
+                    "name": "Meter",
+                    "total_quantity": "1",
+                    "available_quantity": "2",
+                }
+            ]
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["valid"] is False
+    assert response.data["errors"][0]["errors"]["total_quantity"]
+
+
+def test_bulk_import_accepts_xlsx_upload():
+    from io import BytesIO
+
+    import openpyxl
+
+    makerspace = make_space("bulk-xlsx")
+    admin = make_member("bulk-xlsx-admin", makerspace)
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.append(["name", "total_quantity", "available_quantity"])
+    sheet.append(["Calipers", 2, 2])
+    stream = BytesIO()
+    workbook.save(stream)
+    stream.seek(0)
+
+    response = authenticated_client(admin).post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory/import/apply",
+        {"file": SimpleUploadedFile("products.xlsx", stream.read())},
+    )
+
+    assert response.status_code == 200
+    assert response.data["applied"] is True
+    assert InventoryProduct.objects.filter(
+        makerspace=makerspace,
+        name="Calipers",
+        total_quantity=2,
+    ).exists()
+
+
+def test_admin_can_create_and_list_makerspace_api_clients():
+    makerspace = make_space("client-space")
+    admin = make_member("client-admin", makerspace)
+    client = authenticated_client(admin)
+
+    created = client.post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/api-clients",
+        {
+            "label": "Public web",
+            "allowed_origins": ["https://lab.example.com"],
+        },
+        format="json",
+    )
+    listed = client.get(f"/api/v1/admin/makerspace/{makerspace.id}/api-clients")
+
+    assert created.status_code == 201
+    assert created.data["client_id"].startswith("ck_")
+    assert created.data["client_secret"]
+    assert created.data["allowed_origins"] == ["https://lab.example.com"]
+    assert created.data["public_makerspace_code"] == makerspace.public_code
+    assert listed.status_code == 200
+    assert listed.data["results"][0]["client_id"] == created.data["client_id"]
+    assert ApiClient.objects.get().get_secret() == created.data["client_secret"]
+    makerspace.refresh_from_db()
+    assert makerspace.cors_allowed_origins == ["https://lab.example.com"]
+
+
+def test_admin_can_manage_api_integration_settings_from_api_clients_area():
+    makerspace = make_space("client-settings")
+    admin = make_member("client-settings-admin", makerspace)
+    client = authenticated_client(admin)
+
+    response = client.patch(
+        f"/api/v1/admin/makerspace/{makerspace.id}/api-settings",
+        {
+            "telegram_group_chat_id": "-100123",
+            "telegram_bot_token": "bot-token",
+            "smtp_host": "smtp.example.com",
+            "smtp_port": 2525,
+            "smtp_username": "mailer",
+            "smtp_password": "smtp-secret",
+            "smtp_use_tls": False,
+            "smtp_from_email": "makerspace@example.com",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["public_api_key"] == makerspace.public_api_key
+    assert response.data["telegram_bot_token_set"] is True
+    assert response.data["smtp_password_set"] is True
+    makerspace.refresh_from_db()
+    assert makerspace.telegram_group_chat_id == "-100123"
+    assert makerspace.telegram_bot_token == "bot-token"
+    assert makerspace.smtp_host == "smtp.example.com"
+    assert makerspace.smtp_port == 2525
+    assert makerspace.smtp_username == "mailer"
+    assert makerspace.smtp_password == "smtp-secret"
+    assert makerspace.smtp_use_tls is False
+    assert makerspace.smtp_from_email == "makerspace@example.com"
+
+
+def test_admin_cannot_manage_other_makerspace_api_clients():
+    own_space = make_space("own-api")
+    other_space = make_space("other-api")
+    admin = make_member("own-api-admin", own_space)
+
+    response = authenticated_client(admin).post(
+        f"/api/v1/admin/makerspace/{other_space.id}/api-clients",
+        {
+            "label": "Blocked",
+            "allowed_origins": ["https://blocked.example.com"],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert ApiClient.objects.count() == 0
+
+
+def test_admin_can_assign_print_manager_in_own_makerspace():
+    makerspace = make_space("assign-print-manager")
+    admin = make_member("assign-print-admin", makerspace)
+
+    response = authenticated_client(admin).post(
+        "/api/v1/admin/users/print-managers",
+        {
+            "username": "new-print-manager",
+            "email": "new-print-manager@example.com",
+            "makerspace_id": makerspace.id,
+            "role": "print_manager",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    membership = response.data
+    assert membership["makerspace_id"] == makerspace.id
+    assert membership["role"] == "print_manager"
+
+
+def test_superadmin_can_create_and_list_inventory_manager():
+    makerspace = make_space("inventory-manager-superadmin")
+    superadmin = make_user(
+        "inventory-manager-superadmin",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    client = authenticated_client(superadmin)
+
+    created = client.post(
+        "/api/v1/admin/users/inventory-managers",
+        {
+            "username": "new-inventory-manager",
+            "email": "new-inventory-manager@example.com",
+            "makerspace_id": makerspace.id,
+            "role": "inventory_manager",
+        },
+        format="json",
+    )
+    listed = client.get("/api/v1/admin/users/inventory-managers")
+
+    assert created.status_code == 201
+    assert created.data["makerspace_id"] == makerspace.id
+    assert created.data["role"] == "inventory_manager"
+    assert created.data["user"]["role"] == User.Role.REQUESTER
+    assert listed.status_code == 200
+    assert [item["id"] for item in listed.data["results"]] == [created.data["id"]]
+
+
+def test_create_staff_rejects_nonexistent_makerspace_without_orphaning_user():
+    superadmin = make_user(
+        "staff-create-bad-space",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    client = authenticated_client(superadmin)
+
+    response = client.post(
+        "/api/v1/admin/users/inventory-managers",
+        {
+            "username": "orphan-candidate",
+            "email": "orphan-candidate@example.com",
+            "makerspace_id": 999999,
+            "role": "inventory_manager",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "makerspace_id" in response.data
+    assert not User.objects.filter(username="orphan-candidate").exists()
+
+
+def test_space_manager_can_create_inventory_manager_in_own_makerspace():
+    makerspace = make_space("inventory-manager-delegated")
+    space_manager = make_member("inventory-manager-delegator", makerspace)
+
+    response = authenticated_client(space_manager).post(
+        "/api/v1/admin/users/inventory-managers",
+        {
+            "username": "delegated-inventory-manager",
+            "email": "delegated-inventory-manager@example.com",
+            "makerspace_id": makerspace.id,
+            "role": "inventory_manager",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["makerspace_id"] == makerspace.id
+    assert response.data["role"] == MakerspaceMembership.Role.INVENTORY_MANAGER
+    assert response.data["user"]["role"] == User.Role.REQUESTER
+
+
+def test_space_manager_cannot_create_or_list_cross_tenant_inventory_managers():
+    own_space = make_space("inventory-manager-own")
+    other_space = make_space("inventory-manager-other")
+    space_manager = make_member("inventory-manager-own-admin", own_space)
+    own_inventory_manager = make_member(
+        "inventory-manager-own-user",
+        own_space,
+        membership_role=MakerspaceMembership.Role.INVENTORY_MANAGER,
+        role=User.Role.REQUESTER,
+    )
+    other_inventory_manager = make_member(
+        "inventory-manager-other-user",
+        other_space,
+        membership_role=MakerspaceMembership.Role.INVENTORY_MANAGER,
+        role=User.Role.REQUESTER,
+    )
+    client = authenticated_client(space_manager)
+
+    created = client.post(
+        "/api/v1/admin/users/inventory-managers",
+        {
+            "username": "blocked-inventory-manager",
+            "email": "blocked-inventory-manager@example.com",
+            "makerspace_id": other_space.id,
+            "role": "inventory_manager",
+        },
+        format="json",
+    )
+    listed = client.get("/api/v1/admin/users/inventory-managers")
+
+    assert created.status_code == 403
+    assert listed.status_code == 200
+    listed_usernames = [item["user"]["username"] for item in listed.data["results"]]
+    assert own_inventory_manager.username in listed_usernames
+    assert other_inventory_manager.username not in listed_usernames

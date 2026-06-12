@@ -26,6 +26,8 @@ class HardwareRequest(models.Model):
         related_name="hardware_requests",
     )
     requester_username = models.CharField(max_length=150)
+    requester_contact_email = models.EmailField(blank=True)
+    requester_contact_phone = models.CharField(max_length=32, blank=True)
     status = models.CharField(
         max_length=32,
         choices=Status.choices,
@@ -121,3 +123,4 @@ from apps.hardware_requests.return_models import (  # noqa: E402
     RequesterAccountability,
     ReturnEvent,
 )
+from apps.hardware_requests.self_checkout_models import PublicToolLoan  # noqa: E402

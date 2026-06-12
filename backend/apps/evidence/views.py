@@ -5,16 +5,15 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts import rbac
 from apps.accounts.permissions import (
     HasMakerspaceAction,
-    IsStaff,
-    MakerspaceScopedQuerysetMixin,
     StaffAPIView,
 )
+from apps.accounts.models import User
 from apps.audit import services as audit
 from apps.evidence.models import EvidencePhoto
 from apps.evidence.serializers import (
@@ -34,9 +33,18 @@ from apps.makerspaces.models import Makerspace
 logger = logging.getLogger(__name__)
 
 
+class ActiveAuthenticatedPermission(BasePermission):
+    def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+        return bool(
+            getattr(user, "is_authenticated", False)
+            and user.access_status == User.AccessStatus.ACTIVE
+        )
+
+
 class EvidenceUploadUrlView(StaffAPIView):
     required_action = rbac.Action.UPLOAD_EVIDENCE
-    permission_classes = StaffAPIView.permission_classes + [HasMakerspaceAction]
+    permission_classes = [IsAuthenticated, HasMakerspaceAction]
 
     @extend_schema(
         request=EvidenceUrlRequestSerializer,
@@ -97,10 +105,18 @@ class EvidenceUploadUrlView(StaffAPIView):
         return Response(EvidenceUrlResponseSerializer(data).data, status=201)
 
 
-class EvidenceDetailView(MakerspaceScopedQuerysetMixin, generics.RetrieveAPIView):
-    permission_classes = [IsAuthenticated, IsStaff]
+class EvidenceDetailView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated, ActiveAuthenticatedPermission]
     queryset = EvidencePhoto.objects.all()
     serializer_class = EvidenceGetResponseSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return rbac.scope_by_action(
+            self.request.user,
+            rbac.Action.UPLOAD_EVIDENCE,
+            qs,
+        )
 
     @extend_schema(
         responses={

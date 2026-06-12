@@ -21,7 +21,7 @@ def make_space(slug):
 
 
 def test_record_with_target_model_instance_sets_target_metadata():
-    actor = make_user("audit-actor", role=User.Role.ADMIN)
+    actor = make_user("audit-actor", role=User.Role.SPACE_MANAGER)
     makerspace = make_space("audit-space")
 
     row = record(
@@ -54,7 +54,7 @@ def test_record_without_makerspace_or_target_creates_global_row():
 
 
 def test_audit_log_model_guard_blocks_save_and_delete():
-    actor = make_user("audit-guard", role=User.Role.ADMIN)
+    actor = make_user("audit-guard", role=User.Role.SPACE_MANAGER)
     row = record(actor, "audit.created")
 
     with pytest.raises(RuntimeError):
@@ -65,7 +65,7 @@ def test_audit_log_model_guard_blocks_save_and_delete():
 
 
 def test_audit_log_database_trigger_blocks_update_and_delete():
-    actor = make_user("audit-trigger", role=User.Role.ADMIN)
+    actor = make_user("audit-trigger", role=User.Role.SPACE_MANAGER)
     row = record(actor, "audit.triggered")
 
     with pytest.raises(Error):

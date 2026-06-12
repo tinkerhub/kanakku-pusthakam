@@ -18,7 +18,14 @@ from apps.hardware_requests.workflow_utils import (
 from apps.inventory import availability
 
 
-def submit_request(makerspace, identifier, items, requested_for=""):
+def submit_request(
+    makerspace,
+    identifier,
+    items,
+    requested_for="",
+    contact_email="",
+    contact_phone="",
+):
     result = checkin.verify(makerspace, identifier)
 
     with transaction.atomic():
@@ -30,6 +37,8 @@ def submit_request(makerspace, identifier, items, requested_for=""):
             makerspace=makerspace,
             requester=requester,
             requester_username=result.username,
+            requester_contact_email=contact_email.strip(),
+            requester_contact_phone=contact_phone.strip(),
             status=HardwareRequest.Status.PENDING_APPROVAL,
             requested_for=requested_for,
         )
@@ -79,6 +88,15 @@ def accept_request(actor, request):
             makerspace=locked.makerspace,
             target=locked,
         )
+        transaction.on_commit(
+            lambda request_id=locked.pk: notifications.notify_request_accepted(
+                HardwareRequest.objects.select_related(
+                    "makerspace",
+                    "requester",
+                    "accepted_by",
+                ).get(pk=request_id)
+            )
+        )
         return locked
 
 
@@ -103,5 +121,13 @@ def reject_request(actor, request, reason):
             makerspace=locked.makerspace,
             target=locked,
             meta={"reason": reason},
+        )
+        transaction.on_commit(
+            lambda request_id=locked.pk: notifications.notify_request_rejected(
+                HardwareRequest.objects.select_related(
+                    "makerspace",
+                    "requester",
+                ).get(pk=request_id)
+            )
         )
         return locked

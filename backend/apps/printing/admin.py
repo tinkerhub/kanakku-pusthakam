@@ -6,7 +6,7 @@ from apps.accounts.models import User
 from apps.makerspaces.models import Makerspace
 from apps.printing.models import PrintBucket, PrintRequest
 
-MANAGER_ROLES = (User.Role.SUPERADMIN, User.Role.ADMIN)
+MANAGER_ROLES = (User.Role.SUPERADMIN, User.Role.SPACE_MANAGER)
 
 
 def _is_superadmin(user):
@@ -103,6 +103,10 @@ class PrintRequestAdmin(PrintingAdminMixin, ModelAdmin):
         "color",
         "quantity",
         "source_link",
+        "model_file",
+        "preferred_settings",
+        "estimate_screenshot",
+        "preview_screenshot",
         "status",
         "reason",
         "handled_by",

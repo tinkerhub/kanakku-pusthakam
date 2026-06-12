@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.http import HttpResponse
 from django.urls import include, path
 from drf_spectacular.views import (
     SpectacularAPIView,
@@ -6,8 +7,31 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+
+def docs_root(_request):
+    return HttpResponse(
+        """<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Makerspace Inventory API</title>
+    <script>
+      window.location.replace(window.location.hash ? "/redoc/" : "/docs/");
+    </script>
+    <noscript>
+      <meta http-equiv="refresh" content="0; url=/docs/">
+      <a href="/docs/">Open Swagger UI</a>
+      <a href="/redoc/">Open Redoc</a>
+    </noscript>
+  </head>
+  <body></body>
+</html>""",
+        content_type="text/html",
+    )
+
+
 urlpatterns = [
-    path("", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+    path("", docs_root, name="docs-root"),
     path("admin/", admin.site.urls),
     path("api/", include("apps.inventory.urls")),          # existing, unchanged
     # Versioned alias of the public routes. Namespaced so it does NOT collide with the
@@ -16,12 +40,20 @@ urlpatterns = [
     path("api/v1/", include(("apps.inventory.urls", "inventory"), namespace="v1")),
     path("api/v1/", include("apps.hardware_requests.urls")),
     path("api/v1/auth/", include("apps.accounts.urls")),   # staff auth surface
+    path("api/v1/admin/", include("apps.admin_api.urls")),
+    path("api/v1/admin/", include("apps.boxes.urls")),
     path("api/v1/admin/", include("apps.evidence.urls")),
+    path("api/v1/integrations/", include("apps.integrations.urls")),
     path("api/v1/printing/", include("apps.printing.urls")),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "docs/",
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
+    ),
+    path(
+        "redoc/",
+        SpectacularRedocView.as_view(url_name="schema"),
+        name="redoc",
     ),
 ]

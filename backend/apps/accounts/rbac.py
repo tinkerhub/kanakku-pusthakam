@@ -31,21 +31,27 @@ class Action:
     REJECT_REQUEST = "reject_request"
     ASSIGN_BOX = "assign_box"
     ISSUE_REQUEST = "issue_request"
+    ISSUE_DIRECT_LOAN = "issue_direct_loan"  # create a handout with NO reviewed request
     RETURN_REQUEST = "return_request"
     UPLOAD_EVIDENCE = "upload_evidence"
     MANAGE_QR = "manage_qr"
     MANAGE_PRINTING = "manage_printing"
+    VIEW_AUDIT = "view_audit"
     TRANSFER_STOCK = "transfer_stock"        # superadmin only
     MANAGE_STAFF = "manage_staff"            # superadmin only
     MANAGE_MAKERSPACE = "manage_makerspace"  # superadmin only
 
 
-_ADMIN_ACTIONS = {
+_SPACE_MANAGER_ACTIONS = {
     Action.VIEW_INVENTORY, Action.EDIT_INVENTORY, Action.ACCEPT_REQUEST,
     Action.REJECT_REQUEST, Action.ASSIGN_BOX, Action.ISSUE_REQUEST,
-    Action.RETURN_REQUEST, Action.UPLOAD_EVIDENCE, Action.MANAGE_QR,
-    Action.MANAGE_PRINTING,
+    Action.ISSUE_DIRECT_LOAN, Action.RETURN_REQUEST, Action.UPLOAD_EVIDENCE,
+    Action.MANAGE_QR, Action.MANAGE_PRINTING, Action.VIEW_AUDIT,
+    Action.MANAGE_MAKERSPACE,
 }
+# Guest admins can issue ALREADY-ACCEPTED requests (ISSUE_REQUEST) but must NOT
+# create a handout with no reviewed request — that would bypass accept/reject. So
+# ISSUE_DIRECT_LOAN is deliberately excluded here.
 _GUEST_ADMIN_ACTIONS = {
     Action.VIEW_INVENTORY, Action.ASSIGN_BOX, Action.ISSUE_REQUEST,
     Action.UPLOAD_EVIDENCE,
@@ -53,12 +59,19 @@ _GUEST_ADMIN_ACTIONS = {
 _PRINT_MANAGER_ACTIONS = {
     Action.MANAGE_PRINTING,
 }
+_INVENTORY_MANAGER_ACTIONS = {
+    Action.VIEW_INVENTORY, Action.EDIT_INVENTORY, Action.ACCEPT_REQUEST,
+    Action.REJECT_REQUEST, Action.ASSIGN_BOX, Action.ISSUE_REQUEST,
+    Action.ISSUE_DIRECT_LOAN, Action.RETURN_REQUEST, Action.UPLOAD_EVIDENCE,
+    Action.MANAGE_QR, Action.VIEW_AUDIT,
+}
 # Authority for non-superadmins is keyed on the PER-MAKERSPACE membership role,
-# NOT the global User.role (review fix #3). A user who is globally `admin` but only a
+# NOT the global User.role (review fix #3). A user who is globally `space_manager` but only a
 # guest_admin member of makerspace B gets only guest_admin actions in B.
 _MEMBERSHIP_ROLE_ACTIONS = {
-    MakerspaceMembership.Role.ADMIN: _ADMIN_ACTIONS,
+    MakerspaceMembership.Role.SPACE_MANAGER: _SPACE_MANAGER_ACTIONS,
     MakerspaceMembership.Role.GUEST_ADMIN: _GUEST_ADMIN_ACTIONS,
+    MakerspaceMembership.Role.INVENTORY_MANAGER: _INVENTORY_MANAGER_ACTIONS,
     MakerspaceMembership.Role.PRINT_MANAGER: _PRINT_MANAGER_ACTIONS,
 }
 

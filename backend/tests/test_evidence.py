@@ -23,7 +23,7 @@ def make_space(slug):
     return Makerspace.objects.create(name=slug, slug=slug)
 
 
-def make_member(username, makerspace, membership_role="admin", role=User.Role.ADMIN):
+def make_member(username, makerspace, membership_role="space_manager", role=User.Role.SPACE_MANAGER):
     user = make_user(username, role=role, access_status=User.AccessStatus.ACTIVE)
     MakerspaceMembership.objects.create(
         user=user,
@@ -71,7 +71,7 @@ def authenticated_client(user):
 
 def test_evidence_photo_model_guard_blocks_save_and_delete():
     makerspace = make_space("evidence-guard")
-    uploader = make_user("evidence-uploader", role=User.Role.ADMIN)
+    uploader = make_user("evidence-uploader", role=User.Role.SPACE_MANAGER)
     photo = make_photo(makerspace, uploader)
 
     with pytest.raises(RuntimeError):
@@ -83,7 +83,7 @@ def test_evidence_photo_model_guard_blocks_save_and_delete():
 
 def test_evidence_photo_database_trigger_blocks_update_and_delete():
     makerspace = make_space("evidence-trigger")
-    uploader = make_user("evidence-trigger-uploader", role=User.Role.ADMIN)
+    uploader = make_user("evidence-trigger-uploader", role=User.Role.SPACE_MANAGER)
     photo = make_photo(makerspace, uploader)
 
     with pytest.raises(Error):
@@ -140,6 +140,55 @@ def test_guest_admin_member_can_request_upload_url(monkeypatch):
     assert AuditLog.objects.filter(action="evidence.upload_url_issued").count() == 1
 
 
+def test_existing_requester_promoted_to_inventory_manager_can_request_upload_url(monkeypatch):
+    mock_upload(monkeypatch)
+    makerspace = make_space("upload-inventory-promoted")
+    user = make_user(
+        "upload-inventory-promoted-user",
+        role=User.Role.REQUESTER,
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    MakerspaceMembership.objects.create(
+        user=user,
+        makerspace=makerspace,
+        role=MakerspaceMembership.Role.INVENTORY_MANAGER,
+    )
+
+    response = authenticated_client(user).post(
+        upload_url(makerspace),
+        {"evidence_type": "issue", "content_type": "image/png"},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    user.refresh_from_db()
+    assert user.role == User.Role.REQUESTER
+    assert EvidencePhoto.objects.count() == 1
+
+
+def test_suspended_inventory_manager_cannot_request_upload_url(monkeypatch):
+    mock_upload(monkeypatch)
+    makerspace = make_space("upload-inventory-suspended")
+    user = make_member(
+        "upload-inventory-suspended-user",
+        makerspace,
+        membership_role=MakerspaceMembership.Role.INVENTORY_MANAGER,
+        role=User.Role.REQUESTER,
+    )
+    user.access_status = User.AccessStatus.SUSPENDED
+    user.save(update_fields=["access_status"])
+
+    response = authenticated_client(user).post(
+        upload_url(makerspace),
+        {"evidence_type": "issue", "content_type": "image/png"},
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert EvidencePhoto.objects.count() == 0
+    assert AuditLog.objects.count() == 0
+
+
 def test_requester_cannot_request_upload_url(monkeypatch):
     mock_upload(monkeypatch)
     makerspace = make_space("upload-denied")
@@ -175,7 +224,7 @@ def test_staff_user_without_membership_cannot_request_upload_url(monkeypatch):
     makerspace = make_space("upload-cross-tenant")
     user = make_user(
         "upload-cross-tenant-admin",
-        role=User.Role.ADMIN,
+        role=User.Role.SPACE_MANAGER,
         access_status=User.AccessStatus.ACTIVE,
     )
 
@@ -254,7 +303,7 @@ def test_evidence_detail_is_scoped_to_user_makerspaces(monkeypatch):
     own_space = make_space("detail-own-space")
     other_space = make_space("detail-other-space")
     user = make_member("detail-scoped-admin", own_space)
-    other_admin = make_user("detail-other-admin", role=User.Role.ADMIN)
+    other_admin = make_user("detail-other-admin", role=User.Role.SPACE_MANAGER)
     photo = make_photo(other_space, other_admin, object_key="evidence/other.png")
     monkeypatch.setattr("apps.evidence.views.object_exists", lambda object_key: True)
     monkeypatch.setattr(
@@ -263,6 +312,28 @@ def test_evidence_detail_is_scoped_to_user_makerspaces(monkeypatch):
     )
 
     response = authenticated_client(user).get(detail_url(photo))
+
+    assert response.status_code == 404
+    assert AuditLog.objects.count() == 0
+
+
+def test_evidence_detail_requires_upload_evidence_action_in_makerspace(monkeypatch):
+    makerspace = make_space("detail-no-upload-action")
+    uploader = make_member("detail-no-upload-owner", makerspace)
+    viewer = make_member(
+        "detail-no-upload-viewer",
+        makerspace,
+        membership_role=MakerspaceMembership.Role.PRINT_MANAGER,
+        role=User.Role.REQUESTER,
+    )
+    photo = make_photo(makerspace, uploader)
+    monkeypatch.setattr("apps.evidence.views.object_exists", lambda object_key: True)
+    monkeypatch.setattr(
+        "apps.evidence.views.presigned_get_url",
+        lambda object_key: "http://minio/get",
+    )
+
+    response = authenticated_client(viewer).get(detail_url(photo))
 
     assert response.status_code == 404
     assert AuditLog.objects.count() == 0

@@ -14,7 +14,7 @@ class Command(BaseCommand):
         superadmin, user_created = User.objects.get_or_create(
             username="superadmin",
             defaults={
-                "email": "superadmin@tinkerspace.local",
+                "email": "superadmin@makerspace.local",
                 "role": User.Role.SUPERADMIN,
                 "is_staff": True,
                 "is_superuser": True,
@@ -24,14 +24,24 @@ class Command(BaseCommand):
             superadmin.set_unusable_password()
             superadmin.save(update_fields=["password"])
 
-        makerspace, makerspace_created = Makerspace.objects.get_or_create(
-            slug="tinkerspace",
-            defaults={
-                "name": "TinkerSpace",
-                "public_inventory_enabled": True,
-                "created_by": superadmin,
-            },
-        )
+        makerspace = Makerspace.objects.filter(slug="makerspace").first()
+        makerspace_created = False
+        if makerspace is None:
+            makerspace = Makerspace.objects.filter(slug="tinkerspace").first()
+            if makerspace is None:
+                makerspace = Makerspace.objects.create(
+                    slug="makerspace",
+                    name="Makerspace Demo",
+                    public_inventory_enabled=True,
+                    created_by=superadmin,
+                )
+                makerspace_created = True
+            else:
+                makerspace.slug = "makerspace"
+
+        makerspace.name = "Makerspace Demo"
+        makerspace.public_inventory_enabled = True
+        makerspace.save(update_fields=["slug", "name", "public_inventory_enabled"])
 
         products = [
             {

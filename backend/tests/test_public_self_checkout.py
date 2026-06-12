@@ -1,0 +1,130 @@
+import pytest
+from django.test import override_settings
+from rest_framework.test import APIClient
+
+from apps.boxes.models import QrCode, QrScanEvent
+from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
+from apps.inventory.models import InventoryProduct
+from apps.makerspaces.models import Makerspace
+
+pytestmark = pytest.mark.django_db
+
+
+def make_space(slug="self-checkout-space"):
+    return Makerspace.objects.create(name=slug, slug=slug)
+
+
+def make_product(makerspace, **overrides):
+    defaults = {
+        "makerspace": makerspace,
+        "name": "USB Logic Analyzer",
+        "total_quantity": 2,
+        "available_quantity": 2,
+        "is_public": True,
+        "is_archived": False,
+    }
+    defaults.update(overrides)
+    return InventoryProduct.objects.create(**defaults)
+
+
+def make_qr(makerspace, product):
+    return QrCode.objects.create(
+        makerspace=makerspace,
+        target_type=QrCode.TargetType.PRODUCT,
+        target_id=product.id,
+    )
+
+
+def checkout_url(makerspace):
+    return f"/api/v1/public/{makerspace.slug}/tools/checkout"
+
+
+def return_url(makerspace):
+    return f"/api/v1/public/{makerspace.slug}/tools/return"
+
+
+def api_client():
+    return APIClient(REMOTE_ADDR="10.20.30.40")
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_public_checkout_requires_tool_opt_in():
+    makerspace = make_space("checkout-disabled")
+    product = make_product(makerspace, public_self_checkout_enabled=False)
+    qr = make_qr(makerspace, product)
+
+    response = api_client().post(
+        checkout_url(makerspace),
+        {"identifier": "member-1", "payload": qr.payload},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert HardwareRequest.objects.count() == 0
+    product.refresh_from_db()
+    assert product.available_quantity == 2
+    assert product.issued_quantity == 0
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_public_checkout_and_return_move_inventory_and_record_scans():
+    makerspace = make_space("checkout-return")
+    product = make_product(makerspace, public_self_checkout_enabled=True)
+    qr = make_qr(makerspace, product)
+    client = api_client()
+
+    checkout = client.post(
+        checkout_url(makerspace),
+        {"identifier": "member-1", "payload": qr.payload},
+        format="json",
+    )
+
+    assert checkout.status_code == 201
+    assert checkout.data["status"] == PublicToolLoan.Status.CHECKED_OUT
+    assert checkout.data["items"] == [
+        {"product_name": "USB Logic Analyzer", "quantity": 1}
+    ]
+    product.refresh_from_db()
+    assert product.available_quantity == 1
+    assert product.issued_quantity == 1
+    request = HardwareRequest.objects.get()
+    assert request.status == HardwareRequest.Status.ISSUED
+    assert QrScanEvent.objects.get(context=QrScanEvent.Context.ISSUE).request == request
+
+    returned = client.post(
+        return_url(makerspace),
+        {"identifier": "member-1", "payload": qr.payload},
+        format="json",
+    )
+
+    assert returned.status_code == 200
+    assert returned.data["status"] == PublicToolLoan.Status.RETURNED
+    product.refresh_from_db()
+    assert product.available_quantity == 2
+    assert product.issued_quantity == 0
+    request.refresh_from_db()
+    assert request.status == HardwareRequest.Status.RETURNED
+    assert QrScanEvent.objects.filter(context=QrScanEvent.Context.RETURN).count() == 1
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_public_return_requires_same_verified_user():
+    makerspace = make_space("checkout-other-user")
+    product = make_product(makerspace, public_self_checkout_enabled=True)
+    qr = make_qr(makerspace, product)
+    client = api_client()
+    client.post(
+        checkout_url(makerspace),
+        {"identifier": "member-1", "payload": qr.payload},
+        format="json",
+    )
+
+    response = client.post(
+        return_url(makerspace),
+        {"identifier": "member-2", "payload": qr.payload},
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert response.data["code"] == "requester_blocked"
+    assert PublicToolLoan.objects.get().status == PublicToolLoan.Status.CHECKED_OUT

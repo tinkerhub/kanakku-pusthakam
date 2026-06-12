@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import FileExtensionValidator
 from django.core.validators import MinValueValidator
 from django.db import models
 
@@ -53,6 +54,22 @@ class PrintRequest(models.Model):
     color = models.CharField(max_length=100, blank=True)
     quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     source_link = models.URLField(blank=True)
+    model_file = models.FileField(
+        upload_to="printing/models/%Y/%m/",
+        blank=True,
+        validators=[FileExtensionValidator(["stl", "3mf", "step", "stp", "obj"])],
+    )
+    preferred_settings = models.TextField(blank=True)
+    estimate_screenshot = models.FileField(
+        upload_to="printing/estimates/%Y/%m/",
+        blank=True,
+        validators=[FileExtensionValidator(["png", "jpg", "jpeg", "webp", "pdf"])],
+    )
+    preview_screenshot = models.FileField(
+        upload_to="printing/previews/%Y/%m/",
+        blank=True,
+        validators=[FileExtensionValidator(["png", "jpg", "jpeg", "webp", "pdf"])],
+    )
     status = models.CharField(
         max_length=32,
         choices=Status.choices,

@@ -1,0 +1,202 @@
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from drf_spectacular.utils import OpenApiResponse, extend_schema
+from rest_framework import status
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.accounts import rbac
+from apps.accounts.models import User
+from apps.audit import services as audit
+from apps.boxes.models import Box, QrCode, QrScanEvent
+from apps.boxes.serializers import (
+    BoxSerializer,
+    CreateBoxQrSerializer,
+    CreateToolQrSerializer,
+    QrCodeSerializer,
+    QrScanResultSerializer,
+    QrScanSerializer,
+    qr_target_payload,
+)
+from apps.inventory.models import InventoryAsset, InventoryProduct
+from apps.makerspaces.models import Makerspace
+from apps.openapi import QR_BOX_EXAMPLE, QR_SCAN_EXAMPLE
+
+
+class QrPermissionMixin:
+    def _require_qr(self, user, makerspace_id):
+        if (
+            user.access_status != User.AccessStatus.ACTIVE
+            or not rbac.can(user, rbac.Action.MANAGE_QR, makerspace_id)
+        ):
+            raise PermissionDenied()
+
+
+class CreateBoxQrView(QrPermissionMixin, APIView):
+    @extend_schema(
+        tags=["QR assets"],
+        summary="Create a QR-coded box",
+        request=CreateBoxQrSerializer,
+        responses={201: BoxSerializer},
+        examples=[QR_BOX_EXAMPLE],
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = CreateBoxQrSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        makerspace = get_object_or_404(Makerspace, pk=data["makerspace_id"])
+        self._require_qr(request.user, makerspace.id)
+        parent = None
+        if data.get("parent_id"):
+            parent = get_object_or_404(Box, pk=data["parent_id"], makerspace=makerspace)
+        box = Box.objects.create(
+            makerspace=makerspace,
+            parent=parent,
+            label=data["label"],
+            location=data.get("location", ""),
+            description=data.get("description", ""),
+        )
+        QrCode.objects.create(
+            makerspace=makerspace,
+            payload=box.code,
+            target_type=QrCode.TargetType.BOX,
+            target_id=box.id,
+            created_by=request.user,
+        )
+        audit.record(request.user, "qr.box_created", makerspace=makerspace, target=box)
+        return Response(BoxSerializer(box).data, status=status.HTTP_201_CREATED)
+
+
+class CreateToolQrView(QrPermissionMixin, APIView):
+    @extend_schema(
+        tags=["QR assets"],
+        summary="Create or reuse a QR code for a product or asset",
+        request=CreateToolQrSerializer,
+        responses={201: QrCodeSerializer},
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = CreateToolQrSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        makerspace = get_object_or_404(Makerspace, pk=data["makerspace_id"])
+        self._require_qr(request.user, makerspace.id)
+        if data.get("asset_id"):
+            target = get_object_or_404(InventoryAsset, pk=data["asset_id"], makerspace=makerspace)
+            target_type = QrCode.TargetType.ASSET
+        else:
+            target = get_object_or_404(InventoryProduct, pk=data["product_id"], makerspace=makerspace)
+            target_type = QrCode.TargetType.PRODUCT
+        qr, created = QrCode.objects.get_or_create(
+            makerspace=makerspace,
+            target_type=target_type,
+            target_id=target.id,
+            status=QrCode.Status.ACTIVE,
+            defaults={"created_by": request.user},
+        )
+        audit.record(
+            request.user,
+            "qr.tool_created" if created else "qr.tool_reused",
+            makerspace=makerspace,
+            target=target,
+            meta={"qr_id": qr.id},
+        )
+        return Response(QrCodeSerializer(qr).data, status=status.HTTP_201_CREATED)
+
+
+class QrScanView(QrPermissionMixin, APIView):
+    @extend_schema(
+        tags=["QR assets"],
+        summary="Record a QR scan",
+        description="Context is limited to issue or return and scan events are immutable.",
+        request=QrScanSerializer,
+        responses={201: QrScanResultSerializer},
+        examples=[QR_SCAN_EXAMPLE],
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = QrScanSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        qr = get_object_or_404(
+            QrCode,
+            payload=data["payload"],
+            status=QrCode.Status.ACTIVE,
+        )
+        self._require_qr(request.user, qr.makerspace_id)
+        request_id = data.get("request_id")
+        if request_id is not None:
+            from apps.hardware_requests.models import HardwareRequest
+
+            # The immutable scan inherits the QR's makerspace; a cross-tenant
+            # request_id would silently mis-attribute it. Bind them.
+            if not HardwareRequest.objects.filter(
+                pk=request_id, makerspace_id=qr.makerspace_id
+            ).exists():
+                raise ValidationError({"request_id": "Request belongs to a different makerspace."})
+        scan = QrScanEvent.objects.create(
+            makerspace=qr.makerspace,
+            qr_code=qr,
+            actor=request.user,
+            context=data["context"],
+            request_id=request_id,
+        )
+        audit.record(
+            request.user,
+            "qr.scanned",
+            makerspace=qr.makerspace,
+            target=qr,
+            meta={"context": scan.context, "scan_id": scan.id},
+        )
+        return Response(
+            {
+                "qr": QrCodeSerializer(qr).data,
+                "target": qr_target_payload(qr),
+                "scan_id": scan.id,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class QrPrintView(QrPermissionMixin, APIView):
+    @extend_schema(
+        tags=["QR assets"],
+        summary="Render QR label SVG",
+        responses={200: OpenApiResponse(description="SVG QR label.")},
+    )
+    def get(self, request, pk, *args, **kwargs):
+        import segno
+
+        qr = get_object_or_404(QrCode, pk=pk)
+        self._require_qr(request.user, qr.makerspace_id)
+        return Response(
+            {
+                "payload": qr.payload,
+                "svg": segno.make(qr.payload).svg_inline(scale=5),
+                "target": qr_target_payload(qr),
+            }
+        )
+
+
+class QrRevokeView(QrPermissionMixin, APIView):
+    @extend_schema(
+        tags=["QR assets"],
+        summary="Revoke active QR code",
+        request=None,
+        responses={200: QrCodeSerializer},
+    )
+    def post(self, request, pk, *args, **kwargs):
+        qr = get_object_or_404(QrCode, pk=pk)
+        self._require_qr(request.user, qr.makerspace_id)
+        if qr.status == QrCode.Status.REVOKED:
+            raise ValidationError("QR code is already revoked.")
+        from apps.hardware_requests.self_checkout_workflow import qr_has_active_loan
+
+        # Revoking now would strand the loan: the return flow only locks ACTIVE
+        # QRs, and a fresh active QR could be minted for the same target. Block it.
+        if qr_has_active_loan(qr.makerspace, qr):
+            raise ValidationError("Cannot revoke a QR code with an outstanding loan.")
+        qr.status = QrCode.Status.REVOKED
+        qr.revoked_at = timezone.now()
+        qr.save(update_fields=["status", "revoked_at", "updated_at"])
+        audit.record(request.user, "qr.revoked", makerspace=qr.makerspace, target=qr)
+        return Response(QrCodeSerializer(qr).data)

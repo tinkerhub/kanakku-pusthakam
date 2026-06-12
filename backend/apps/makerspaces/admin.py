@@ -16,6 +16,7 @@ class MakerspaceMembershipInline(TabularInline):
 class MakerspaceAdmin(ModelAdmin):
     list_display = (
         "name",
+        "public_code",
         "slug",
         "location",
         "public_inventory_enabled",
@@ -23,5 +24,19 @@ class MakerspaceAdmin(ModelAdmin):
     )
     list_filter = ("public_inventory_enabled",)
     prepopulated_fields = {"slug": ("name",)}
-    search_fields = ("name", "slug", "location")
+    search_fields = ("name", "public_code", "slug", "location")
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "name",
+                    "public_code",
+                    "slug",
+                    "location",
+                    "public_inventory_enabled",
+                )
+            },
+        ),
+    )
     inlines = (MakerspaceMembershipInline,)

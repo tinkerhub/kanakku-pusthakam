@@ -1,0 +1,95 @@
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter
+
+
+PUBLISHABLE_KEY_PARAMETER = OpenApiParameter(
+    name="X-Publishable-Key",
+    type=str,
+    location=OpenApiParameter.HEADER,
+    required=False,
+    description=(
+        "Public API key for a makerspace public client. Required when "
+        "API_CLIENT_AUTH_REQUIRED is enabled."
+    ),
+)
+
+PUBLIC_REQUEST_SUBMIT_EXAMPLE = OpenApiExample(
+    "Submit public equipment request",
+    value={
+        "identifier": "shaans@example.com",
+        "contact_email": "shaans@example.com",
+        "contact_phone": "+919876543210",
+        "requested_for": "Electronics workshop diagnostics",
+        "items": [{"product_id": 42, "quantity": 2}],
+    },
+    request_only=True,
+)
+
+PUBLIC_REQUEST_LOOKUP_EXAMPLE = OpenApiExample(
+    "Lookup requests by Check-In email or phone",
+    value={"identifier": "shaans@example.com"},
+    request_only=True,
+)
+
+PUBLIC_REQUEST_STATUS_EXAMPLE = OpenApiExample(
+    "Public request status",
+    value={
+        "public_token": "4f2b93e1-6ef4-41c2-8407-7f26bb3b2d8f",
+        "requested_for": "Electronics workshop diagnostics",
+        "status": "pending_approval",
+        "rejection_reason": "",
+        "created_at": "2026-06-11T10:30:00Z",
+        "items": [{"product_name": "Soldering Iron", "requested_quantity": 2}],
+    },
+    response_only=True,
+)
+
+BULK_IMPORT_ROWS_EXAMPLE = OpenApiExample(
+    "Preview inventory rows",
+    value={
+        "rows": [
+            {
+                "name": "Soldering Iron",
+                "total_quantity": 10,
+                "available_quantity": 8,
+                "is_public": True,
+            }
+        ],
+        "mapping": {"name": "name", "total_quantity": "total_quantity"},
+    },
+    request_only=True,
+)
+
+RESTRICT_USER_EXAMPLE = OpenApiExample(
+    "Restrict a requester",
+    value={"status": "restricted", "reason": "Unreturned loan under review"},
+    request_only=True,
+)
+
+QR_BOX_EXAMPLE = OpenApiExample(
+    "Create a QR-coded box",
+    value={
+        "makerspace_id": 1,
+        "label": "Electronics Box A",
+        "location": "Bench Storage",
+        "description": "Issued hardware kit box",
+    },
+    request_only=True,
+)
+
+QR_SCAN_EXAMPLE = OpenApiExample(
+    "Scan QR during issue",
+    value={"payload": "BOX-ABC123", "context": "issue", "request_id": 99},
+    request_only=True,
+)
+
+PUBLIC_TOOL_SCAN_EXAMPLE = OpenApiExample(
+    "Public QR tool scan",
+    value={"identifier": "shaans@example.com", "payload": "BOX-ABC123"},
+    request_only=True,
+)
+
+LOGIN_EXAMPLE = OpenApiExample(
+    "Staff login",
+    value={"username": "admin", "password": "secret-password"},
+    request_only=True,
+)

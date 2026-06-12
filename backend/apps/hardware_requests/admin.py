@@ -5,7 +5,7 @@ from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 
-MANAGER_ROLES = (User.Role.SUPERADMIN, User.Role.ADMIN)
+MANAGER_ROLES = (User.Role.SUPERADMIN, User.Role.SPACE_MANAGER)
 
 
 class HardwareRequestItemInline(TabularInline):

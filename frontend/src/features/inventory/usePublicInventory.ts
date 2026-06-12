@@ -14,9 +14,10 @@ export function usePublicMakerspaces() {
   });
 }
 
-export function usePublicInventory(slug: string) {
+export function usePublicInventory(slug: string, page: number, query: string) {
   return useQuery({
-    queryKey: publicInventoryKey(slug),
-    queryFn: () => fetchPublicInventory(slug),
+    queryKey: publicInventoryKey(slug, page, query),
+    queryFn: () => fetchPublicInventory(slug, page, query),
+    placeholderData: (previousData) => previousData,
   });
 }

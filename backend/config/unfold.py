@@ -28,7 +28,7 @@ def _can_view_api_clients(request):
         user.is_authenticated
         and user.is_active
         and user.access_status == "active"
-        and (user.is_superuser or user.role in ("superadmin", "admin"))
+        and (user.is_superuser or user.role in ("superadmin", "space_manager"))
     )
 
 

@@ -31,6 +31,8 @@ class PendingRequestsView(generics.ListAPIView):
         )
 
     @extend_schema(
+        tags=["Admin requests"],
+        summary="List pending borrow requests",
         responses={200: AdminRequestSerializer(many=True), **ADMIN_LIST_ERROR_RESPONSES},
     )
     def get(self, request, *args, **kwargs):
@@ -54,6 +56,8 @@ class AcceptedRequestsView(generics.ListAPIView):
         )
 
     @extend_schema(
+        tags=["Admin requests"],
+        summary="List accepted requests awaiting issue",
         responses={200: AdminRequestSerializer(many=True), **ADMIN_LIST_ERROR_RESPONSES},
     )
     def get(self, request, *args, **kwargs):
@@ -80,6 +84,8 @@ class ActiveLoansView(generics.ListAPIView):
         )
 
     @extend_schema(
+        tags=["Admin requests"],
+        summary="List active loans awaiting return",
         responses={200: AdminRequestSerializer(many=True), **ADMIN_LIST_ERROR_RESPONSES},
     )
     def get(self, request, *args, **kwargs):

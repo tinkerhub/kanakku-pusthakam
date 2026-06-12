@@ -16,6 +16,21 @@ urlpatterns = [
         name="request-submit",
     ),
     path(
+        "public/<slug:makerspace_slug>/requests/status",
+        views.RequestLookupView.as_view(),
+        name="request-lookup",
+    ),
+    path(
+        "public/<slug:makerspace_slug>/tools/checkout",
+        views.PublicToolCheckoutView.as_view(),
+        name="public-tool-checkout",
+    ),
+    path(
+        "public/<slug:makerspace_slug>/tools/return",
+        views.PublicToolReturnView.as_view(),
+        name="public-tool-return",
+    ),
+    path(
         "public/requests/<uuid:public_token>/status",
         views.RequestStatusView.as_view(),
         name="request-status",
@@ -34,6 +49,16 @@ urlpatterns = [
         "admin/makerspace/<int:makerspace_id>/active-loans",
         views.ActiveLoansView.as_view(),
         name="active-loans",
+    ),
+    path(
+        "admin/makerspace/<int:makerspace_id>/direct-loans",
+        views.DirectLoanListCreateView.as_view(),
+        name="direct-loans",
+    ),
+    path(
+        "admin/direct-loans/<int:pk>/return",
+        views.DirectLoanReturnView.as_view(),
+        name="direct-loan-return",
     ),
     path(
         "admin/requests/<int:pk>/accept",

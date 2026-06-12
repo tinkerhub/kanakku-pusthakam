@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     "apps.printing",
     "apps.audit",
     "apps.evidence",
+    "apps.admin_api",
+    "apps.integrations",
 ]
 
 MIDDLEWARE = [
@@ -131,7 +133,16 @@ EVIDENCE_ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"]
 
 CHECKIN_MODE = env("CHECKIN_MODE", default="stub")
 CHECKIN_API_URL = env("CHECKIN_API_URL", default="")
+CHECKIN_API_KEY = env("CHECKIN_API_KEY", default="")
 CHECKIN_TIMEOUT = env.float("CHECKIN_TIMEOUT", default=5.0)
+
+TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
+TELEGRAM_API_URL = env("TELEGRAM_API_URL", default="https://api.telegram.org")
+# Secret passed to Telegram's setWebhook(secret_token=...); Telegram echoes it in
+# the X-Telegram-Bot-Api-Secret-Token header on every callback. The webhook fails
+# closed when this is unset, so an unconfigured webhook can't be driven by spoofed
+# callbacks.
+TELEGRAM_WEBHOOK_SECRET = env("TELEGRAM_WEBHOOK_SECRET", default="")
 
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND",
@@ -142,7 +153,7 @@ EMAIL_PORT = env.int("EMAIL_PORT", default=587)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="TinkerSpace <noreply@tinkerspace.local>")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Makerspace <noreply@makerspace.local>")
 
 CORS_ALLOWED_ORIGINS = env.list(
     "CORS_ALLOWED_ORIGINS",
@@ -154,6 +165,7 @@ CORS_ALLOW_HEADERS = (
     "x-signature",
     "x-timestamp",
     "x-refresh-csrf",
+    "x-publishable-key",
 )
 CORS_ALLOW_CREDENTIALS = True
 
@@ -188,6 +200,7 @@ REST_FRAMEWORK = {
         "checkin_verify": env("THROTTLE_CHECKIN_VERIFY", default="30/min"),
         "request_submit": env("THROTTLE_REQUEST_SUBMIT", default="10/min"),
         "request_status": env("THROTTLE_REQUEST_STATUS", default="60/min"),
+        "public_read": env("THROTTLE_PUBLIC_READ", default="120/min"),
     },
 }
 
@@ -216,8 +229,35 @@ AUTH_COOKIE_SAMESITE = env("AUTH_COOKIE_SAMESITE", default="None")
 AUTH_COOKIE_SECURE = env.bool("AUTH_COOKIE_SECURE", default=True)
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "TinkerSpace Inventory Manager API",
-    "DESCRIPTION": "Multi-tenant makerspace hardware loan system.",
+    "TITLE": "Makerspace Inventory Manager API",
+    "DESCRIPTION": (
+        "Multi-tenant makerspace hardware loan system.\n\n"
+        "Public flow: browse inventory, search with `q`, page with `page`, "
+        "verify Check-In, submit a borrow request, then track it by public token "
+        "or verified Check-In identifier.\n\n"
+        "Admin flow: authenticate with JWT, manage makerspaces, inventory, "
+        "staff, QR labels, bulk imports, request review, issue, and return.\n\n"
+        "Authentication: staff/admin endpoints use `Authorization: Bearer <access>`. "
+        "Public browser endpoints can use `X-Publishable-Key` when public key "
+        "hardening is enabled."
+    ),
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "SERVERS": [
+        {"url": "http://localhost:8001", "description": "Local Docker backend"},
+        {"url": "http://localhost:8000", "description": "Local Django runserver"},
+    ],
+    "TAGS": [
+        {"name": "Auth", "description": "Staff login, refresh, logout, and profile."},
+        {"name": "Public inventory", "description": "Public makerspace catalog browsing."},
+        {"name": "Public requests", "description": "Public borrow request and status flows."},
+        {"name": "Admin makerspaces", "description": "Admin makerspace CRUD."},
+        {"name": "Admin inventory", "description": "Admin inventory CRUD and search lists."},
+        {"name": "Admin requests", "description": "Review, handover, issue, and return workflows."},
+        {"name": "Bulk import", "description": "Inventory import preview and apply workflow."},
+        {"name": "Admin users", "description": "Staff, guest-admin, and access restriction."},
+        {"name": "QR assets", "description": "QR-coded boxes, tools, scans, print, revoke."},
+        {"name": "Telegram", "description": "Telegram webhook and alert integration."},
+        {"name": "Printing", "description": "3D printing request and management APIs."},
+    ],
 }

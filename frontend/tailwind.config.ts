@@ -5,13 +5,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        tinker: "#FBB905",
-        ink: "#111111",
-        bg: "#FFFFFF",
-        surface: "#F5F5F4",
-        line: "#E5E5E5",
-        success: "#16A34A",
-        danger: "#DC2626",
+        accent: "#FBB905",
+        ink: "#E5E7EB",
+        bg: "#09090B",
+        surface: "#111827",
+        panel: "#18181B",
+        muted: "#9CA3AF",
+        line: "#27272A",
+        success: "#22C55E",
+        danger: "#F87171",
+        warn: "#F59E0B",
       },
     },
   },

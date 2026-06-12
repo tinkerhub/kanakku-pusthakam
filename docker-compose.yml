@@ -80,7 +80,7 @@ services:
       EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
       EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
       EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
-      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-TinkerSpace <noreply@tinkerspace.local>}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-Makerspace <noreply@makerspace.local>}
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
@@ -96,8 +96,9 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
-        VITE_HMAC_CLIENT_ID: ${VITE_HMAC_CLIENT_ID:-}
-        VITE_HMAC_SECRET: ${VITE_HMAC_SECRET:-}
+        VITE_PUBLIC_API_KEY: ${VITE_PUBLIC_API_KEY:-}
+        VITE_PUBLIC_CLIENT_ID: ${VITE_PUBLIC_CLIENT_ID:-}
+        VITE_PUBLIC_CLIENT_SECRET: ${VITE_PUBLIC_CLIENT_SECRET:-}
     container_name: tinkerspace-frontend
     ports:
       - "80:80"

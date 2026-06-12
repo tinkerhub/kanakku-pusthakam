@@ -28,6 +28,8 @@ class AssignBoxView(APIView):
     permission_classes = [CanAssignBox]
 
     @extend_schema(
+        tags=["Admin requests"],
+        summary="Assign box to accepted request",
         request=AssignBoxSerializer,
         responses={200: AdminRequestSerializer, **ACTION_ERROR_RESPONSES},
     )
@@ -51,6 +53,8 @@ class IssueRequestView(APIView):
     permission_classes = [CanIssueRequest]
 
     @extend_schema(
+        tags=["Admin requests"],
+        summary="Issue accepted request",
         request=IssueRequestSerializer,
         responses={200: AdminRequestSerializer, **ACTION_ERROR_RESPONSES, 503: ERROR_503},
     )
@@ -75,6 +79,8 @@ class ReturnRequestView(APIView):
     permission_classes = [CanReturnRequest]
 
     @extend_schema(
+        tags=["Admin requests"],
+        summary="Return issued request items",
         request=ReturnRequestSerializer,
         responses={200: AdminRequestSerializer, **ACTION_ERROR_RESPONSES, 503: ERROR_503},
     )
