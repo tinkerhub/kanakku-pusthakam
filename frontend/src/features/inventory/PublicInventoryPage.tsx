@@ -78,80 +78,88 @@ function CatalogSidebar({
 }) {
   const itemClass = (active: boolean) =>
     active
-      ? "desk-button-primary w-full justify-between"
-      : "desk-button w-full justify-between";
+      ? "desk-nav-item desk-nav-item-active shrink-0 whitespace-nowrap lg:shrink lg:whitespace-normal"
+      : "desk-nav-item shrink-0 whitespace-nowrap lg:shrink lg:whitespace-normal";
   const countClass = (active: boolean) =>
-    active ? "ml-2 text-xs text-bg/80" : "ml-2 text-xs text-muted";
+    active ? "ml-2 text-xs text-accent/80" : "ml-2 text-xs text-muted";
 
   return (
-    <Card className="lg:sticky lg:top-4">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-        Browse
-      </h2>
-      <div className="mt-3 space-y-2">
-        <button
-          aria-current={view.kind === "all" ? "page" : undefined}
-          className={itemClass(view.kind === "all")}
-          type="button"
-          onClick={() => onSelect({ kind: "all" })}
-        >
-          <span>All items</span>
-        </button>
-        <button
-          aria-current={
-            view.kind === "sort" && view.sort === "popular"
-              ? "page"
-              : undefined
-          }
-          className={itemClass(view.kind === "sort" && view.sort === "popular")}
-          type="button"
-          onClick={() => onSelect({ kind: "sort", sort: "popular" })}
-        >
-          <span>Popular</span>
-        </button>
-        <button
-          aria-current={
-            view.kind === "sort" && view.sort === "most_used"
-              ? "page"
-              : undefined
-          }
-          className={itemClass(
-            view.kind === "sort" && view.sort === "most_used",
-          )}
-          type="button"
-          onClick={() => onSelect({ kind: "sort", sort: "most_used" })}
-        >
-          <span>Most used</span>
-        </button>
-      </div>
+    <Card
+      className="lg:sticky lg:top-0 lg:max-h-[100dvh] lg:overflow-y-auto"
+      padding="sm"
+    >
+      <nav aria-label="Catalog browse">
+        <p className="px-3 text-xs font-semibold uppercase tracking-wide text-muted">
+          BROWSE
+        </p>
+        <div className="mt-2 flex gap-2 overflow-x-auto lg:block lg:space-y-1 lg:overflow-visible">
+          <button
+            aria-current={view.kind === "all" ? "page" : undefined}
+            className={itemClass(view.kind === "all")}
+            type="button"
+            onClick={() => onSelect({ kind: "all" })}
+          >
+            <span>All items</span>
+          </button>
+          <button
+            aria-current={
+              view.kind === "sort" && view.sort === "popular"
+                ? "page"
+                : undefined
+            }
+            className={itemClass(view.kind === "sort" && view.sort === "popular")}
+            type="button"
+            onClick={() => onSelect({ kind: "sort", sort: "popular" })}
+          >
+            <span>Popular</span>
+          </button>
+          <button
+            aria-current={
+              view.kind === "sort" && view.sort === "most_used"
+                ? "page"
+                : undefined
+            }
+            className={itemClass(
+              view.kind === "sort" && view.sort === "most_used",
+            )}
+            type="button"
+            onClick={() => onSelect({ kind: "sort", sort: "most_used" })}
+          >
+            <span>Most used</span>
+          </button>
+        </div>
 
-      {categories.length > 0 ? (
-        <>
-          <div className="my-4 border-t border-line" />
-          <div className="space-y-2">
-            {categories.map((category) => {
-              const active =
-                view.kind === "category" && view.slug === category.slug;
-              return (
-                <button
-                  aria-current={active ? "page" : undefined}
-                  className={itemClass(active)}
-                  key={category.id}
-                  type="button"
-                  onClick={() =>
-                    onSelect({ kind: "category", slug: category.slug })
-                  }
-                >
-                  <span className="min-w-0 truncate">{category.name}</span>
-                  <span className={countClass(active)}>
-                    ({category.product_count})
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </>
-      ) : null}
+        {categories.length > 0 ? (
+          <>
+            <div className="my-3 border-t border-line" />
+            <p className="px-3 text-xs font-semibold uppercase tracking-wide text-muted">
+              CATEGORIES
+            </p>
+            <div className="mt-2 flex gap-2 overflow-x-auto lg:block lg:space-y-1 lg:overflow-visible">
+              {categories.map((category) => {
+                const active =
+                  view.kind === "category" && view.slug === category.slug;
+                return (
+                  <button
+                    aria-current={active ? "page" : undefined}
+                    className={itemClass(active)}
+                    key={category.id}
+                    type="button"
+                    onClick={() =>
+                      onSelect({ kind: "category", slug: category.slug })
+                    }
+                  >
+                    <span className="min-w-0 truncate">{category.name}</span>
+                    <span className={countClass(active)}>
+                      ({category.product_count})
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        ) : null}
+      </nav>
     </Card>
   );
 }
@@ -254,7 +262,7 @@ export function PublicInventoryPage() {
   return (
     <main className="desk-shell">
       <header className="border-b border-line bg-panel">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-6 sm:px-8">
+        <div className="mx-auto flex max-w-screen-2xl flex-col gap-4 px-5 py-6 sm:px-8">
           <p className="text-sm font-semibold uppercase tracking-wide text-accent">
             Public Inventory
           </p>
@@ -278,7 +286,7 @@ export function PublicInventoryPage() {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl gap-5 px-5 py-6 lg:grid-cols-[220px_1fr_340px] sm:px-8">
+      <section className="mx-auto grid max-w-screen-2xl gap-5 px-5 py-6 lg:grid-cols-[200px_minmax(0,1fr)_360px] sm:px-8">
         <CatalogSidebar
           categories={categories}
           view={view}
@@ -328,7 +336,7 @@ export function PublicInventoryPage() {
 
           {products.length > 0 ? (
             <>
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {products.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -370,12 +378,14 @@ export function PublicInventoryPage() {
           ) : null}
         </div>
 
-        <PublicRequestPanel
-          items={selectedItems}
-          makerspaceSlug={makerspaceSlug}
-          onClear={() => setCart({})}
-          disabled={!requestEnabled}
-        />
+        <div>
+          <PublicRequestPanel
+            items={selectedItems}
+            makerspaceSlug={makerspaceSlug}
+            onClear={() => setCart({})}
+            disabled={!requestEnabled}
+          />
+        </div>
       </section>
     </main>
   );

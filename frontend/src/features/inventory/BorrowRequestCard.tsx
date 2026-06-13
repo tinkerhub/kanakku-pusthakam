@@ -5,46 +5,34 @@ type BorrowRequestCardProps = {
   canSubmit: boolean;
   contactEmail: string;
   contactPhone: string;
-  identifier: string;
   items: RequestCartItem[];
   requestedFor: string;
   submitError?: string;
   submitPending: boolean;
   submitted: boolean;
   totalItems: number;
-  verifyError?: string;
-  verifyPending: boolean;
-  verifySuccess: boolean;
   onClear: () => void;
-  onIdentifierChange: (value: string) => void;
   onContactEmailChange: (value: string) => void;
   onContactPhoneChange: (value: string) => void;
   onRequestedForChange: (value: string) => void;
   onSubmit: () => void;
-  onVerify: () => void;
 };
 
 export function BorrowRequestCard({
   canSubmit,
   contactEmail,
   contactPhone,
-  identifier,
   items,
   requestedFor,
   submitError,
   submitPending,
   submitted,
   totalItems,
-  verifyError,
-  verifyPending,
-  verifySuccess,
   onClear,
-  onIdentifierChange,
   onContactEmailChange,
   onContactPhoneChange,
   onRequestedForChange,
   onSubmit,
-  onVerify,
 }: BorrowRequestCardProps) {
   return (
     <Card>
@@ -69,15 +57,17 @@ export function BorrowRequestCard({
         </p>
       ) : (
         <div className="mt-4 space-y-2">
-          {items.map((item) => (
-            <div
-              className="flex items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2"
-              key={item.productId}
-            >
-              <span className="text-sm font-medium text-ink">{item.name}</span>
-              <span className="text-sm text-muted">x{item.quantity}</span>
-            </div>
-          ))}
+          <div className="max-h-40 space-y-2 overflow-y-auto">
+            {items.map((item) => (
+              <div
+                className="flex items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2"
+                key={item.productId}
+              >
+                <span className="text-sm font-medium text-ink">{item.name}</span>
+                <span className="text-sm text-muted">x{item.quantity}</span>
+              </div>
+            ))}
+          </div>
           <button className="desk-button w-full" type="button" onClick={onClear}>
             Clear selection
           </button>
@@ -85,28 +75,6 @@ export function BorrowRequestCard({
       )}
 
       <div className="mt-5 space-y-3">
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
-            Check-In email or phone
-          </span>
-          <input
-            className="desk-input w-full"
-            placeholder="Email or phone used at Check-In"
-            value={identifier}
-            onChange={(event) => onIdentifierChange(event.target.value)}
-          />
-        </label>
-        <button
-          className="desk-button w-full"
-          disabled={!identifier.trim() || verifyPending}
-          type="button"
-          onClick={onVerify}
-        >
-          {verifyPending ? "Verifying..." : "Verify Check-In"}
-        </button>
-        {verifySuccess ? <Notice tone="success" text="Check-In verified" /> : null}
-        {verifyError ? <Notice tone="danger" text={verifyError} /> : null}
-
         <div className="grid gap-3 sm:grid-cols-2">
           <ContactInput
             label="Email for updates"

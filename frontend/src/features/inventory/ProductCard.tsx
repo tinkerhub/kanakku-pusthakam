@@ -25,19 +25,22 @@ export function ProductCard({
   const disabled = isUnavailable(product);
 
   return (
-    <Card className="flex h-full flex-col gap-4 transition hover:border-accent/40">
-      <div className="flex flex-1 flex-col gap-3">
+    <Card
+      className="flex h-full flex-col gap-3 transition hover:border-accent/40"
+      padding="sm"
+    >
+      <div className="flex flex-1 flex-col gap-2">
         <div className="flex items-start justify-between gap-3">
           <h2 className="text-base font-semibold leading-6 text-ink">
             {product.name}
           </h2>
           <AvailabilityBadge availability={product.availability} />
         </div>
-        <p className="line-clamp-3 text-sm leading-6 text-muted">
+        <p className="line-clamp-2 text-sm leading-6 text-muted">
           {product.description || "No description provided."}
         </p>
       </div>
-      <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
+      <div className="flex items-center justify-between gap-2 border-t border-line pt-2">
         <div className="flex items-center rounded-md border border-line bg-bg">
           <button
             aria-label={`Remove ${product.name}`}
