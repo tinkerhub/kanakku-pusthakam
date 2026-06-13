@@ -1,5 +1,6 @@
 from django.contrib.auth.hashers import make_password
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from django.utils.crypto import get_random_string
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
@@ -15,6 +16,7 @@ from apps.admin_api.permissions import IsActiveStaff, IsActiveSuperAdmin, requir
 from apps.admin_api.serializers import (
     AuditLogSerializer,
     BulkImportPreviewSerializer,
+    CategoryAdminSerializer,
     InventoryProductAdminSerializer,
     MakerspaceSerializer,
     RestrictUserSerializer,
@@ -26,7 +28,7 @@ from apps.admin_api.serializers import (
 )
 from apps.audit import services as audit
 from apps.audit.models import AuditLog
-from apps.inventory.models import InventoryProduct
+from apps.inventory.models import Category, InventoryProduct
 from apps.makerspaces.models import Makerspace, MakerspaceMembership, TenantFrontend
 from apps.makerspaces.guards import require_module
 from apps.openapi import BULK_IMPORT_ROWS_EXAMPLE, RESTRICT_USER_EXAMPLE
@@ -162,6 +164,9 @@ class InventoryListCreateView(generics.ListCreateAPIView):
         require_module(makerspace_id, "staff_admin")
         require_action(self.request.user, rbac.Action.EDIT_INVENTORY, makerspace_id)
         _assert_box_in_makerspace(serializer.validated_data.get("box"), makerspace_id)
+        _assert_category_in_makerspace(
+            serializer.validated_data.get("category"), makerspace_id
+        )
         instance = serializer.save(makerspace_id=makerspace_id)
         audit.record(
             self.request.user,
@@ -189,6 +194,9 @@ class InventoryDetailView(generics.RetrieveUpdateAPIView):
         _assert_box_in_makerspace(
             serializer.validated_data.get("box"), serializer.instance.makerspace_id
         )
+        _assert_category_in_makerspace(
+            serializer.validated_data.get("category"), serializer.instance.makerspace_id
+        )
         instance = serializer.save()
         audit.record(
             self.request.user,
@@ -198,10 +206,119 @@ class InventoryDetailView(generics.RetrieveUpdateAPIView):
         )
 
 
+@extend_schema(tags=["Admin inventory"], summary="List or create inventory categories")
+class CategoryListCreateView(generics.ListCreateAPIView):
+    serializer_class = CategoryAdminSerializer
+    permission_classes = [IsActiveStaff]
+
+    def get_queryset(self):
+        makerspace_id = self.kwargs["makerspace_id"]
+        require_module(makerspace_id, "staff_admin")
+        require_action(self.request.user, rbac.Action.VIEW_INVENTORY, makerspace_id)
+        return (
+            Category.objects.filter(makerspace_id=makerspace_id)
+            .annotate(product_count=Count("products"))
+            .order_by("display_order", "name")
+        )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["makerspace_id"] = self.kwargs["makerspace_id"]
+        return context
+
+    def perform_create(self, serializer):
+        makerspace_id = self.kwargs["makerspace_id"]
+        require_module(makerspace_id, "staff_admin")
+        require_action(self.request.user, rbac.Action.EDIT_INVENTORY, makerspace_id)
+        try:
+            instance = serializer.save(makerspace_id=makerspace_id)
+        except IntegrityError:
+            raise ValidationError(
+                {
+                    "slug": "A category with this slug already exists in this makerspace."
+                }
+            )
+        audit.record(
+            self.request.user,
+            "category.created",
+            makerspace=instance.makerspace,
+            target=instance,
+        )
+
+
+@extend_schema(
+    tags=["Admin inventory"],
+    summary="Retrieve, update, or delete inventory category",
+)
+class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = CategoryAdminSerializer
+    permission_classes = [IsActiveStaff]
+    http_method_names = ["get", "patch", "delete", "head", "options"]
+
+    def get_queryset(self):
+        return rbac.scope_by_action(
+            self.request.user,
+            rbac.Action.VIEW_INVENTORY,
+            Category.objects.select_related("makerspace").annotate(
+                product_count=Count("products")
+            ),
+        )
+
+    def get_object(self):
+        category = super().get_object()
+        require_module(category.makerspace_id, "staff_admin")
+        return category
+
+    def perform_update(self, serializer):
+        require_action(
+            self.request.user,
+            rbac.Action.EDIT_INVENTORY,
+            serializer.instance.makerspace_id,
+        )
+        try:
+            instance = serializer.save()
+        except IntegrityError:
+            raise ValidationError(
+                {
+                    "slug": "A category with this slug already exists in this makerspace."
+                }
+            )
+        audit.record(
+            self.request.user,
+            "category.updated",
+            makerspace=instance.makerspace,
+            target=instance,
+        )
+
+    def perform_destroy(self, instance):
+        require_action(
+            self.request.user,
+            rbac.Action.EDIT_INVENTORY,
+            instance.makerspace_id,
+        )
+        detached_product_count = instance.products.count()
+        audit.record(
+            self.request.user,
+            "category.deleted",
+            makerspace=instance.makerspace,
+            target=instance,
+            meta={"detached_product_count": detached_product_count},
+        )
+        instance.delete()
+
+
 def _assert_box_in_makerspace(box, makerspace_id):
     """A product may only point at a box in its own makerspace (tenant isolation)."""
     if box is not None and box.makerspace_id != makerspace_id:
         raise ValidationError({"box": "Box belongs to a different makerspace."})
+
+
+def _assert_category_in_makerspace(category, makerspace_id):
+    """A product may only point at a category in its own makerspace."""
+    if category is not None and category.makerspace_id != makerspace_id:
+        raise ValidationError(
+            {"category": "Category belongs to a different makerspace."}
+        )
 
 
 def _rows_from_upload(uploaded_file):

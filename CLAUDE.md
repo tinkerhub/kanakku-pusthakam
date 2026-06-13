@@ -214,6 +214,13 @@ cd backend && pytest
   issue/return scan history, generalized `QrCode`, and immutable `QrScanEvent`
   records for box/product/asset/scanner lookup scans.
 - `backend/apps/admin_api/` - staff REST surface for makerspaces, inventory CRUD,
+  per-makerspace category CRUD (`makerspace/<id>/categories` + `categories/<pk>`,
+  gated by `EDIT_INVENTORY` so Space + Inventory Managers manage their own
+  makerspace's categories from the React console; superadmin still uses the Django
+  admin; products set their category via `InventoryProductAdminSerializer`. Category
+  detail scopes by `VIEW_INVENTORY` then requires `EDIT_INVENTORY` for write so a
+  viewer gets 403 not 404; DELETE detaches products via the model's `SET_NULL` and
+  audits `detached_product_count`),
   bulk inventory import preview/apply, staff membership management
   (`users/space-managers`, `users/inventory-managers`, `users/guest-admins`,
   `users/print-managers`), tenant frontend registry management, user

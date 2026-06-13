@@ -1,8 +1,14 @@
+from django.utils.text import slugify
 from rest_framework import serializers
 
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
-from apps.inventory.models import InventoryProduct, PublicAvailabilityMode, TrackingMode
+from apps.inventory.models import (
+    Category,
+    InventoryProduct,
+    PublicAvailabilityMode,
+    TrackingMode,
+)
 from apps.makerspaces.models import Makerspace, MakerspaceMembership, TenantFrontend
 
 
@@ -118,12 +124,19 @@ class TenantFrontendSerializer(serializers.ModelSerializer):
 
 
 class InventoryProductAdminSerializer(serializers.ModelSerializer):
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+
     class Meta:
         model = InventoryProduct
         fields = [
             "id",
             "makerspace",
             "box",
+            "category",
             "name",
             "description",
             "tracking_mode",
@@ -157,6 +170,64 @@ class InventoryProductAdminSerializer(serializers.ModelSerializer):
         if value not in PublicAvailabilityMode.values:
             raise serializers.ValidationError("Invalid public availability mode.")
         return value
+
+
+class CategoryAdminSerializer(serializers.ModelSerializer):
+    slug = serializers.SlugField(required=False, allow_blank=True)
+    product_count = serializers.IntegerField(read_only=True, default=0)
+
+    class Meta:
+        model = Category
+        fields = [
+            "id",
+            "makerspace",
+            "name",
+            "slug",
+            "display_order",
+            "icon",
+            "product_count",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "makerspace",
+            "product_count",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate(self, attrs):
+        makerspace_id = self.context.get("makerspace_id") or getattr(
+            self.instance, "makerspace_id", None
+        )
+        name = attrs.get("name", getattr(self.instance, "name", None))
+        provided_slug = (attrs.get("slug") or "").strip()
+        if provided_slug:
+            slug = provided_slug
+        elif self.instance is not None and self.instance.slug:
+            # PATCH that omits slug: keep the existing (possibly custom) slug
+            # instead of silently re-deriving it from the name.
+            slug = self.instance.slug
+        else:
+            slug = slugify(name or "")
+        if not slug:
+            raise serializers.ValidationError(
+                {"slug": "Provide a name that yields a valid slug."}
+            )
+        duplicate = (
+            Category.objects.filter(makerspace_id=makerspace_id, slug=slug)
+            .exclude(pk=getattr(self.instance, "pk", None))
+            .exists()
+        )
+        if duplicate:
+            raise serializers.ValidationError(
+                {
+                    "slug": "A category with this slug already exists in this makerspace."
+                }
+            )
+        attrs["slug"] = slug
+        return attrs
 
 
 class UserSerializer(serializers.ModelSerializer):

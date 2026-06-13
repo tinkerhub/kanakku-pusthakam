@@ -21,6 +21,14 @@
                         "description": "Public API key for a makerspace public client. Required when API_CLIENT_AUTH_REQUIRED is enabled."
                     },
                     {
+                        "in": "query",
+                        "name": "category",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter public products by category slug."
+                    },
+                    {
                         "in": "path",
                         "name": "makerspace_slug",
                         "schema": {
@@ -48,20 +56,12 @@
                     },
                     {
                         "in": "query",
-                        "name": "category",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "description": "Filter public products by category slug."
-                    },
-                    {
-                        "in": "query",
                         "name": "sort",
                         "schema": {
                             "type": "string",
                             "enum": [
-                                "name",
                                 "most_used",
+                                "name",
                                 "popular"
                             ]
                         },
@@ -83,54 +83,6 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/PaginatedPublicProductList"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/api/public/{makerspace_slug}/inventory/categories/": {
-            "get": {
-                "operationId": "api_public_inventory_categories_list",
-                "summary": "List public inventory categories",
-                "parameters": [
-                    {
-                        "in": "header",
-                        "name": "X-Publishable-Key",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "description": "Public API key for a makerspace public client. Required when API_CLIENT_AUTH_REQUIRED is enabled."
-                    },
-                    {
-                        "in": "path",
-                        "name": "makerspace_slug",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Public inventory"
-                ],
-                "security": [
-                    {
-                        "jwtAuth": []
-                    },
-                    {}
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/PublicCategory"
-                                    }
                                 }
                             }
                         },
@@ -184,6 +136,54 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/PublicProduct"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/public/{makerspace_slug}/inventory/categories/": {
+            "get": {
+                "operationId": "api_public_inventory_categories_list",
+                "summary": "List public inventory categories",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "X-Publishable-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Public API key for a makerspace public client. Required when API_CLIENT_AUTH_REQUIRED is enabled."
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PublicCategory"
+                                    }
                                 }
                             }
                         },
@@ -446,6 +446,122 @@
                             }
                         },
                         "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/categories/{id}": {
+            "get": {
+                "operationId": "api_v1_admin_categories_retrieve",
+                "summary": "Retrieve, update, or delete inventory category",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CategoryAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "api_v1_admin_categories_partial_update",
+                "summary": "Retrieve, update, or delete inventory category",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedCategoryAdmin"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedCategoryAdmin"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedCategoryAdmin"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CategoryAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "api_v1_admin_categories_destroy",
+                "summary": "Retrieve, update, or delete inventory category",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             }
@@ -1469,6 +1585,105 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiIntegrationSettings"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/categories": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_categories_list",
+                "summary": "List or create inventory categories",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedCategoryAdminList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_makerspace_categories_create",
+                "summary": "List or create inventory categories",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CategoryAdmin"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CategoryAdmin"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CategoryAdmin"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CategoryAdmin"
                                 }
                             }
                         },
@@ -6648,6 +6863,14 @@
                         "description": "Public API key for a makerspace public client. Required when API_CLIENT_AUTH_REQUIRED is enabled."
                     },
                     {
+                        "in": "query",
+                        "name": "category",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter public products by category slug."
+                    },
+                    {
                         "in": "path",
                         "name": "makerspace_slug",
                         "schema": {
@@ -6675,20 +6898,12 @@
                     },
                     {
                         "in": "query",
-                        "name": "category",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "description": "Filter public products by category slug."
-                    },
-                    {
-                        "in": "query",
                         "name": "sort",
                         "schema": {
                             "type": "string",
                             "enum": [
-                                "name",
                                 "most_used",
+                                "name",
                                 "popular"
                             ]
                         },
@@ -6710,54 +6925,6 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/PaginatedPublicProductList"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/api/v1/public/{makerspace_slug}/inventory/categories/": {
-            "get": {
-                "operationId": "api_v1_public_inventory_categories_list",
-                "summary": "List public inventory categories",
-                "parameters": [
-                    {
-                        "in": "header",
-                        "name": "X-Publishable-Key",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "description": "Public API key for a makerspace public client. Required when API_CLIENT_AUTH_REQUIRED is enabled."
-                    },
-                    {
-                        "in": "path",
-                        "name": "makerspace_slug",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Public inventory"
-                ],
-                "security": [
-                    {
-                        "jwtAuth": []
-                    },
-                    {}
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/PublicCategory"
-                                    }
                                 }
                             }
                         },
@@ -6811,6 +6978,54 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/PublicProduct"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/public/{makerspace_slug}/inventory/categories/": {
+            "get": {
+                "operationId": "api_v1_public_inventory_categories_list",
+                "summary": "List public inventory categories",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "X-Publishable-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Public API key for a makerspace public client. Required when API_CLIENT_AUTH_REQUIRED is enabled."
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PublicCategory"
+                                    }
                                 }
                             }
                         },
@@ -7931,6 +8146,59 @@
                     }
                 }
             },
+            "CategoryAdmin": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "makerspace": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "slug": {
+                        "type": "string",
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "display_order": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 0
+                    },
+                    "icon": {
+                        "type": "string",
+                        "maxLength": 50
+                    },
+                    "product_count": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "default": 0
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "id",
+                    "makerspace",
+                    "name",
+                    "product_count",
+                    "updated_at"
+                ]
+            },
             "CheckinVerifyRequest": {
                 "type": "object",
                 "properties": {
@@ -8537,6 +8805,10 @@
                         "type": "integer",
                         "nullable": true
                     },
+                    "category": {
+                        "type": "integer",
+                        "nullable": true
+                    },
                     "name": {
                         "type": "string",
                         "maxLength": 200
@@ -8624,6 +8896,12 @@
                     "remark": {
                         "type": "string",
                         "default": ""
+                    },
+                    "asset_qr_payloads": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 },
                 "required": [
@@ -8896,6 +9174,37 @@
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/Box"
+                        }
+                    }
+                }
+            },
+            "PaginatedCategoryAdminList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CategoryAdmin"
                         }
                     }
                 }
@@ -9410,6 +9719,51 @@
                     }
                 }
             },
+            "PatchedCategoryAdmin": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "makerspace": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "slug": {
+                        "type": "string",
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "display_order": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 0
+                    },
+                    "icon": {
+                        "type": "string",
+                        "maxLength": 50
+                    },
+                    "product_count": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "default": 0
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                }
+            },
             "PatchedFilamentSpool": {
                 "type": "object",
                 "properties": {
@@ -9486,6 +9840,10 @@
                         "readOnly": true
                     },
                     "box": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "category": {
                         "type": "integer",
                         "nullable": true
                     },
@@ -10180,6 +10538,44 @@
                 "type": "string",
                 "description": "* `exact_count` - Exact Count\n* `status_only` - Status Only\n* `hidden` - Hidden"
             },
+            "PublicCategory": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "slug": {
+                        "type": "string",
+                        "readOnly": true,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "display_order": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "icon": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "product_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "display_order",
+                    "icon",
+                    "id",
+                    "name",
+                    "product_count",
+                    "slug"
+                ]
+            },
             "PublicMakerspace": {
                 "type": "object",
                 "properties": {
@@ -10208,43 +10604,6 @@
                     "slug"
                 ]
             },
-            "PublicCategory": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "integer",
-                        "readOnly": true
-                    },
-                    "name": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "slug": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "display_order": {
-                        "type": "integer",
-                        "readOnly": true
-                    },
-                    "icon": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "product_count": {
-                        "type": "integer",
-                        "readOnly": true
-                    }
-                },
-                "required": [
-                    "display_order",
-                    "icon",
-                    "id",
-                    "name",
-                    "product_count",
-                    "slug"
-                ]
-            },
             "PublicProduct": {
                 "type": "object",
                 "properties": {
@@ -10262,18 +10621,18 @@
                     },
                     "category_id": {
                         "type": "integer",
-                        "nullable": true,
-                        "readOnly": true
+                        "readOnly": true,
+                        "nullable": true
                     },
                     "category_name": {
                         "type": "string",
-                        "nullable": true,
-                        "readOnly": true
+                        "readOnly": true,
+                        "nullable": true
                     },
                     "category_slug": {
                         "type": "string",
-                        "nullable": true,
-                        "readOnly": true
+                        "readOnly": true,
+                        "nullable": true
                     },
                     "availability": {
                         "type": "object",
@@ -10867,6 +11226,10 @@
             "RequestSubmit": {
                 "type": "object",
                 "properties": {
+                    "website": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
                     "identifier": {
                         "type": "string"
                     },

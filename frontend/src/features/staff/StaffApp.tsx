@@ -8,6 +8,7 @@ import { DirectLoans } from "./DirectLoans";
 import {
   AuditLog,
   BulkImport,
+  Categories,
   Inventory,
   OperationsReports,
   Panel,
@@ -90,7 +91,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
             ))}
           </select>
           <nav className="mt-4 grid gap-1">
-            {["queues", "direct", "inventory", "printing", "transfers", "stocktake", "reports", "bulk", "qr", "api", "users", "audit"].map((item) => (
+            {["queues", "direct", "inventory", "categories", "printing", "transfers", "stocktake", "reports", "bulk", "qr", "api", "users", "audit"].map((item) => (
               <button
                 key={item}
                 className={`rounded-md px-3 py-2 text-left text-sm font-medium transition ${
@@ -144,6 +145,9 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
           ) : null}
           {activeMakerspace && tab === "inventory" ? (
             <Inventory makerspace={activeMakerspace} />
+          ) : null}
+          {activeMakerspace && tab === "categories" ? (
+            <Categories makerspace={activeMakerspace} />
           ) : null}
           {activeMakerspace && tab === "printing" ? (
             <PrintingPanel makerspace={activeMakerspace} />

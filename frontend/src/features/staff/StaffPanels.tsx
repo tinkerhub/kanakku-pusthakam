@@ -3,7 +3,7 @@ import type { Key } from "react";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { DataTable, DetailDrawer, FilterBar, StatusBadge } from "../../components/ui";
+import { DataTable, DetailDrawer, EmptyState, FilterBar, StatusBadge } from "../../components/ui";
 import type { DataTableColumn } from "../../components/ui";
 import { downloadStaffFile, staffRequest } from "../../lib/api";
 
@@ -17,6 +17,7 @@ export type Makerspace = {
 type Product = {
   id: number;
   name: string;
+  category: number | null;
   total_quantity: number;
   available_quantity: number;
   issued_quantity: number;
@@ -27,6 +28,17 @@ type Product = {
   tracking_mode: string;
   is_public: boolean;
   public_self_checkout_enabled: boolean;
+};
+export type Category = {
+  id: number;
+  makerspace: number;
+  name: string;
+  slug: string;
+  display_order: number;
+  icon: string;
+  product_count: number;
+  created_at: string;
+  updated_at: string;
 };
 type Container = {
   id: number;
@@ -275,6 +287,10 @@ export function Inventory({ makerspace }: { makerspace: Makerspace }) {
     ["inventory", makerspace.id],
     `/admin/makerspace/${makerspace.id}/inventory`,
   );
+  const categories = useStaffGet<CategoryListResponse>(
+    ["categories", makerspace.id],
+    `/admin/makerspace/${makerspace.id}/categories`,
+  );
   const toggle = useMutation({
     mutationFn: (product: Product) =>
       staffRequest(`/admin/inventory/${product.id}`, {
@@ -284,6 +300,17 @@ export function Inventory({ makerspace }: { makerspace: Makerspace }) {
         }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["inventory", makerspace.id] }),
+  });
+  const updateCategory = useMutation({
+    mutationFn: ({ product, category }: { product: Product; category: number | null }) =>
+      staffRequest(`/admin/inventory/${product.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ category }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory", makerspace.id] });
+      queryClient.invalidateQueries({ queryKey: ["categories", makerspace.id] });
+    },
   });
   const bulkQr = useMutation({
     mutationFn: (enabled: boolean) =>
@@ -306,6 +333,7 @@ export function Inventory({ makerspace }: { makerspace: Makerspace }) {
   );
   const selectedCount = selectedIds.length;
   const drawerProduct = selectedProduct ? allProducts.find((product) => product.id === selectedProduct.id) ?? selectedProduct : null;
+  const categoryRows = categoryResults(categories.data);
   const columns: DataTableColumn<Product>[] = [
     {
       key: "name",
@@ -403,6 +431,29 @@ export function Inventory({ makerspace }: { makerspace: Makerspace }) {
                 <dd className="font-medium text-ink">{drawerProduct.is_public ? "yes" : "no"}</dd>
               </div>
               <div className="flex items-center justify-between gap-3">
+                <dt>Category</dt>
+                <dd>
+                  <select
+                    className="desk-input"
+                    value={drawerProduct.category ?? ""}
+                    disabled={categories.isLoading || updateCategory.isPending}
+                    onChange={(event) =>
+                      updateCategory.mutate({
+                        product: drawerProduct,
+                        category: event.target.value ? Number(event.target.value) : null,
+                      })
+                    }
+                  >
+                    <option value="">Uncategorized</option>
+                    {categoryRows.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
                 <dt>Public self-checkout</dt>
                 <dd>
                   <button className="desk-button" type="button" onClick={() => toggle.mutate(drawerProduct)}>
@@ -415,6 +466,7 @@ export function Inventory({ makerspace }: { makerspace: Makerspace }) {
                 <dd className="font-medium text-ink">{drawerProduct.box ?? "none"}</dd>
               </div>
             </dl>
+            {updateCategory.error ? <p className="text-sm text-danger">{updateCategory.error.message}</p> : null}
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Description</h3>
               <p className="mt-2 text-muted">{drawerProduct.description || "No description."}</p>
@@ -422,6 +474,232 @@ export function Inventory({ makerspace }: { makerspace: Makerspace }) {
           </div>
         ) : null}
       </DetailDrawer>
+    </Panel>
+  );
+}
+
+type CategoryListResponse = Category[] | { results: Category[] };
+
+function categoryResults(data?: CategoryListResponse) {
+  if (!data) return [];
+  return Array.isArray(data) ? data : data.results;
+}
+
+type CategoryForm = {
+  name: string;
+  slug: string;
+  display_order: string;
+  icon: string;
+};
+
+const emptyCategoryForm: CategoryForm = {
+  name: "",
+  slug: "",
+  display_order: "",
+  icon: "",
+};
+
+function categoryPayload(form: CategoryForm, includeSlug: boolean) {
+  return {
+    name: form.name.trim(),
+    ...(includeSlug && form.slug.trim() ? { slug: form.slug.trim() } : {}),
+    ...(form.display_order ? { display_order: Number(form.display_order) } : {}),
+    icon: form.icon.trim(),
+  };
+}
+
+export function Categories({ makerspace }: { makerspace: Makerspace }) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<CategoryForm>(emptyCategoryForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<CategoryForm>(emptyCategoryForm);
+  const categories = useStaffGet<CategoryListResponse>(
+    ["categories", makerspace.id],
+    `/admin/makerspace/${makerspace.id}/categories`,
+  );
+  const invalidateCategories = () => {
+    queryClient.invalidateQueries({ queryKey: ["categories", makerspace.id] });
+    queryClient.invalidateQueries({ queryKey: ["inventory", makerspace.id] });
+  };
+  const create = useMutation({
+    mutationFn: () =>
+      staffRequest(`/admin/makerspace/${makerspace.id}/categories`, {
+        method: "POST",
+        body: JSON.stringify(categoryPayload(form, true)),
+      }),
+    onSuccess: () => {
+      setForm(emptyCategoryForm);
+      invalidateCategories();
+    },
+  });
+  const update = useMutation({
+    mutationFn: (category: Category) =>
+      staffRequest(`/admin/categories/${category.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(categoryPayload(editForm, false)),
+      }),
+    onSuccess: () => {
+      setEditingId(null);
+      invalidateCategories();
+    },
+  });
+  const remove = useMutation({
+    mutationFn: (category: Category) =>
+      staffRequest(`/admin/categories/${category.id}`, {
+        method: "DELETE",
+      }).catch((error: unknown) => {
+        if (error instanceof SyntaxError) return undefined;
+        throw error;
+      }),
+    onSuccess: invalidateCategories,
+  });
+  const rows = categoryResults(categories.data);
+  const startEdit = (category: Category) => {
+    setEditingId(category.id);
+    setEditForm({
+      name: category.name,
+      slug: category.slug,
+      display_order: String(category.display_order),
+      icon: category.icon ?? "",
+    });
+  };
+  const columns: DataTableColumn<Category>[] = [
+    {
+      key: "name",
+      header: "Name",
+      sortable: true,
+      render: (category) =>
+        editingId === category.id ? (
+          <input
+            className="desk-input w-full"
+            value={editForm.name}
+            onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))}
+          />
+        ) : (
+          <span className="font-semibold">{category.name}</span>
+        ),
+    },
+    { key: "slug", header: "Slug", sortable: true },
+    {
+      key: "display_order",
+      header: "Order",
+      sortable: true,
+      render: (category) =>
+        editingId === category.id ? (
+          <input
+            className="desk-input w-24"
+            type="number"
+            value={editForm.display_order}
+            onChange={(event) => setEditForm((current) => ({ ...current, display_order: event.target.value }))}
+          />
+        ) : (
+          category.display_order
+        ),
+    },
+    {
+      key: "icon",
+      header: "Icon",
+      render: (category) =>
+        editingId === category.id ? (
+          <input
+            className="desk-input w-28"
+            value={editForm.icon}
+            onChange={(event) => setEditForm((current) => ({ ...current, icon: event.target.value }))}
+          />
+        ) : (
+          category.icon || "-"
+        ),
+    },
+    { key: "product_count", header: "# products", sortable: true },
+    {
+      key: "actions",
+      header: "",
+      render: (category) =>
+        editingId === category.id ? (
+          <div className="desk-actions flex flex-wrap gap-2">
+            <button
+              className="desk-button"
+              type="button"
+              disabled={!editForm.name.trim() || update.isPending}
+              onClick={() => update.mutate(category)}
+            >
+              Save
+            </button>
+            <button className="desk-button" type="button" onClick={() => setEditingId(null)}>
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div className="desk-actions flex flex-wrap gap-2">
+            <button className="desk-button" type="button" onClick={() => startEdit(category)}>
+              Edit
+            </button>
+            <button
+              className="desk-button"
+              type="button"
+              disabled={remove.isPending}
+              onClick={() => {
+                if (confirm(`Delete ${category.name}? This will detach ${category.product_count} products.`)) {
+                  remove.mutate(category);
+                }
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        ),
+    },
+  ];
+  return (
+    <Panel title="Categories">
+      <div className="grid gap-3">
+        <div className="grid gap-2 rounded-md border border-line bg-panel p-3 md:grid-cols-[1fr_1fr_120px_1fr_auto]">
+          <input
+            className="desk-input"
+            placeholder="Name"
+            value={form.name}
+            onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+          />
+          <input
+            className="desk-input"
+            placeholder="auto from name"
+            value={form.slug}
+            onChange={(event) => setForm((current) => ({ ...current, slug: event.target.value }))}
+          />
+          <input
+            className="desk-input"
+            type="number"
+            placeholder="Order"
+            value={form.display_order}
+            onChange={(event) => setForm((current) => ({ ...current, display_order: event.target.value }))}
+          />
+          <input
+            className="desk-input"
+            placeholder="Icon"
+            value={form.icon}
+            onChange={(event) => setForm((current) => ({ ...current, icon: event.target.value }))}
+          />
+          <button className="desk-button" type="button" disabled={!form.name.trim() || create.isPending} onClick={() => create.mutate()}>
+            Add category
+          </button>
+        </div>
+        {create.error ? <p className="text-sm text-danger">{create.error.message}</p> : null}
+        {update.error ? <p className="text-sm text-danger">{update.error.message}</p> : null}
+        {remove.error ? <p className="text-sm text-danger">{remove.error.message}</p> : null}
+        {categories.error ? <p className="text-sm text-danger">{categories.error.message}</p> : null}
+        {categories.isError ? (
+          <EmptyState title="Unable to load categories" description={categories.error.message} />
+        ) : (
+          <DataTable<Category>
+            columns={columns}
+            data={rows}
+            getRowId={(row) => row.id}
+            loading={categories.isLoading}
+            emptyTitle="No categories"
+            emptyDescription="Add a category to organize inventory products."
+          />
+        )}
+      </div>
     </Panel>
   );
 }
