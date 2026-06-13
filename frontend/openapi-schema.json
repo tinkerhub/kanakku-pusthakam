@@ -45,6 +45,27 @@
                             "type": "string"
                         },
                         "description": "Search public products by name or description."
+                    },
+                    {
+                        "in": "query",
+                        "name": "category",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter public products by category slug."
+                    },
+                    {
+                        "in": "query",
+                        "name": "sort",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "name",
+                                "most_used",
+                                "popular"
+                            ]
+                        },
+                        "description": "Sort public products."
                     }
                 ],
                 "tags": [
@@ -62,6 +83,54 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/PaginatedPublicProductList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/public/{makerspace_slug}/inventory/categories/": {
+            "get": {
+                "operationId": "api_public_inventory_categories_list",
+                "summary": "List public inventory categories",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "X-Publishable-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Public API key for a makerspace public client. Required when API_CLIENT_AUTH_REQUIRED is enabled."
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PublicCategory"
+                                    }
                                 }
                             }
                         },
@@ -6603,6 +6672,27 @@
                             "type": "string"
                         },
                         "description": "Search public products by name or description."
+                    },
+                    {
+                        "in": "query",
+                        "name": "category",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter public products by category slug."
+                    },
+                    {
+                        "in": "query",
+                        "name": "sort",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "name",
+                                "most_used",
+                                "popular"
+                            ]
+                        },
+                        "description": "Sort public products."
                     }
                 ],
                 "tags": [
@@ -6620,6 +6710,54 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/PaginatedPublicProductList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/public/{makerspace_slug}/inventory/categories/": {
+            "get": {
+                "operationId": "api_v1_public_inventory_categories_list",
+                "summary": "List public inventory categories",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "X-Publishable-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Public API key for a makerspace public client. Required when API_CLIENT_AUTH_REQUIRED is enabled."
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PublicCategory"
+                                    }
                                 }
                             }
                         },
@@ -10070,6 +10208,43 @@
                     "slug"
                 ]
             },
+            "PublicCategory": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "slug": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "display_order": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "icon": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "product_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "display_order",
+                    "icon",
+                    "id",
+                    "name",
+                    "product_count",
+                    "slug"
+                ]
+            },
             "PublicProduct": {
                 "type": "object",
                 "properties": {
@@ -10083,6 +10258,21 @@
                     },
                     "description": {
                         "type": "string",
+                        "readOnly": true
+                    },
+                    "category_id": {
+                        "type": "integer",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "category_name": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "category_slug": {
+                        "type": "string",
+                        "nullable": true,
                         "readOnly": true
                     },
                     "availability": {
@@ -10117,6 +10307,9 @@
                 },
                 "required": [
                     "availability",
+                    "category_id",
+                    "category_name",
+                    "category_slug",
                     "description",
                     "id",
                     "name"

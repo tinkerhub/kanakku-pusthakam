@@ -26,11 +26,35 @@ class PublicProductSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     name = serializers.CharField(read_only=True)
     description = serializers.CharField(read_only=True)
+    category_id = serializers.IntegerField(
+        source="category.id",
+        read_only=True,
+        allow_null=True,
+    )
+    category_name = serializers.CharField(
+        source="category.name",
+        read_only=True,
+        allow_null=True,
+    )
+    category_slug = serializers.CharField(
+        source="category.slug",
+        read_only=True,
+        allow_null=True,
+    )
     availability = serializers.SerializerMethodField()
 
     @extend_schema_field(AVAILABILITY_SCHEMA)
     def get_availability(self, product):
         return get_public_availability(product)
+
+
+class PublicCategorySerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    slug = serializers.SlugField(read_only=True)
+    display_order = serializers.IntegerField(read_only=True)
+    icon = serializers.CharField(read_only=True)
+    product_count = serializers.IntegerField(read_only=True)
 
 
 class PublicMakerspaceSerializer(serializers.Serializer):

@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import Http404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.generics import ListAPIView
@@ -7,6 +7,7 @@ from rest_framework.permissions import AllowAny
 
 from apps.apiclients.throttling import ClientTierRateThrottle
 from apps.inventory.serializers import (
+    PublicCategorySerializer,
     PublicMakerspaceSerializer,
     PublicProductSerializer,
 )
@@ -54,6 +55,19 @@ class PublicMakerspaceListView(ListAPIView):
             location=OpenApiParameter.QUERY,
             description="Search public products by name or description.",
         ),
+        OpenApiParameter(
+            name="category",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            description="Filter public products by category slug.",
+        ),
+        OpenApiParameter(
+            name="sort",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            description="Sort public products.",
+            enum=["name", "most_used", "popular"],
+        ),
     ],
     responses=PublicProductSerializer(many=True),
 )
@@ -65,10 +79,13 @@ class PublicInventoryListView(ListAPIView):
 
     def get_queryset(self):
         makerspace = get_public_makerspace(self.kwargs["makerspace_slug"])
-        if not makerspace.public_inventory_enabled or not module_enabled(makerspace, "public_inventory"):
+        if not makerspace.public_inventory_enabled or not module_enabled(
+            makerspace,
+            "public_inventory",
+        ):
             raise Http404
 
-        queryset = makerspace.products.filter(
+        queryset = makerspace.products.select_related("category").filter(
             is_public=True,
             is_archived=False,
         )
@@ -78,7 +95,62 @@ class PublicInventoryListView(ListAPIView):
                 Q(name__icontains=query) | Q(description__icontains=query)
             )
 
+        category_slug = self.request.query_params.get("category", "").strip()
+        if category_slug:
+            queryset = queryset.filter(category__slug=category_slug)
+
+        sort = self.request.query_params.get("sort", "name")
+        if sort == "most_used":
+            return queryset.order_by("-issued_quantity", "name")
+        if sort == "popular":
+            from django.db.models import IntegerField, OuterRef, Subquery
+            from django.db.models.functions import Coalesce
+
+            from apps.hardware_requests.models import HardwareRequestItem
+
+            request_count = Subquery(
+                HardwareRequestItem.objects.filter(product=OuterRef("pk"))
+                .values("product")
+                .annotate(c=Count("*"))
+                .values("c"),
+                output_field=IntegerField(),
+            )
+            return queryset.annotate(
+                request_count=Coalesce(request_count, 0),
+            ).order_by("-request_count", "name")
         return queryset.order_by("name")
+
+
+@extend_schema(
+    tags=["Public inventory"],
+    summary="List public inventory categories",
+    parameters=[PUBLISHABLE_KEY_PARAMETER],
+    responses=PublicCategorySerializer(many=True),
+)
+class PublicCategoryListView(ListAPIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ClientTierRateThrottle]
+    throttle_scope = "public_read"
+    pagination_class = None
+    serializer_class = PublicCategorySerializer
+
+    def get_queryset(self):
+        makerspace = get_public_makerspace(self.kwargs["makerspace_slug"])
+        if not makerspace.public_inventory_enabled or not module_enabled(
+            makerspace,
+            "public_inventory",
+        ):
+            raise Http404
+        return (
+            makerspace.categories.annotate(
+                product_count=Count(
+                    "products",
+                    filter=Q(products__is_public=True, products__is_archived=False),
+                )
+            )
+            .filter(product_count__gt=0)
+            .order_by("display_order", "name")
+        )
 
 
 @extend_schema(
@@ -95,6 +167,13 @@ class PublicInventoryDetailView(RetrieveAPIView):
 
     def get_queryset(self):
         makerspace = get_public_makerspace(self.kwargs["makerspace_slug"])
-        if not makerspace.public_inventory_enabled or not module_enabled(makerspace, "public_inventory"):
+        if not makerspace.public_inventory_enabled or not module_enabled(
+            makerspace,
+            "public_inventory",
+        ):
             raise Http404
-        return makerspace.products.filter(is_public=True, is_archived=False).order_by("name")
+        return (
+            makerspace.products.select_related("category")
+            .filter(is_public=True, is_archived=False)
+            .order_by("name")
+        )

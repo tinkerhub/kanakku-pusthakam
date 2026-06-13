@@ -15,6 +15,33 @@ class TrackingMode(models.TextChoices):
     INDIVIDUAL = "individual", "Individual"
 
 
+class Category(models.Model):
+    makerspace = models.ForeignKey(
+        Makerspace,
+        on_delete=models.CASCADE,
+        related_name="categories",
+    )
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=120)
+    display_order = models.PositiveIntegerField(default=0)
+    icon = models.CharField(max_length=50, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["makerspace", "slug"],
+                name="uniq_category_slug_per_makerspace",
+            ),
+        ]
+        ordering = ["display_order", "name"]
+        verbose_name_plural = "Categories"
+
+    def __str__(self) -> str:
+        return f"{self.name} [{self.makerspace.slug}]"
+
+
 class InventoryProduct(models.Model):
     makerspace = models.ForeignKey(
         Makerspace,
@@ -23,6 +50,13 @@ class InventoryProduct(models.Model):
     )
     box = models.ForeignKey(
         "boxes.Box",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="products",
+    )
+    category = models.ForeignKey(
+        "Category",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
@@ -57,6 +91,8 @@ class InventoryProduct(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        verbose_name = "Inventory item"
+        verbose_name_plural = "Inventory"
         indexes = [
             models.Index(fields=["makerspace", "is_public", "is_archived"]),
         ]
@@ -106,6 +142,10 @@ class InventoryProduct(models.Model):
         if self.box_id and self.box.makerspace_id != self.makerspace_id:
             raise ValidationError(
                 {"box": "Box must belong to the same makerspace as the product."}
+            )
+        if self.category_id and self.category.makerspace_id != self.makerspace_id:
+            raise ValidationError(
+                {"category": "Category must belong to the same makerspace."}
             )
 
 

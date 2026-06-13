@@ -34,6 +34,7 @@ export const openApiTags = [
 export const openApiPaths = [
   "/api/public/makerspaces/",
   "/api/public/{makerspace_slug}/inventory/",
+  "/api/public/{makerspace_slug}/inventory/categories/",
   "/api/public/{makerspace_slug}/inventory/{id}/",
   "/api/v1/admin/api-clients/{id}",
   "/api/v1/admin/assets/{id}/qr",
@@ -130,6 +131,7 @@ export const openApiPaths = [
   "/api/v1/public/requests/{public_token}/status",
   "/api/v1/public/{makerspace_slug}/checkin/verify",
   "/api/v1/public/{makerspace_slug}/inventory/",
+  "/api/v1/public/{makerspace_slug}/inventory/categories/",
   "/api/v1/public/{makerspace_slug}/inventory/{id}/",
   "/api/v1/public/{makerspace_slug}/requests",
   "/api/v1/public/{makerspace_slug}/requests/status",

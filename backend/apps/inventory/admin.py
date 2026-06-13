@@ -8,13 +8,24 @@ from unfold.contrib.filters.admin import (
     RelatedDropdownFilter,
 )
 
-from apps.inventory.models import InventoryAsset, InventoryProduct
+from apps.inventory.models import Category, InventoryAsset, InventoryProduct
+
+
+@admin.register(Category)
+class CategoryAdmin(ModelAdmin):
+    list_display = ("name", "makerspace", "display_order", "slug")
+    list_filter = (("makerspace", RelatedDropdownFilter),)
+    search_fields = ("name", "slug", "makerspace__name")
+    prepopulated_fields = {"slug": ("name",)}
+    autocomplete_fields = ("makerspace",)
+    ordering = ("display_order", "name")
 
 
 @admin.register(InventoryProduct)
 class InventoryProductAdmin(ModelAdmin):
     list_display = (
         "name",
+        "category",
         "makerspace",
         "box",
         "is_public",
@@ -26,6 +37,7 @@ class InventoryProductAdmin(ModelAdmin):
     )
     list_filter = (
         ("makerspace", RelatedDropdownFilter),
+        ("category", RelatedDropdownFilter),
         ("box", RelatedDropdownFilter),
         ("public_availability_mode", ChoicesDropdownFilter),
         ("is_public", BooleanRadioFilter),
@@ -38,8 +50,8 @@ class InventoryProductAdmin(ModelAdmin):
     search_fields = ("name", "description", "makerspace__name", "makerspace__slug")
     # Admin autocomplete is not yet tenant-scoped; deferred to Phase 2 RBAC.
     # InventoryProduct.clean() is the safety net.
-    autocomplete_fields = ("makerspace", "box")
-    list_select_related = ("makerspace", "box")
+    autocomplete_fields = ("makerspace", "category", "box")
+    list_select_related = ("makerspace", "category", "box")
     ordering = ("name",)
     date_hierarchy = "updated_at"
     list_filter_submit = True

@@ -3,7 +3,8 @@ from django.core.management.base import BaseCommand
 
 from apps.accounts.models import User
 from apps.apiclients.models import ApiClient
-from apps.inventory.models import InventoryProduct, PublicAvailabilityMode
+from apps.inventory.categories import ensure_default_categories
+from apps.inventory.models import Category, InventoryProduct, PublicAvailabilityMode
 from apps.makerspaces.models import Makerspace
 
 
@@ -42,6 +43,7 @@ class Command(BaseCommand):
         makerspace.name = "Makerspace Demo"
         makerspace.public_inventory_enabled = True
         makerspace.save(update_fields=["slug", "name", "public_inventory_enabled"])
+        ensure_default_categories(makerspace)
 
         products = [
             {
@@ -102,6 +104,29 @@ class Command(BaseCommand):
                 defaults=product_data,
             )
             created_count += int(created)
+
+        product_categories = {
+            "Arduino Uno": "microcontrollers",
+            "Raspberry Pi 5": "sbcs",
+            "Soldering Iron": "accessories",
+            "Oscilloscope": "accessories",
+            "3D Printer Filament": "accessories",
+        }
+        categories = {
+            category.slug: category
+            for category in Category.objects.filter(
+                makerspace=makerspace,
+                slug__in=set(product_categories.values()),
+            )
+        }
+        for product_name, category_slug in product_categories.items():
+            product = InventoryProduct.objects.get(
+                makerspace=makerspace,
+                name=product_name,
+            )
+            if product.category_id is None:
+                product.category = categories[category_slug]
+                product.save(update_fields=["category"])
 
         # review fix #3: do NOT use get_or_create - secret_encrypted is non-null with no default,
         # so a create() without it would crash. Fetch-or-instantiate, then set the secret.

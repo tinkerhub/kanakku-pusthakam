@@ -68,7 +68,7 @@ UNFOLD = {
                         "permission": _can_view_makerspaces,
                     },
                     {
-                        "title": _("Products"),
+                        "title": _("Inventory"),
                         "icon": "inventory_2",
                         "link": reverse_lazy(
                             "admin:inventory_inventoryproduct_changelist"
