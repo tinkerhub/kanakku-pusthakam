@@ -53,7 +53,9 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const makerspaces = useStaffGet<Makerspace[]>(
     ["staff", "makerspaces"],
     "/admin/makerspaces",
-    Boolean(user),
+    // Protected endpoints 403 while a forced password change is pending; keep this
+    // query disabled until the gate is cleared so it doesn't cache an error.
+    Boolean(user) && !user?.must_change_password,
   );
   const activeMakerspace = useMemo(
     () => makerspaces.data?.find((item) => item.id === selected),
@@ -77,7 +79,12 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     return (
       <ChangePasswordGate
         username={user.username}
-        onChanged={() => setUser({ ...user, must_change_password: false })}
+        onChanged={() => {
+          // Clear the gate AND drop any error-cached protected queries so the
+          // console opens with fresh data instead of a stale 403.
+          queryClient.invalidateQueries({ queryKey: ["staff", "makerspaces"] });
+          setUser({ ...user, must_change_password: false });
+        }}
         onSignOut={() => {
           clearAccessToken();
           setUser(null);
