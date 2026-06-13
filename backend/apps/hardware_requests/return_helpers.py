@@ -1,8 +1,13 @@
 from django.utils import timezone
 
 from apps.audit import services as audit
-from apps.hardware_requests.models import HardwareRequest, RequesterAccountability
+from apps.hardware_requests.models import (
+    HardwareRequest,
+    HardwareRequestItemAsset,
+    RequesterAccountability,
+)
 from apps.hardware_requests.workflow_errors import ReturnValidationError
+from apps.inventory.models import InventoryAsset, TrackingMode
 
 
 def build_resolutions(locked, resolutions):
@@ -70,6 +75,64 @@ def write_accountability(actor, locked, evidence, resolutions):
             RequesterAccountability.IssueType.MISSING,
             resolution["missing"],
         )
+
+
+def flip_individual_asset_returns(resolutions, event):
+    now = timezone.now()
+    for resolution in resolutions:
+        item = resolution["item"]
+        if item.product.tracking_mode != TrackingMode.INDIVIDUAL:
+            continue
+        _flip_asset_links(
+            item,
+            resolution["returned"],
+            HardwareRequestItemAsset.Outcome.RETURNED,
+            InventoryAsset.Status.AVAILABLE,
+            event,
+            now,
+        )
+        _flip_asset_links(
+            item,
+            resolution["damaged"],
+            HardwareRequestItemAsset.Outcome.DAMAGED,
+            InventoryAsset.Status.DAMAGED,
+            event,
+            now,
+        )
+        _flip_asset_links(
+            item,
+            resolution["missing"],
+            HardwareRequestItemAsset.Outcome.LOST,
+            InventoryAsset.Status.LOST,
+            event,
+            now,
+        )
+
+
+def _flip_asset_links(item, quantity, outcome, asset_status, event, now):
+    if quantity <= 0:
+        return
+    links = list(
+        HardwareRequestItemAsset.objects.select_for_update()
+        .select_related("asset")
+        .filter(request_item=item, outcome=HardwareRequestItemAsset.Outcome.ISSUED)
+        .order_by("asset_id")[:quantity]
+    )
+    if len(links) != quantity:
+        raise ReturnValidationError("Return quantity exceeds linked issued assets.")
+
+    asset_ids = [link.asset_id for link in links]
+    locked_assets = list(
+        InventoryAsset.objects.select_for_update().filter(pk__in=asset_ids).order_by("pk")
+    )
+    for asset in locked_assets:
+        asset.status = asset_status
+        asset.save(update_fields=["status", "updated_at"])
+    for link in links:
+        link.outcome = outcome
+        link.returned_at = now
+        link.return_event = event
+        link.save(update_fields=["outcome", "returned_at", "return_event"])
 
 
 def finalize_return_status(locked, actor):

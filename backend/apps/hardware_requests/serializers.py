@@ -127,6 +127,11 @@ class IssueRequestSerializer(serializers.Serializer):
         allow_blank=True,
         default="",
     )
+    asset_qr_payloads = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+    )
 
 
 class ReturnDueSerializer(serializers.Serializer):

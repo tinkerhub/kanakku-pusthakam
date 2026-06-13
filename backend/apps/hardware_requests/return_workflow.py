@@ -9,6 +9,7 @@ from apps.hardware_requests.models import HardwareRequest, ReturnEvent
 from apps.hardware_requests.return_helpers import (
     build_resolutions,
     finalize_return_status,
+    flip_individual_asset_returns,
     write_accountability,
 )
 from apps.hardware_requests.workflow_errors import (
@@ -37,7 +38,8 @@ def return_items(actor, request, evidence_id, remark, box_code, resolutions):
         validated_resolutions = build_resolutions(locked, resolutions)
 
         availability.return_items(locked, validated_resolutions)
-        _create_event(actor, locked, box, evidence, remark)
+        event = _create_event(actor, locked, box, evidence, remark)
+        flip_individual_asset_returns(validated_resolutions, event)
         write_accountability(actor, locked, evidence, validated_resolutions)
         request_action = finalize_return_status(locked, actor)
         _audit_return(actor, locked, box, evidence, scan, request_action)
@@ -85,7 +87,7 @@ def _record_scan(actor, locked, box):
 
 def _create_event(actor, locked, box, evidence, remark):
     try:
-        ReturnEvent.objects.create(
+        return ReturnEvent.objects.create(
             request=locked,
             makerspace=locked.makerspace,
             box=box,

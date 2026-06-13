@@ -1,13 +1,14 @@
-from django.db import IntegrityError, transaction
-from django.utils import timezone
 from datetime import timedelta
 
+from django.db import IntegrityError, transaction
+from django.utils import timezone
+
 from apps.audit import services as audit
-from apps.boxes.models import Box, BoxScan
+from apps.boxes.models import Box, BoxScan, QrCode, QrScanEvent
 from apps.evidence import storage
 from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests import notifications
-from apps.hardware_requests.models import HardwareRequest
+from apps.hardware_requests.models import HardwareRequest, HardwareRequestItemAsset
 from apps.hardware_requests.workflow_errors import (
     BoxUnavailable,
     BoxValidationError,
@@ -17,6 +18,12 @@ from apps.hardware_requests.workflow_errors import (
 )
 from apps.hardware_requests.workflow_utils import constraint_name, locked_request
 from apps.inventory import availability
+from apps.inventory.models import InventoryAsset, TrackingMode
+
+
+INDIVIDUAL_HANDOUT_ERROR = (
+    "Individual-tracked products require scanned asset QR codes for handout."
+)
 
 
 def assign_box(actor, request, box_code):
@@ -71,7 +78,8 @@ def assign_box(actor, request, box_code):
         return locked
 
 
-def issue_request(actor, request, evidence_id, remark=""):
+def issue_request(actor, request, evidence_id, remark="", asset_qr_payloads=None):
+    asset_qr_payloads = list(asset_qr_payloads or [])
     evidence = EvidencePhoto.objects.filter(
         pk=evidence_id,
         makerspace_id=request.makerspace_id,
@@ -95,6 +103,11 @@ def issue_request(actor, request, evidence_id, remark=""):
         ).exists():
             raise RequestValidationError("Box scan required before issue.")
 
+        # Lock QR -> asset -> product, matching the self-checkout/direct-loan order
+        # (those lock the QrCode first, then the product). Acquiring the asset/QR
+        # locks before availability.issue_items() takes the InventoryProduct lock
+        # avoids a lock-order inversion / deadlock across the handout flows.
+        _issue_individual_assets(actor, locked, asset_qr_payloads)
         availability.issue_items(locked)
         locked.issue_evidence = evidence
         locked.issue_remark = remark
@@ -136,6 +149,97 @@ def issue_request(actor, request, evidence_id, remark=""):
         )
         transaction.on_commit(lambda request_id=locked.pk: _notify_issued(request_id))
         return locked
+
+
+def _issue_individual_assets(actor, locked, asset_qr_payloads):
+    individual_items = list(
+        locked.items.select_related("product")
+        .filter(product__tracking_mode=TrackingMode.INDIVIDUAL, accepted_quantity__gt=0)
+        .order_by("product_id", "pk")
+    )
+    expected_count = sum(item.accepted_quantity for item in individual_items)
+    if expected_count == 0:
+        return
+    if len(asset_qr_payloads) != expected_count:
+        raise RequestValidationError(INDIVIDUAL_HANDOUT_ERROR)
+
+    seen_qr_ids = set()
+    qrs_by_payload = {
+        qr.payload: qr
+        for qr in QrCode.objects.select_for_update()
+        .filter(
+            makerspace=locked.makerspace,
+            payload__in=asset_qr_payloads,
+            status=QrCode.Status.ACTIVE,
+            target_type=QrCode.TargetType.ASSET,
+        )
+        .order_by("pk")
+    }
+    qrs = []
+    for payload in asset_qr_payloads:
+        qr = qrs_by_payload.get(payload)
+        if qr is None:
+            raise RequestValidationError(INDIVIDUAL_HANDOUT_ERROR)
+        if qr.id in seen_qr_ids:
+            raise InvalidTransition("The same QR code was scanned more than once.")
+        seen_qr_ids.add(qr.id)
+        qrs.append(qr)
+
+    assets_by_id = {
+        asset.pk: asset
+        for asset in InventoryAsset.objects.select_for_update()
+        .filter(
+            pk__in=[qr.target_id for qr in qrs],
+            makerspace=locked.makerspace,
+            status=InventoryAsset.Status.AVAILABLE,
+        )
+        .order_by("pk")
+    }
+    assets_by_product = {}
+    qr_by_asset_id = {}
+    for qr in qrs:
+        asset = assets_by_id.get(qr.target_id)
+        if asset is None:
+            raise RequestValidationError(INDIVIDUAL_HANDOUT_ERROR)
+        assets_by_product.setdefault(asset.product_id, []).append(asset)
+        qr_by_asset_id[asset.pk] = qr
+
+    for item in individual_items:
+        assets = assets_by_product.get(item.product_id, [])
+        if len(assets) < item.accepted_quantity:
+            raise RequestValidationError(INDIVIDUAL_HANDOUT_ERROR)
+        item_assets = sorted(assets[: item.accepted_quantity], key=lambda asset: asset.pk)
+        del assets[: item.accepted_quantity]
+        for asset in item_assets:
+            asset.status = InventoryAsset.Status.ISSUED
+            asset.save(update_fields=["status", "updated_at"])
+            HardwareRequestItemAsset.objects.create(
+                request_item=item,
+                asset=asset,
+                outcome=HardwareRequestItemAsset.Outcome.ISSUED,
+            )
+            qr = qr_by_asset_id[asset.pk]
+            QrScanEvent.objects.create(
+                makerspace=locked.makerspace,
+                qr_code=qr,
+                request=locked,
+                actor=actor,
+                context=QrScanEvent.Context.ISSUE,
+            )
+            audit.record(
+                actor,
+                "asset.issued",
+                makerspace=locked.makerspace,
+                target=asset,
+                meta={
+                    "request_id": locked.pk,
+                    "request_item_id": item.pk,
+                    "qr_id": qr.pk,
+                },
+            )
+
+    if any(assets for assets in assets_by_product.values()):
+        raise RequestValidationError(INDIVIDUAL_HANDOUT_ERROR)
 
 
 def set_return_due(actor, request, return_due_at):
