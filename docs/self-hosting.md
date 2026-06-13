@@ -18,14 +18,14 @@ POSTGRES_PASSWORD=replace-with-a-strong-password
 SECRET_KEY=replace-with-a-long-random-secret
 ALLOWED_HOSTS=inventory.example.org
 CORS_ALLOWED_ORIGINS=https://inventory.example.org
-TINKERSPACE_IMAGE_TAG=latest
+MAKERSPACE_IMAGE_TAG=latest
 ```
 
 Optional image overrides:
 
 ```env
-TINKERSPACE_BACKEND_IMAGE=ghcr.io/tinkerspace/inventory-manager-backend
-TINKERSPACE_FRONTEND_IMAGE=ghcr.io/tinkerspace/inventory-manager-frontend
+MAKERSPACE_BACKEND_IMAGE=ghcr.io/shaan-shoukath/makerspace-manager-backend
+MAKERSPACE_FRONTEND_IMAGE=ghcr.io/shaan-shoukath/makerspace-manager-frontend
 ```
 
 ## First Run
@@ -68,7 +68,7 @@ The command is idempotent. It only sends reminders for issued or partially retur
 Pin a release tag for stable deployments:
 
 ```env
-TINKERSPACE_IMAGE_TAG=v0.2.0
+MAKERSPACE_IMAGE_TAG=v0.2.0
 ```
 
 Then run:

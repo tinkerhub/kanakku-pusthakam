@@ -1,8 +1,8 @@
-# TinkerSpace Inventory Manager PRD And Architecture
+# Makerspace Manager PRD And Architecture
 
 ## 1. Problem Statement
 
-TinkerSpace needs a reliable way to manage community hardware across one or more makerspaces. Today, the key problem is not just knowing what hardware exists, but knowing who requested it, who accepted the request, who physically handed it over, what was handed over, which QR-coded box/tool was involved, when it was returned, and who is accountable if something is lost or damaged.
+Makerspace Manager needs a reliable way to manage community hardware across one or more makerspaces. Today, the key problem is not just knowing what hardware exists, but knowing who requested it, who accepted the request, who physically handed it over, what was handed over, which QR-coded box/tool was involved, when it was returned, and who is accountable if something is lost or damaged.
 
 The system must prevent informal handovers from becoming untraceable. Public users should be able to browse visible inventory and request items, but only admins, guest admins, or superadmins should physically issue items. Every handover and return must create evidence through QR scans, photos, remarks, and audit logs.
 

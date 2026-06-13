@@ -1,4 +1,4 @@
-# Project Handover - TinkerSpace Inventory Manager
+# Project Handover - Makerspace Manager
 
 **Date:** 2026-06-11
 **Audience:** Codex, Claude, and any engineer picking up the build

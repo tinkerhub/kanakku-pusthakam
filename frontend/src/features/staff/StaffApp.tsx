@@ -70,10 +70,10 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       <aside className="border-b border-line bg-panel lg:min-h-screen lg:border-b-0 lg:border-r">
         <div className="flex items-center gap-3 border-b border-line px-5 py-4">
           <span className="grid h-9 w-9 place-items-center rounded-md bg-accent text-sm font-black text-bg">
-            MI
+            MM
           </span>
           <div>
-            <p className="text-sm font-semibold text-ink">Makerspace Desk</p>
+            <p className="text-sm font-semibold text-ink">Makerspace Manager</p>
             <p className="text-xs text-muted">{guestOnly ? "Guest admin" : "Space Manager"}</p>
           </div>
         </div>

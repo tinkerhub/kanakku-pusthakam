@@ -1,4 +1,4 @@
-# Makerspace Inventory Platform — Build Roadmap
+# Makerspace Manager — Build Roadmap
 
 Design-level plan for all phases. Each phase gets a **detailed Stage-1 implementation spec** (Codex-reviewed) immediately before it is built — those live in `docs/plans/phase-<n>-*.md`. This document is the dependency-ordered overview.
 
@@ -13,7 +13,7 @@ Governing process: the gated workflow in `~/.claude/CLAUDE.md` (Stage 1 plan →
 **Goal:** Dark, purple, branded Django admin via django-unfold; move the public frontend dev server to port 5000.
 
 **Deliverables**
-- `backend/`: add `django-unfold`; `unfold` before `django.contrib.admin`; `config/unfold.py` (env-driven `ADMIN_SITE_NAME` default "Makerspace Inventory", `THEME=dark`, violet palette, grouped permissioned sidebar); admins → `unfold.admin.ModelAdmin`; Unfold auth forms + styled `GroupAdmin`; delete the old hand-rolled `templates/admin/*` + `tinkerspace_admin.css`; drop hardcoded `admin.site.*` in `urls.py`.
+- `backend/`: add `django-unfold`; `unfold` before `django.contrib.admin`; `config/unfold.py` (env-driven `ADMIN_SITE_NAME` default "Makerspace Manager", `THEME=dark`, violet palette, grouped permissioned sidebar); admins → `unfold.admin.ModelAdmin`; Unfold auth forms + styled `GroupAdmin`; delete the old hand-rolled `templates/admin/*` + `tinkerspace_admin.css`; drop hardcoded `admin.site.*` in `urls.py`.
 - `frontend/`: Vite `server.port = 5000`; backend `CORS_ALLOWED_ORIGINS` updated to `http://localhost:5000`.
 
 **Dependencies:** none. **Risk:** existing template overrides win over Unfold (handled: deleted). **Test focus:** `manage.py check`, `collectstatic`, admin renders themed.

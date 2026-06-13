@@ -1,4 +1,4 @@
-# TinkerSpace Inventory Manager
+# Makerspace Manager
 
 Multi-tenant makerspace inventory manager with a Django API and Vite React frontend.
 
@@ -24,7 +24,7 @@ Set these required values in `backend\.env`:
 SECRET_KEY=replace-with-a-long-random-secret
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
-DATABASE_URL=postgres://tinker:tinker@localhost:5432/tinkerspace
+DATABASE_URL=postgres://makerspace:makerspace@localhost:5432/makerspace_manager
 CORS_ALLOWED_ORIGINS=http://localhost:5000,http://localhost:5173
 ```
 
@@ -138,7 +138,7 @@ For local Docker, Compose provides defaults. For hosting, set these environment 
 SECRET_KEY=replace-with-a-long-random-secret
 DEBUG=False
 ALLOWED_HOSTS=your-domain.com,localhost,127.0.0.1,backend
-DATABASE_URL=postgres://tinker:tinker@db:5432/tinkerspace
+DATABASE_URL=postgres://makerspace:makerspace@db:5432/makerspace_manager
 CORS_ALLOWED_ORIGINS=https://your-domain.com
 VITE_API_URL=/api
 ```

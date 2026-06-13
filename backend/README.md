@@ -1,6 +1,6 @@
 # Backend
 
-Django REST API for the TinkerSpace Inventory Manager.
+Django REST API for the Makerspace Manager.
 
 ## Run Locally
 

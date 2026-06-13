@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-TinkerSpace Inventory Manager is close to a usable makerspace inventory platform, but it is not yet easy enough for non-technical makerspaces to self-host confidently, and it still lacks several operational controls expected from a serious open-source inventory tool.
+Makerspace Manager is close to a usable makerspace inventory platform, but it is not yet easy enough for non-technical makerspaces to self-host confidently, and it still lacks several operational controls expected from a serious open-source inventory tool.
 
 Non-technical operators should be able to run the project from published Docker images without building the code locally, manually wiring services, or understanding Django deployment details. Once running, makerspace staff need stronger backend workflows for stock transfers, stock counting, operational analytics, printable QR batches, and exports that work in Excel and Google Sheets.
 

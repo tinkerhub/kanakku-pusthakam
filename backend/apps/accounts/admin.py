@@ -24,7 +24,7 @@ class UserAdmin(DjangoUserAdmin, ModelAdmin):
     change_password_form = AdminPasswordChangeForm
     fieldsets = DjangoUserAdmin.fieldsets + (
         (
-            "TinkerSpace Access",
+            "Makerspace Manager Access",
             {
                 "fields": (
                     "phone",

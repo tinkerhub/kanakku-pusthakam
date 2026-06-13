@@ -1,5 +1,5 @@
 {
-  "name": "tinkerspace-frontend",
+  "name": "makerspace-manager-frontend",
   "type": "module",
   "scripts": {
     "dev": "vite",

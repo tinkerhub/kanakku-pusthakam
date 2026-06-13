@@ -23,10 +23,10 @@ function LandingPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3">
             <span className="grid h-9 w-9 place-items-center rounded-md bg-accent text-sm font-black text-bg">
-              MI
+              MM
             </span>
             <div>
-              <p className="text-sm font-semibold text-ink">Makerspace Inventory</p>
+              <p className="text-sm font-semibold text-ink">Makerspace Manager</p>
               <p className="text-xs text-muted">Shared equipment portal</p>
             </div>
           </div>

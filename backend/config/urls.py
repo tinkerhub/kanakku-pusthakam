@@ -14,7 +14,7 @@ def docs_root(_request):
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>Makerspace Inventory API</title>
+    <title>Makerspace Manager API</title>
     <script>
       window.location.replace(window.location.hash ? "/redoc/" : "/docs/");
     </script>

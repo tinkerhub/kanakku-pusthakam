@@ -234,7 +234,7 @@ AUTH_COOKIE_SAMESITE = env("AUTH_COOKIE_SAMESITE", default="None")
 AUTH_COOKIE_SECURE = env.bool("AUTH_COOKIE_SECURE", default=True)
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Makerspace Inventory Manager API",
+    "TITLE": "Makerspace Manager API",
     "DESCRIPTION": (
         "Multi-tenant makerspace hardware loan system.\n\n"
         "Public flow: browse inventory, search with `q`, page with `page`, "
