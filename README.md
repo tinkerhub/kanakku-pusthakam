@@ -1,24 +1,129 @@
 # Makerspace Manager
 
-Multi-tenant makerspace inventory manager with a Django API and Vite React frontend.
+Open-source, multi-tenant **hardware-loan manager for makerspaces**. The public can browse
+a makerspace's inventory and request to borrow tools; staff issue and return that hardware with
+full traceability — every handover produces evidence (QR scans + photos + remarks + an
+append-only audit log) so accountability for lost or damaged hardware is never ambiguous.
 
-## Local Setup
+One deployment can host many makerspaces (tenants). Each owns its inventory, public URL,
+staff, Telegram group, QR namespace, and audit scope.
 
-### 1. Start Postgres
+- **Public** → React catalog: pick a makerspace, browse by category, request hardware. No login.
+- **Super Admin** → the **Django admin** is the sole superadmin control plane: create makerspaces
+  and run every operation (requests, transfers, stocktake, QR, printing) as audited admin actions.
+- **All other staff** → the **React staff console** (JWT login). They have **no Django admin access**.
 
-```powershell
+---
+
+## Roles & permissions
+
+Access is scoped per makerspace and per action. Super Admin is global; every other role is a
+per-makerspace membership.
+
+| Role | Works in | Can do | Cannot do |
+|---|---|---|---|
+| **Super Admin** | Django admin only | Everything, globally: create/manage makerspaces, all hardware/printing/ops actions, staff, settings, API clients, audit | — |
+| **Space Manager** | React staff console | Full hardware lifecycle for their space (accept/reject, assign box, issue, return, evidence, QR), direct handouts, manage inventory & staff & settings | Other makerspaces; Django admin |
+| **Inventory Manager** | React staff console | Full hardware lifecycle + inventory edit + QR + evidence + audit for their space | Printing, staff, makerspace settings; Django admin |
+| **Guest Admin** | React staff console | Issue accepted requests + process returns (evidence/QR/remark/audit) | Accept/reject, edit inventory, manage QR, direct handouts; Django admin |
+| **Print Manager** | React staff console | 3D-printing request lifecycle (accept/start/complete/fail), printers & spools | Hardware lifecycle, inventory, staff; Django admin |
+| **Public** | React catalog | Browse public inventory, submit borrow requests | Anything authenticated |
+
+Two architectural rules are load-bearing:
+
+1. **The Request Workflow module is the single source of truth for state transitions.** The web
+   admin, the React console, and Telegram callbacks all route through the same workflow services —
+   no module mutates `HardwareRequest.status` directly.
+2. **The Inventory Availability module owns all quantity math.** Reserve / issue / return /
+   mark-lost all flow through it; availability never goes below zero.
+
+**Stack:** Django 5 + DRF backend · React 18 + Vite + TypeScript frontend (TanStack Query) ·
+PostgreSQL 16 · django-unfold admin · drf-spectacular / OpenAPI.
+
+---
+
+## Hosting
+
+**The primary objective is to self-host inside the makerspace, on a local server.** Your data,
+your network, no third party. If a makerspace has no local server to run Postgres, use a managed
+Postgres (Supabase) instead and host the app anywhere.
+
+### Option A — Self-host locally (recommended)
+
+Run the whole stack with Docker on a machine in the makerspace:
+
+```bash
+docker compose up --build
+```
+
+| Surface | URL |
+|---|---|
+| Public frontend | `http://localhost` |
+| API (via frontend proxy) | `http://localhost/api` |
+| API (direct container) | `http://localhost:8001/api` |
+| Django admin (superadmin) | `http://localhost:8001/admin/` |
+
+Seed demo data and create the first superadmin / makerspace:
+
+```bash
+docker compose exec backend python manage.py seed_demo
+# or, for a real instance:
+docker compose exec backend python manage.py setup_instance
+```
+
+For production from published images (env vars, TLS, reverse proxy), see
+**[docs/self-hosting.md](docs/self-hosting.md)**.
+
+> 📦 **One-command hosting guide: _link coming soon_** (will point to the published image + compose bundle).
+
+Set `ENABLE_HTTPS=true` only when a reverse proxy terminates real TLS and forwards
+`X-Forwarded-Proto: https`; otherwise the default HTTP-behind-nginx setup is correct.
+
+### Option B — No local server → Supabase Postgres
+
+The backend is plain Django + Postgres, so any managed Postgres works. Point `DATABASE_URL` at a
+Supabase connection string and host the app on any platform.
+
+1. Create a Supabase project → **Project Settings → Database** → copy the connection string
+   (prefer the **pooled** string if your host has connection limits).
+2. Replace the password placeholder and append `?sslmode=require` if not already present.
+3. Set `DATABASE_URL` in the backend environment and run migrations:
+
+```bash
+cd backend && python manage.py migrate
+```
+
+```env
+DATABASE_URL=postgres://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?sslmode=require
+```
+
+If you later adopt Supabase Auth/Storage, keep `SUPABASE_SERVICE_ROLE_KEY` on the **backend only** —
+never expose it to the frontend.
+
+---
+
+## Development
+
+### 1. Database
+
+```bash
 docker compose up -d db
 ```
 
-### 2. Configure The Backend
+### 2. Backend (`backend/`)
 
-Copy the backend environment template:
-
-```powershell
-Copy-Item backend\.env.example backend\.env
+```bash
+cd backend
+python -m venv .venv
+# Windows: .\.venv\Scripts\Activate.ps1   |   *nix: source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env            # set SECRET_KEY, DATABASE_URL, CORS_ALLOWED_ORIGINS
+python manage.py migrate
+python manage.py seed_demo
+python manage.py runserver      # http://localhost:8000
 ```
 
-Set these required values in `backend\.env`:
+Minimum `backend/.env` for local dev:
 
 ```env
 SECRET_KEY=replace-with-a-long-random-secret
@@ -28,216 +133,43 @@ DATABASE_URL=postgres://makerspace:makerspace@localhost:5432/makerspace_manager
 CORS_ALLOWED_ORIGINS=http://localhost:5000,http://localhost:5173
 ```
 
-Install dependencies, run migrations, and seed demo data:
+### 3. Frontend (`frontend/`)
 
-```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py seed_demo
-python manage.py runserver
-```
-
-The API will run at `http://localhost:8000/api`.
-
-### 3. Configure The Frontend
-
-Copy the frontend environment template:
-
-```powershell
-Copy-Item frontend\.env.example frontend\.env
-```
-
-Set:
-
-```env
-VITE_API_URL=http://localhost:8000/api
-```
-
-Install dependencies and start Vite:
-
-```powershell
+```bash
 cd frontend
+cp .env.example .env            # VITE_API_URL=http://localhost:8000/api
 npm install
-npm run dev
+npm run dev                     # http://localhost:5000
 ```
 
-The frontend will run at `http://localhost:5000`.
+- Public catalog: `http://localhost:5000` → pick a makerspace, or go straight to `/m/<slug>`
+  (the demo seed creates `/m/makerspace`).
+- API docs (Swagger): `http://localhost:8000/docs/` · schema at `/schema/`.
 
-## Public Makerspace Switching
+### Tests
 
-The public frontend automatically lists makerspaces that have `public_inventory_enabled=True`.
-
-```text
-Public directory: http://localhost
-Makerspace inventory: http://localhost/m/<makerspace-slug>
+```bash
+cd backend && pytest
 ```
 
-Create or update makerspaces in the backend admin. Each public makerspace must have a unique `slug`; that slug is how the public URL stays tied to the correct makerspace.
+---
 
-## Docker Hosting
+## Advanced configuration
 
-The repo includes Docker support for:
+- **Telegram alerts & accept/reject callbacks** — set the group chat ID + bot token in the staff
+  `API clients → Integration settings` panel; set `TELEGRAM_WEBHOOK_SECRET` for webhook callbacks.
+  The bot token is encrypted at rest with `API_CLIENT_ENC_KEY` (a Fernet key).
+- **Server-to-server HMAC clients** — optional signed API access for backend integrations
+  (disabled unless `HMAC_CLIENT_ID` + `HMAC_SECRET` are set). Browser frontends must use
+  publishable keys + `/api/v1/bootstrap`, never HMAC secrets.
+- **Security hardening** — django-axes admin-login lockout, login + public-submit throttles,
+  honeypot, and TLS headers (`ENABLE_HTTPS`). A `pip-audit` CI job guards dependencies.
 
-- `db`: Postgres 16
-- `backend`: Django API served by Gunicorn
-- `frontend`: Vite production build served by Nginx, with `/api/` proxied to the backend
+See [docs/self-hosting.md](docs/self-hosting.md) for the full environment reference.
 
-### Run Everything With Docker
+---
 
-From the repo root:
+## Contributing
 
-```powershell
-docker compose up --build
-```
-
-Open:
-
-```text
-Frontend: http://localhost
-Backend API through frontend proxy: http://localhost/api
-Backend API direct container port: http://localhost:8001/api
-Backend admin direct container port: http://localhost:8001/admin/
-```
-
-The backend container automatically runs:
-
-```text
-python manage.py migrate
-python manage.py collectstatic --noinput
-gunicorn config.wsgi:application --bind 0.0.0.0:8000
-```
-
-### Seed Demo Data In Docker
-
-After the containers are running:
-
-```powershell
-docker compose exec backend python manage.py seed_demo
-```
-
-### Stop Docker
-
-```powershell
-docker compose down
-```
-
-To remove the Postgres volume too:
-
-```powershell
-docker compose down -v
-```
-
-### Docker Environment
-
-For local Docker, Compose provides defaults. For hosting, set these environment variables in your deployment platform or in a root `.env` file next to `docker-compose.yml`:
-
-```env
-SECRET_KEY=replace-with-a-long-random-secret
-DEBUG=False
-ALLOWED_HOSTS=your-domain.com,localhost,127.0.0.1,backend
-DATABASE_URL=postgres://makerspace:makerspace@db:5432/makerspace_manager
-CORS_ALLOWED_ORIGINS=https://your-domain.com
-VITE_API_URL=/api
-```
-
-For production self-hosting from published images, see [docs/self-hosting.md](docs/self-hosting.md).
-
-If enabling HMAC for server-to-server clients, set backend values only:
-
-```env
-HMAC_CLIENT_ID=web-client
-HMAC_SECRET=replace-with-a-long-random-shared-secret
-```
-
-For a hosted domain, point traffic to the frontend container on port `80`. Nginx serves the frontend and forwards `/api/` to the backend container.
-
-## Server-To-Server HMAC Link
-
-The backend supports optional HMAC request validation for server-side API clients. It is disabled unless both `HMAC_CLIENT_ID` and `HMAC_SECRET` are set.
-
-Backend `backend\.env`:
-
-```env
-HMAC_CLIENT_ID=web-client
-HMAC_SECRET=replace-with-a-long-random-shared-secret
-HMAC_MAX_CLOCK_SKEW_SECONDS=300
-HMAC_PROTECTED_PATH_PREFIXES=/api/public/
-```
-
-Server clients sign each GET request with:
-
-```text
-GET
-<path-and-query>
-<unix-timestamp>
-<body>
-```
-
-The backend checks `X-Client-Id`, `X-Timestamp`, and `X-Signature`.
-
-Important: browser frontends must use publishable keys and `/api/v1/bootstrap`, not HMAC secrets. Any value compiled into JavaScript is public.
-
-## Telegram Setup
-
-1. Open Telegram and start a chat with `@BotFather`.
-2. Run `/newbot`, follow the prompts, and copy the generated bot token.
-3. Add the bot to the target Telegram group.
-4. Send any message in the group.
-5. Call `https://api.telegram.org/bot<token>/getUpdates` and copy the group `chat.id` value. Supergroups usually start with `-100`.
-6. In the staff `/admin` UI, open `API clients` -> `Integration settings`.
-7. Enter the Telegram group chat ID and bot token, save, then click `Send Telegram test alert`.
-
-The group chat ID is configuration, not a secret. The bot token is sensitive and is encrypted at rest with `API_CLIENT_ENC_KEY`, the same Fernet key used for API client secrets and makerspace SMTP passwords. Generate it with:
-
-```env
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-For Telegram accept/reject webhook callbacks, also set `TELEGRAM_WEBHOOK_SECRET` in the backend environment and configure Telegram's webhook secret token to the same value.
-
-## Supabase Setup
-
-The backend uses Django with Postgres. Supabase can be used as the hosted Postgres database by pointing `DATABASE_URL` at the Supabase connection string.
-
-1. Create a Supabase project.
-2. In Supabase, open Project Settings, then Database.
-3. Copy the Postgres connection string. For production deployments, prefer the pooled connection string if your host has connection limits.
-4. Replace the password placeholder in the connection string with your database password.
-5. Set `DATABASE_URL` in `backend\.env` or your deployment environment.
-6. Add `?sslmode=require` if your connection string does not already require SSL.
-7. Run backend migrations against the Supabase database:
-
-```powershell
-cd backend
-python manage.py migrate
-```
-
-Example:
-
-```env
-DATABASE_URL=postgres://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?sslmode=require
-```
-
-If you later add Supabase Auth or Storage, also add the public project URL and anon key to the frontend environment, and keep service-role keys only on the backend.
-
-Suggested environment names:
-
-```env
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-```
-
-Never expose `SUPABASE_SERVICE_ROLE_KEY` in the frontend.
-
-## Tests
-
-Run backend tests:
-
-```powershell
-cd backend
-pytest
-```
+Contributions are welcome. Please read **[CONTRIBUTING.md](CONTRIBUTING.md)** for the development
+workflow, branch/commit conventions, testing expectations, and how to open a pull request.

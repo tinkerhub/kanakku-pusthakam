@@ -200,7 +200,7 @@ npm run dev
 ```
 
 Useful URLs:
-- Public inventory: `http://localhost:5000/m/tinkerspace`
+- Public inventory: `http://localhost:5000/m/makerspace`
 - Admin panel: `http://localhost:5000/admin`
 - Guest-admin panel: `http://localhost:5000/guest-admin`
 - API docs: `http://localhost:8000/docs/`

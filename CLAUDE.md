@@ -167,7 +167,7 @@ npm run dev                           # http://localhost:5000
 cd backend && pytest
 ```
 
-- Public inventory page: `http://localhost:5000/m/tinkerspace`
+- Public inventory page: `http://localhost:5000/m/makerspace`
 - API: `http://localhost:8000/api` — Swagger docs at `http://localhost:8000/api/docs/`, schema at `/api/schema/`.
 
 ### Current source map (real paths)
