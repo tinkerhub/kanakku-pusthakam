@@ -54,6 +54,28 @@ never returning the value. Bootstrap returns only frontend-safe config (module f
 Two or three makerspaces sharing one SMTP/Telegram = enter the same credentials per makerspace
 (stored/encrypted independently; rotation updates each). No shared-integration entity exists.
 
+**Staff console + reporting + admin coverage.** The React staff console has a **Reports** dashboard
+(summary + most-lent / top-borrowers / damaged-lost / recently-added with dependency-free bar charts
+and CSV/XLSX export, a **3D printing** report section — printer hours, filament used per spool, and
+estimated-filament buckets by month/day/hour — and a superadmin "All makerspaces" aggregate toggle);
+a **Ledger** panel listing everything currently OUT of inventory and who holds it (reviewed-request
+loans + public self-checkout + admin direct handouts, overdue-flagged, with a superadmin aggregate);
+full **Users** CRUD (add staff by role+makerspace, restrict/restore, superadmin create-makerspace);
+**cross-makerspace stock transfers** (superadmin source/destination selectors + multi-line editable
+quantities; read-only for non-superadmins); a paginated **audit log**; a one-time API-client secret
+with copy/dismiss; and a request **status stepper** (Requested→Approved→Collected→Returned) on the
+public request view + staff queues. Backend adds `apps.operations.ledger` + `apps.operations.reports`
+(per-makerspace and superadmin-aggregate analytics/exports) and `apps.printing.reports`
+(`reports_views.py`/`reports_serializers.py`). First-run `setup_instance` seeds `superadmin` /
+`super123` and sets `User.must_change_password`, which the JWT login + `/api/v1/auth/me` surface and
+`POST /api/v1/auth/change-password` clears; the staff console blocks behind a forced-change gate
+until rotated. **Django admin coverage** is complete: every domain model is registered under the
+superadmin-only control plane, with `PublicToolLoan`, `ReturnEvent`, `RequesterAccountability`,
+`HardwareRequestItemAsset`, and `BoxScan` registered **read-only** (immutable/workflow-owned) and
+`MakerspaceMembership` editable; every makerspace-scoped `ModelAdmin` carries a `makerspace`
+`list_filter` so the superadmin can view/manage per makerspace. The admin remains superadmin-only by
+design (U-SEC) — per-makerspace staff still operate solely in the React console.
+
 **Implementation is in progress.** Public inventory browse, staff auth/RBAC foundations,
 API-client HMAC support, QR/box foundations, Phase 3 audit/evidence
 infrastructure, the 3D Printing Manager (request lifecycle + email

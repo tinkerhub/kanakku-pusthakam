@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.utils.safestring import mark_safe
 from unfold.admin import ModelAdmin
 
-from apps.boxes.models import Box, QrCode, QrScanEvent
+from apps.boxes.models import Box, BoxScan, QrCode, QrScanEvent
 from config.admin_access import SuperuserOnlyModelAdmin
 
 
@@ -37,3 +37,36 @@ class QrScanEventAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     list_filter = ("makerspace", "context")
     search_fields = ("qr_code__payload",)
     readonly_fields = ("qr_code", "makerspace", "request", "actor", "context", "created_at")
+
+
+@admin.register(BoxScan)
+class BoxScanAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+    list_display = ("box", "box_qr", "makerspace", "context", "scanned_by", "created_at")
+    list_filter = ("makerspace", "context")
+    search_fields = (
+        "box__label",
+        "box__code",
+        "actor__username",
+        "actor__email",
+        "request__requester_username",
+    )
+    readonly_fields = ("makerspace", "box", "request", "actor", "context", "created_at")
+    fields = readonly_fields
+    ordering = ("-created_at",)
+
+    @admin.display(description="QR", ordering="box__code")
+    def box_qr(self, obj):
+        return obj.box.code if obj.box_id else "-"
+
+    @admin.display(description="Scanned by", ordering="actor")
+    def scanned_by(self, obj):
+        return obj.actor
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

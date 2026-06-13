@@ -4,13 +4,16 @@ from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.template.response import TemplateResponse
 from unfold.admin import ModelAdmin, TabularInline
 
+from apps.hardware_requests.asset_link_models import HardwareRequestItemAsset
 from apps.hardware_requests.handover_workflow import assign_box
 from apps.hardware_requests.models import (
     HardwareEmailTemplate,
     HardwareRequest,
     HardwareRequestItem,
 )
+from apps.hardware_requests.return_models import RequesterAccountability, ReturnEvent
 from apps.hardware_requests.request_workflow import accept_request, reject_request
+from apps.hardware_requests.self_checkout_models import PublicToolLoan
 from apps.hardware_requests.workflow_errors import (
     BoxUnavailable,
     BoxValidationError,
@@ -232,3 +235,170 @@ class HardwareEmailTemplateAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "created_at",
         "updated_at",
     )
+
+
+@admin.register(PublicToolLoan)
+class PublicToolLoanAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+    list_display = (
+        "id",
+        "makerspace",
+        "status",
+        "request",
+        "requester",
+        "target_label",
+        "source",
+        "checked_out_at",
+    )
+    list_filter = ("makerspace", "status", "source")
+    search_fields = (
+        "requester__username",
+        "requester__email",
+        "request__requester_username",
+        "target_label",
+    )
+    readonly_fields = (
+        "makerspace",
+        "qr_code",
+        "request",
+        "requester",
+        "target_type",
+        "target_id",
+        "target_label",
+        "asset_ids",
+        "qr_ids",
+        "status",
+        "source",
+        "checked_out_at",
+        "due_at",
+        "returned_at",
+    )
+    fields = readonly_fields
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ReturnEvent)
+class ReturnEventAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+    list_display = ("id", "makerspace", "request", "box", "actor", "created_at")
+    list_filter = ("makerspace", "created_at")
+    search_fields = (
+        "request__requester_username",
+        "request__requester__username",
+        "request__requester__email",
+        "actor__username",
+        "actor__email",
+        "box__label",
+        "box__code",
+    )
+    readonly_fields = (
+        "request",
+        "makerspace",
+        "box",
+        "evidence",
+        "remark",
+        "actor",
+        "created_at",
+    )
+    fields = readonly_fields
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(RequesterAccountability)
+class RequesterAccountabilityAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+    list_display = (
+        "id",
+        "makerspace",
+        "requester",
+        "request",
+        "issue_type",
+        "quantity",
+        "created_at",
+    )
+    list_filter = ("makerspace", "issue_type", "created_at")
+    search_fields = (
+        "requester__username",
+        "requester__email",
+        "request__requester_username",
+        "request_item__product__name",
+        "description",
+    )
+    readonly_fields = (
+        "requester",
+        "request",
+        "request_item",
+        "makerspace",
+        "issue_type",
+        "description",
+        "evidence_photo",
+        "quantity",
+        "created_by",
+        "created_at",
+    )
+    fields = readonly_fields
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(HardwareRequestItemAsset)
+class HardwareRequestItemAssetAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+    list_display = (
+        "id",
+        "request_item",
+        "asset",
+        "asset_makerspace",
+        "outcome",
+        "issued_at",
+        "returned_at",
+    )
+    list_filter = ("asset__makerspace", "outcome")
+    search_fields = (
+        "request_item__request__requester_username",
+        "request_item__request__requester__username",
+        "request_item__product__name",
+        "asset__asset_tag",
+        "asset__serial_number",
+    )
+    readonly_fields = (
+        "request_item",
+        "asset",
+        "outcome",
+        "issued_at",
+        "returned_at",
+        "return_event",
+    )
+    fields = readonly_fields
+
+    @admin.display(description="Makerspace", ordering="asset__makerspace")
+    def asset_makerspace(self, obj):
+        return obj.asset.makerspace if obj.asset_id else "-"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

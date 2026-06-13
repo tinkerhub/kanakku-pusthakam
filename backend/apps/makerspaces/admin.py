@@ -44,10 +44,19 @@ class MakerspaceAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     inlines = (MakerspaceMembershipInline,)
 
 
+@admin.register(MakerspaceMembership)
+class MakerspaceMembershipAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+    list_display = ("user", "makerspace", "role", "created_at")
+    list_filter = ("makerspace", "role")
+    search_fields = ("user__username", "user__email")
+    autocomplete_fields = ("user", "makerspace")
+    readonly_fields = ("created_at",)
+
+
 @admin.register(TenantFrontend)
 class TenantFrontendAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     list_display = ("makerspace", "frontend_type", "hostname", "is_primary", "is_active", "updated_at")
-    list_filter = ("frontend_type", "is_primary", "is_active")
+    list_filter = ("makerspace", "frontend_type", "is_primary", "is_active")
     search_fields = ("makerspace__name", "makerspace__slug", "hostname", "token")
     autocomplete_fields = ("makerspace", "created_by")
     readonly_fields = ("token", "created_at", "updated_at")

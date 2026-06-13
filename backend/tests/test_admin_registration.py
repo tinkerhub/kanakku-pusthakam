@@ -1,0 +1,83 @@
+from types import SimpleNamespace
+
+from django.contrib import admin
+
+from apps.accounts.models import User
+from apps.apiclients.models import ApiClient
+from apps.audit.models import AuditLog
+from apps.boxes.models import Box, BoxScan, QrCode, QrScanEvent
+from apps.evidence.models import EvidencePhoto
+from apps.hardware_requests.models import (
+    HardwareEmailTemplate,
+    HardwareRequest,
+    HardwareRequestItemAsset,
+    PublicToolLoan,
+    RequesterAccountability,
+    ReturnEvent,
+)
+from apps.inventory.models import Category, InventoryAsset, InventoryProduct
+from apps.makerspaces.models import Makerspace, MakerspaceMembership, TenantFrontend
+from apps.operations.models import (
+    InventoryAdjustment,
+    QrPrintBatch,
+    StockTransfer,
+    StocktakeSession,
+)
+from apps.printing.models import (
+    FilamentSpool,
+    PrintBucket,
+    PrintPrinter,
+    PrintRequest,
+)
+
+
+def test_core_models_are_registered_in_django_admin():
+    registered_models = {
+        Makerspace,
+        MakerspaceMembership,
+        TenantFrontend,
+        Category,
+        InventoryProduct,
+        InventoryAsset,
+        Box,
+        BoxScan,
+        QrCode,
+        QrScanEvent,
+        HardwareRequest,
+        HardwareEmailTemplate,
+        PublicToolLoan,
+        ReturnEvent,
+        RequesterAccountability,
+        HardwareRequestItemAsset,
+        StockTransfer,
+        StocktakeSession,
+        InventoryAdjustment,
+        QrPrintBatch,
+        PrintBucket,
+        PrintRequest,
+        PrintPrinter,
+        FilamentSpool,
+        ApiClient,
+        AuditLog,
+        EvidencePhoto,
+        User,
+    }
+
+    assert registered_models <= set(admin.site._registry)
+
+
+def test_immutable_admins_are_read_only():
+    request = SimpleNamespace(user=SimpleNamespace(is_superuser=True))
+
+    for model in (
+        PublicToolLoan,
+        ReturnEvent,
+        RequesterAccountability,
+        HardwareRequestItemAsset,
+        BoxScan,
+    ):
+        model_admin = admin.site._registry[model]
+
+        assert model_admin.has_add_permission(request) is False
+        assert model_admin.has_change_permission(request) is False
+        assert model_admin.has_delete_permission(request) is False
