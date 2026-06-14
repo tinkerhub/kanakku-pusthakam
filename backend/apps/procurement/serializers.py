@@ -11,6 +11,9 @@ class ToBuyItemSerializer(serializers.ModelSerializer):
         read_only=True,
         default=None,
     )
+    # Declared explicitly with min_value=1 so the OpenAPI schema advertises
+    # minimum: 1 — matching the server rule that quantity must be >= 1.
+    quantity = serializers.IntegerField(min_value=1, default=1)
 
     class Meta:
         model = ToBuyItem
@@ -42,11 +45,6 @@ class ToBuyItemSerializer(serializers.ModelSerializer):
         value = value.strip()
         if not value:
             raise serializers.ValidationError("Name is required.")
-        return value
-
-    def validate_quantity(self, value):
-        if value < 1:
-            raise serializers.ValidationError("Quantity must be at least 1.")
         return value
 
     def validate_estimated_unit_cost(self, value):

@@ -7287,6 +7287,263 @@
                 }
             }
         },
+        "/api/v1/procurement/makerspace/{makerspace_id}/to-buy": {
+            "get": {
+                "operationId": "api_v1_procurement_makerspace_to_buy_list",
+                "summary": "List to-buy items for a makerspace",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Procurement"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ToBuyItem"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_procurement_makerspace_to_buy_create",
+                "summary": "Add a to-buy item",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "kind",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "hardware",
+                                "printing"
+                            ]
+                        },
+                        "description": "Stream to add to. Honored only for makerspace admins/superadmin; other roles are auto-tagged by role."
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Procurement"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ToBuyItem"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ToBuyItem"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ToBuyItem"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ToBuyItem"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/procurement/makerspace/{makerspace_id}/to-buy/export": {
+            "get": {
+                "operationId": "api_v1_procurement_makerspace_to_buy_export_retrieve",
+                "summary": "Export to-buy items as CSV",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Procurement"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "text/csv": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/procurement/to-buy/{id}": {
+            "get": {
+                "operationId": "api_v1_procurement_to_buy_retrieve",
+                "summary": "Retrieve a to-buy item",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Procurement"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ToBuyItem"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "api_v1_procurement_to_buy_partial_update",
+                "summary": "Update a to-buy item",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Procurement"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedToBuyItem"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedToBuyItem"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedToBuyItem"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ToBuyItem"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "api_v1_procurement_to_buy_destroy",
+                "summary": "Delete a to-buy item",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Procurement"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
         "/api/v1/public/{makerspace_slug}/checkin/verify": {
             "post": {
                 "operationId": "api_v1_public_checkin_verify_create",
@@ -8444,6 +8701,9 @@
                     "smtp_use_tls": {
                         "type": "boolean"
                     },
+                    "smtp_use_ssl": {
+                        "type": "boolean"
+                    },
                     "smtp_from_email": {
                         "type": "string",
                         "format": "email",
@@ -9515,6 +9775,14 @@
                     "evidence_id"
                 ]
             },
+            "KindEnum": {
+                "enum": [
+                    "hardware",
+                    "printing"
+                ],
+                "type": "string",
+                "description": "* `hardware` - Hardware\n* `printing` - Printing"
+            },
             "LedgerResponse": {
                 "type": "object",
                 "properties": {
@@ -9692,6 +9960,9 @@
                         "readOnly": true
                     },
                     "smtp_use_tls": {
+                        "type": "boolean"
+                    },
+                    "smtp_use_ssl": {
                         "type": "boolean"
                     },
                     "smtp_from_email": {
@@ -10335,6 +10606,9 @@
                     "smtp_use_tls": {
                         "type": "boolean"
                     },
+                    "smtp_use_ssl": {
+                        "type": "boolean"
+                    },
                     "smtp_from_email": {
                         "type": "string",
                         "format": "email",
@@ -10667,6 +10941,9 @@
                     "smtp_use_tls": {
                         "type": "boolean"
                     },
+                    "smtp_use_ssl": {
+                        "type": "boolean"
+                    },
                     "smtp_from_email": {
                         "type": "string",
                         "format": "email",
@@ -10799,6 +11076,69 @@
                     },
                     "is_active": {
                         "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                }
+            },
+            "PatchedToBuyItem": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "makerspace": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KindEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "default": 1
+                    },
+                    "link": {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 200
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/ToBuyItemStatusEnum"
+                    },
+                    "estimated_unit_cost": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_by_username": {
+                        "type": "string",
+                        "readOnly": true
                     },
                     "created_at": {
                         "type": "string",
@@ -12765,6 +13105,87 @@
                     "token",
                     "updated_at"
                 ]
+            },
+            "ToBuyItem": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "makerspace": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KindEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "default": 1
+                    },
+                    "link": {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 200
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/ToBuyItemStatusEnum"
+                    },
+                    "estimated_unit_cost": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_by_username": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "created_by",
+                    "created_by_username",
+                    "id",
+                    "kind",
+                    "makerspace",
+                    "name",
+                    "updated_at"
+                ]
+            },
+            "ToBuyItemStatusEnum": {
+                "enum": [
+                    "pending",
+                    "bought"
+                ],
+                "type": "string",
+                "description": "* `pending` - Pending\n* `bought` - Bought"
             },
             "TrackingModeEnum": {
                 "enum": [
