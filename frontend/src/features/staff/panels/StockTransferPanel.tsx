@@ -179,10 +179,15 @@ export function StockTransferPanel({
                 </select>
               </Field>
               <Field label="Source container">
-                <select className="desk-input w-full" value={sourceContainerId} disabled={sourceContainers.isLoading} onChange={(event) => setSourceContainerId(event.target.value)}>
+                <select className="desk-input w-full" value={sourceContainerId} disabled={isCrossMakerspace || sourceContainers.isLoading} onChange={(event) => setSourceContainerId(event.target.value)}>
                   <option value="">Any source container</option>
                   {sourceContainers.data?.results?.map((box) => <option key={box.id} value={box.id}>{labelForContainer(box)}</option>)}
                 </select>
+                {isCrossMakerspace ? (
+                  <p className="mt-1 text-xs text-muted">
+                    Source container is ignored for makerspace-to-makerspace transfers.
+                  </p>
+                ) : null}
               </Field>
               <Field label="Destination container">
                 <select className="desk-input w-full" value={destinationContainerId} disabled={destinationContainers.isLoading} onChange={(event) => setDestinationContainerId(event.target.value)}>

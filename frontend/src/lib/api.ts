@@ -128,8 +128,31 @@ export async function staffRequest<T>(
   });
 
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.detail ?? `Request failed (${response.status})`);
+    const body: unknown = await response.json().catch(() => ({}));
+    const flattenMessages = (value: unknown): string[] => {
+      if (typeof value === "string") {
+        const message = value.trim();
+        return message ? [message] : [];
+      }
+      if (Array.isArray(value)) {
+        return value.flatMap(flattenMessages);
+      }
+      if (value && typeof value === "object") {
+        return Object.values(value).flatMap(flattenMessages);
+      }
+      return [];
+    };
+    const detail =
+      body && typeof body === "object" && !Array.isArray(body)
+        ? (body as { detail?: unknown }).detail
+        : undefined;
+    const message =
+      (typeof detail === "string" ? detail.trim() : "") ||
+      (body && typeof body === "object" && !Array.isArray(body)
+        ? Object.values(body).flatMap(flattenMessages).join(" ")
+        : "") ||
+      `Request failed (${response.status})`;
+    throw new Error(message);
   }
   // 204 No Content (e.g. DRF destroy) has an empty body — parsing it as JSON
   // would throw and surface a successful mutation as a failure.
