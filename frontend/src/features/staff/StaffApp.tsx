@@ -6,6 +6,7 @@ import { ThemeToggle } from "../../components/ThemeToggle";
 import { ApiClientsPanel } from "./ApiClientsPanel";
 import { DirectLoans } from "./DirectLoans";
 import { ChangePasswordGate } from "./ChangePasswordGate";
+import { MakerspacePicker } from "./MakerspacePicker";
 import {
   AuditLog,
   BulkImport,
@@ -57,7 +58,11 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     onSuccess: (data) => {
       setAccessToken(data.access);
       setUser(data.user);
-      setSelected(data.user.makerspaces[0]?.id ?? null);
+      // Superadmin operates one makerspace at a time and must pick it explicitly
+      // first (the MakerspacePicker screen). Other staff drop into their first
+      // membership directly.
+      const superadmin = data.user.is_superuser || data.user.role === "superadmin";
+      setSelected(superadmin ? null : data.user.makerspaces[0]?.id ?? null);
     },
   });
 
@@ -107,6 +112,26 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
 
   // Backend treats is_superuser OR role === "superadmin" as superadmin; mirror that.
   const isSuperadmin = user.is_superuser || user.role === "superadmin";
+
+  const signOut = () => {
+    clearAccessToken();
+    setUser(null);
+    queryClient.clear();
+  };
+
+  // Superadmin must choose which makerspace to operate before the console loads.
+  // (Other roles auto-select their first membership at login.)
+  if (isSuperadmin && selected === null) {
+    return (
+      <MakerspacePicker
+        makerspaces={makerspaces.data ?? []}
+        loading={makerspaces.isLoading}
+        username={user.username}
+        onSelect={setSelected}
+        onSignOut={signOut}
+      />
+    );
+  }
 
   // Authority is per active makerspace (a user can be print_manager in one and
   // space_manager in another), so recompute the nav from the selected membership.
@@ -186,15 +211,13 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
               <span className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">
                 {user.username}
               </span>
+              {isSuperadmin ? (
+                <button className="desk-button" onClick={() => setSelected(null)}>
+                  Switch makerspace
+                </button>
+              ) : null}
               <ThemeToggle />
-              <button
-                className="desk-button"
-                onClick={() => {
-                  clearAccessToken();
-                  setUser(null);
-                  queryClient.clear();
-                }}
-              >
+              <button className="desk-button" onClick={signOut}>
                 Sign out
               </button>
             </div>
