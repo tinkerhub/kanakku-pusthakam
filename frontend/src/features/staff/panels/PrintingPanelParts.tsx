@@ -155,12 +155,19 @@ export function SpoolRow({
   onEdit: () => void;
   onDeactivate: () => void;
 }) {
+  const usedGrams = Math.max(
+    0,
+    Number(spool.initial_weight_grams) - Number(spool.remaining_weight_grams),
+  );
+  const usedLabel = Number.isFinite(usedGrams) ? `${usedGrams}g used` : "—";
   return (
     <div className="rounded-md border border-line bg-surface px-3 py-2">
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <span className="font-medium text-ink">{spool.material} {spool.color || ""}</span>
+        <span className="font-medium text-ink">
+          {[spool.brand, spool.material, spool.color].filter(Boolean).join(" ") || spool.material}
+        </span>
         <span className="text-muted">{spool.printer_name ?? "Unassigned"}</span>
-        <span className="text-muted">{spool.remaining_weight_grams}g left of {spool.initial_weight_grams}g</span>
+        <span className="text-muted">{usedLabel} · {spool.remaining_weight_grams}g left of {spool.initial_weight_grams}g</span>
         <span className={spool.is_active ? "text-success" : "text-muted"}>{spool.is_active ? "Active" : "Inactive"}</span>
       </div>
       <div className="desk-actions mt-2 flex flex-wrap gap-2">

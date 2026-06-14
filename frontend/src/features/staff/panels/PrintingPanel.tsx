@@ -47,6 +47,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
   const [spoolPrinter, setSpoolPrinter] = useState("");
   const [spoolMaterial, setSpoolMaterial] = useState("PLA");
   const [spoolColor, setSpoolColor] = useState("");
+  const [spoolBrand, setSpoolBrand] = useState("");
   const [spoolWeight, setSpoolWeight] = useState("1000");
   const [selectedPrinter, setSelectedPrinter] = useState("");
   const [selectedSpool, setSelectedSpool] = useState("");
@@ -90,6 +91,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
           printer: spoolPrinter ? Number(spoolPrinter) : null,
           material: spoolMaterial.trim(),
           color: spoolColor.trim(),
+          brand: spoolBrand.trim(),
           initial_weight_grams: spoolWeight,
           remaining_weight_grams: spoolWeight,
           is_active: true,
@@ -97,6 +99,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
       }),
     onSuccess: () => {
       setSpoolColor("");
+      setSpoolBrand("");
       invalidatePrinting();
     },
   });
@@ -201,7 +204,8 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
           </select>
           <input className="desk-input" placeholder="Material" value={spoolMaterial} onChange={(event) => setSpoolMaterial(event.target.value)} />
           <input className="desk-input" placeholder="Color" value={spoolColor} onChange={(event) => setSpoolColor(event.target.value)} />
-          <input className="desk-input" placeholder="Weight g" type="number" min="0" value={spoolWeight} onChange={(event) => setSpoolWeight(event.target.value)} />
+          <input className="desk-input" placeholder="Brand" value={spoolBrand} onChange={(event) => setSpoolBrand(event.target.value)} />
+          <input className="desk-input" placeholder="Weight g (1000 = 1kg)" type="number" min="0" value={spoolWeight} onChange={(event) => setSpoolWeight(event.target.value)} />
           <button disabled={!spoolMaterial.trim() || !spoolWeight || createSpool.isPending} onClick={() => createSpool.mutate()}>
             {createSpool.isPending ? "Adding..." : "Add spool"}
           </button>
