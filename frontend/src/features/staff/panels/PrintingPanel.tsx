@@ -54,6 +54,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
   const [editingPrinter, setEditingPrinter] = useState<PrintPrinter | null>(null);
   const [editingSpool, setEditingSpool] = useState<FilamentSpool | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<DeactivateTarget | null>(null);
+  const [deleteSpoolTarget, setDeleteSpoolTarget] = useState<{ id: number; label: string } | null>(null);
   const [failingRequest, setFailingRequest] = useState<PrintRequest | null>(null);
 
   const invalidatePrinting = () => {
@@ -138,6 +139,11 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
     },
   });
 
+  const deleteSpool = useMutation({
+    mutationFn: (id: number) => printingRequest(`/printing/manage/spools/${id}/`, { method: "DELETE" }),
+    onSuccess: () => { setDeleteSpoolTarget(null); invalidatePrinting(); },
+  });
+
   const action = useMutation({
     mutationFn: ({ request, name, reason }: { request: PrintRequest; name: "start" | "complete" | "fail"; reason?: string }) => {
       const body =
@@ -215,12 +221,14 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
               spool={spool}
               onEdit={() => setEditingSpool(spool)}
               onDeactivate={() => setDeactivateTarget({ kind: "spool", id: spool.id, label: `${spool.material} ${spool.color}`.trim() })}
+              onDelete={() => setDeleteSpoolTarget({ id: spool.id, label: `${spool.material} ${spool.color}`.trim() })}
             />
           ))}
         </div>
         {!spools.isLoading && !spoolRows.length ? <p className="mt-3 text-sm text-muted">No filament spools yet.</p> : null}
         <ErrorText message={spools.error instanceof Error ? spools.error.message : undefined} />
         <ErrorText message={createSpool.error instanceof Error ? createSpool.error.message : undefined} />
+        <ErrorText message={deleteSpool.error instanceof Error ? deleteSpool.error.message : undefined} />
       </Panel>
 
       <Panel title="Print queue">
@@ -279,16 +287,8 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
         onClose={() => setFailingRequest(null)}
         onSubmit={(reason) => failingRequest && action.mutate({ request: failingRequest, name: "fail", reason })}
       />
-      <ConfirmDialog
-        open={Boolean(deactivateTarget)}
-        title="Deactivate item"
-        message={deactivateTarget ? `Deactivate ${deactivateTarget.label}? It will stay in history but no longer be available for new print work.` : ""}
-        confirmLabel="Deactivate"
-        tone="danger"
-        pending={deactivate.isPending}
-        onCancel={() => setDeactivateTarget(null)}
-        onConfirm={() => deactivateTarget && deactivate.mutate(deactivateTarget)}
-      />
+      <ConfirmDialog open={Boolean(deactivateTarget)} title="Deactivate item" message={deactivateTarget ? `Deactivate ${deactivateTarget.label}? It will stay in history but no longer be available for new print work.` : ""} confirmLabel="Deactivate" tone="danger" pending={deactivate.isPending} onCancel={() => setDeactivateTarget(null)} onConfirm={() => deactivateTarget && deactivate.mutate(deactivateTarget)} />
+      <ConfirmDialog open={Boolean(deleteSpoolTarget)} title="Delete spool" message={deleteSpoolTarget ? `Permanently delete ${deleteSpoolTarget.label}? This cannot be undone. Spools linked to print requests cannot be deleted — deactivate them instead.` : ""} confirmLabel="Delete" tone="danger" pending={deleteSpool.isPending} onCancel={() => setDeleteSpoolTarget(null)} onConfirm={() => deleteSpoolTarget && deleteSpool.mutate(deleteSpoolTarget.id)} />
       <ErrorText message={deactivate.error instanceof Error ? deactivate.error.message : undefined} />
     </div>
   );

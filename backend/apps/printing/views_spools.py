@@ -1,7 +1,9 @@
-from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import generics
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from rest_framework import generics, status
+from rest_framework.response import Response
 
-from apps.printing.models import FilamentSpool
+from apps.audit import services as audit
+from apps.printing.models import FilamentSpool, PrintRequest
 from apps.printing.serializers import FilamentSpoolSerializer
 from apps.printing.views_common import ERROR_RESPONSES, _int_query_param
 from apps.printing.views_printers import ManagedPrinterMixin
@@ -46,7 +48,9 @@ class ManagedFilamentSpoolListCreateView(
 
 
 @extend_schema(tags=["Printing"], summary="Retrieve or update managed filament spool")
-class ManagedFilamentSpoolDetailView(ManagedPrinterMixin, generics.RetrieveUpdateAPIView):
+class ManagedFilamentSpoolDetailView(
+    ManagedPrinterMixin, generics.RetrieveUpdateDestroyAPIView
+):
     serializer_class = FilamentSpoolSerializer
 
     def get_queryset(self):
@@ -61,6 +65,28 @@ class ManagedFilamentSpoolDetailView(ManagedPrinterMixin, generics.RetrieveUpdat
         self.assert_can_manage_makerspace(makerspace_id)
         serializer.save()
 
+    def destroy(self, request, *args, **kwargs):
+        spool = self.get_object()
+        self.assert_can_manage_makerspace(spool.makerspace_id)
+        if PrintRequest.objects.filter(filament_spool=spool).exists():
+            return Response(
+                {
+                    "detail": (
+                        "This spool is linked to print requests; deactivate it instead "
+                        "to preserve history."
+                    )
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        audit.record(
+            request.user,
+            "print.spool_deleted",
+            makerspace=spool.makerspace,
+            target=spool,
+        )
+        spool.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @extend_schema(responses={200: FilamentSpoolSerializer, **ERROR_RESPONSES})
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
@@ -71,3 +97,13 @@ class ManagedFilamentSpoolDetailView(ManagedPrinterMixin, generics.RetrieveUpdat
     )
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
+
+    @extend_schema(
+        responses={
+            204: None,
+            409: OpenApiResponse(description="Spool is referenced by print requests."),
+            **ERROR_RESPONSES,
+        }
+    )
+    def delete(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)

@@ -72,7 +72,10 @@ export async function printingRequest<T>(path: string, options: RequestInit = {}
       ...(options.headers ?? {}),
     },
   });
-  if (response.ok) return (await response.json()) as T;
+  if (response.ok) {
+    if (response.status === 204) return undefined as T;
+    return (await response.json()) as T;
+  }
   const body = await response.json().catch(() => null);
   throw new Error(formatApiError(body, response.status));
 }
@@ -148,10 +151,12 @@ export function SpoolRow({
   spool,
   onEdit,
   onDeactivate,
+  onDelete,
 }: {
   spool: FilamentSpool;
   onEdit: () => void;
   onDeactivate: () => void;
+  onDelete: () => void;
 }) {
   const usedGrams = Math.max(
     0,
@@ -171,6 +176,7 @@ export function SpoolRow({
       <div className="desk-actions mt-2 flex flex-wrap gap-2">
         <button type="button" onClick={onEdit}>Edit</button>
         <button type="button" disabled={!spool.is_active} onClick={onDeactivate}>Deactivate</button>
+        <button type="button" className="text-danger" onClick={onDelete}>Delete</button>
       </div>
     </div>
   );

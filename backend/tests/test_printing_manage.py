@@ -138,6 +138,60 @@ def test_managed_fail_print_requires_reason_and_stores_reason():
     assert print_request.reason == "Layer shift."
 
 
+def test_managed_spool_delete_removes_unreferenced_spool():
+    makerspace = make_space("manage-spool-del-ok")
+    manager = make_print_manager("manage-spool-del-ok-manager", makerspace)
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        material="PLA",
+        initial_weight_grams=1000,
+        remaining_weight_grams=1000,
+    )
+
+    response = authenticated_client(manager).delete(spool_detail_url(spool))
+
+    assert response.status_code == 204
+    assert not FilamentSpool.objects.filter(pk=spool.id).exists()
+
+
+def test_managed_spool_delete_blocks_referenced_spool_with_409():
+    makerspace = make_space("manage-spool-del-ref")
+    bucket = make_bucket(makerspace)
+    requester = make_user("manage-spool-del-requester", access_status=User.AccessStatus.ACTIVE)
+    manager = make_print_manager("manage-spool-del-ref-manager", makerspace)
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        material="PLA",
+        initial_weight_grams=1000,
+        remaining_weight_grams=600,
+    )
+    print_request = make_request(bucket, requester)
+    print_request.filament_spool = spool
+    print_request.save(update_fields=["filament_spool"])
+
+    response = authenticated_client(manager).delete(spool_detail_url(spool))
+
+    assert response.status_code == 409
+    assert FilamentSpool.objects.filter(pk=spool.id).exists()
+
+
+def test_managed_spool_delete_out_of_scope_returns_404():
+    makerspace = make_space("manage-spool-del-own")
+    other_space = make_space("manage-spool-del-other")
+    manager = make_print_manager("manage-spool-del-scope-manager", makerspace)
+    other_spool = FilamentSpool.objects.create(
+        makerspace=other_space,
+        material="PLA",
+        initial_weight_grams=1000,
+        remaining_weight_grams=1000,
+    )
+
+    response = authenticated_client(manager).delete(spool_detail_url(other_spool))
+
+    assert response.status_code == 404
+    assert FilamentSpool.objects.filter(pk=other_spool.id).exists()
+
+
 def test_managed_edit_deactivate_is_rbac_scoped_to_makerspace():
     makerspace = make_space("manage-edit-own")
     other_space = make_space("manage-edit-other")
