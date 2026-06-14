@@ -61,21 +61,25 @@ Then it builds and starts everything. **The first time takes a few minutes** —
 When the script finishes it prints two web addresses. Open them in a browser:
 
 - **Public catalog** — what your community sees (browse + request).
-- **Admin login** (`…/admin/`) — where **you**, the Super Admin, run everything.
+- **Staff console** (`…/admin`) — the React console where Space Managers, Inventory Managers,
+  Guest Admins, Print Managers, and the Super Admin do day-to-day work.
+
+The Django control plane is at `/control/` on the backend only. It is an operator-only tool and is
+not exposed on the public website/port.
 
 **Write down the admin username and password it shows.** If you let it generate a password, that
 line is the only time it's displayed.
 
 ## Step 5 — Make it useful
 
-Log into the **admin** address and:
+Log into the **staff console** address (`/admin`) and:
 
 1. **Add your inventory** — the tools and equipment people can borrow.
 2. **Turn on public visibility** — open your makerspace and enable **"public inventory"** so it
    shows on the public catalog.
 3. **Add your team** — create accounts for your staff and assign them a role (Space Manager,
-   Inventory Manager, Guest Admin, Print Manager). Your staff use the separate **staff console**,
-   not this admin. (See the roles table in the [README](../README.md#roles--permissions) — the
+   Inventory Manager, Guest Admin, Print Manager). Your staff use this **staff console** for
+   everything. (See the roles table in the [README](../README.md#roles--permissions) — the
    roles are fixed by the system; you only choose who gets which one.)
 4. **(Optional) Email & Telegram alerts** — set your makerspace's email (SMTP) and Telegram bot in
    the staff console's **Integration settings**. These are stored encrypted and never shown again.

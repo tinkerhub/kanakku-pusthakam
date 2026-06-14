@@ -39,9 +39,11 @@ docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --bu
 For a guided first run that generates secrets and `.env` for you, use the `setup.sh` / `setup.ps1`
 scripts at the repo root (see [setup-for-makerspaces.md](setup-for-makerspaces.md)).
 
-> The frontend container's nginx proxies `/api/`, `/admin/`, `/static/`, and the docs routes to the
-> backend, so the **single published port (80)** serves the public app, the Super Admin Django
-> admin, and Swagger. The backend port is intentionally not exposed.
+> The frontend container's nginx proxies `/api/`, `/static/`, and the docs routes to the backend.
+> The **single published port (80)** serves the public app, the React staff console at `/admin`,
+> and Swagger. The Django control plane is mounted at `/control/` on the backend and is
+> intentionally **not exposed** on the public frontend port; access it only through direct backend
+> access.
 
 ## First Run
 
@@ -106,7 +108,7 @@ works out of the box. For a real domain with TLS:
    nginx/Traefik with a certificate) and have it forward `X-Forwarded-Proto: https`.
 2. Set `ENABLE_HTTPS=true` — this turns on `SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE`,
    `CSRF_COOKIE_SECURE`, and HSTS.
-3. Set `CSRF_TRUSTED_ORIGINS=https://your-domain.org` so admin/login POSTs are accepted.
+3. Set `CSRF_TRUSTED_ORIGINS=https://your-domain.org` so login POSTs are accepted.
 
 > **Important:** when `ENABLE_HTTPS=true`, the frontend container's HTTP port must be reachable
 > **only through your TLS proxy** — do not publish it publicly (bind it to the proxy or a private
@@ -117,7 +119,9 @@ works out of the box. For a real domain with TLS:
 Always-on protections (any transport): `django-axes` locks out brute-force admin logins
 (`AXES_FAILURE_LIMIT`, keyed by ip+username), a scoped throttle limits the JWT login endpoint, the
 public submit endpoint has its own anti-spam throttle + a honeypot, and a Content-Security-Policy is
-sent on every response. The Django admin is restricted to active superusers only.
+sent on every response. The Django control plane at `/control/` is restricted to active
+superusers only and must be reached through direct backend access, never through the public
+frontend port.
 
 Secrets (`SECRET_KEY`, `API_CLIENT_ENC_KEY`, makerspace Telegram bot tokens, makerspace SMTP
 passwords) live only in the backend. `API_CLIENT_ENC_KEY` is the Fernet key that encrypts the
@@ -135,7 +139,7 @@ previously stored tokens/passwords can no longer be decrypted.
 | `CORS_ALLOWED_ORIGINS` | no | Browser origins allowed to call the API |
 | `API_CLIENT_ENC_KEY` | recommended | Fernet key encrypting integration secrets at rest |
 | `ENABLE_HTTPS` | no (default false) | Turns on SSL redirect, Secure cookies, HSTS |
-| `CSRF_TRUSTED_ORIGINS` | when HTTPS | `https://` origin(s) trusted for admin/login POST |
+| `CSRF_TRUSTED_ORIGINS` | when HTTPS | `https://` origin(s) trusted for login POSTs |
 | `AXES_FAILURE_LIMIT` | no (default 5) | Failed admin logins before lockout |
 | `HTTP_PORT` | no (default 80) | Published frontend port |
 | `EMAIL_*`, `DEFAULT_FROM_EMAIL` | no | Global fallback SMTP (per-makerspace SMTP overrides it) |

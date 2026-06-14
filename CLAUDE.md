@@ -6,9 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Admin control plane (superadmin-only)
 
-The **Unfold Django admin is the Super Admin's sole control plane** and is locked to
-superadmins. Access is gated two ways: `config.admin_access.AdminSuperuserOnlyMiddleware`
-(exact `/admin` prefix match — the `/api/v1/admin/...` React staff APIs are NOT gated) denies
+The **Unfold Django admin is the Super Admin's sole control plane**, mounted at **`/control/`**
+(NOT `/admin/` — `/admin` belongs to the React staff console SPA route) and locked to
+superadmins. It is also **not exposed on the public frontend port**: `frontend/nginx.conf` does
+not proxy it, so multi-makerspace staff (who only have port 80) can never reach the Django console;
+the superadmin reaches `/control/` only via direct backend access. Access is gated two ways:
+`config.admin_access.AdminSuperuserOnlyMiddleware` (prefix derived from `reverse("admin:index")` →
+`/control/`; the `/api/v1/admin/...` React staff APIs are NOT gated) denies
 any authenticated non-superadmin, and `config.admin_access.SuperuserOnlyModelAdmin` is the first
 base of every `ModelAdmin` so each model view requires an active `is_superuser`. Unfold sidebar
 nav callbacks (`config/unfold.py`) are strict-active-superuser too. All other staff roles
@@ -29,16 +33,20 @@ always-on CSP via django-csp 4 (`CONTENT_SECURITY_POLICY`), and a `pip-audit` CI
 (`.github/workflows/security-audit.yml`). The global CSP `script-src` omits `'unsafe-eval'`;
 because django-unfold ships the standard (eval-requiring) Alpine.js build, a tiny
 `config.admin_access.AdminCspEvalMiddleware` (ordered immediately after `csp.middleware.CSPMiddleware`)
-appends `'unsafe-eval'` to `script-src` **only for `/admin/` responses** via django-csp's
+appends `'unsafe-eval'` to `script-src` **only for `/control/` responses** via django-csp's
 per-response `_csp_update` attribute — the JSON API and the public Swagger/ReDoc docs stay on the
 strict policy. Without it Alpine never initializes and the admin is unusable (command palette stuck
 open, dead sidebar/`Esc`). Design spec:
 `docs/superpowers/specs/2026-06-13-superadmin-admin-control-plane-design.md`.
 
-**Admin reachability + self-host tooling.** The production stack does not publish the backend
-port, so `frontend/nginx.conf` proxies `/admin/`, `/static/`, and the docs routes
-(`/docs/`,`/redoc/`,`/schema/`) to the backend — without this the superadmin control plane would be
-unreachable on port 80. Non-technical install path: `setup.sh` / `setup.ps1` (first-run wizard:
+**Admin reachability + self-host tooling.** The Django control plane (`/control/`) is deliberately
+**NOT** reachable on the public frontend port: `frontend/nginx.conf` proxies `/api/`, `/static/`,
+and the docs routes (`/docs/`,`/redoc/`,`/schema/`) to the backend but **does not proxy the Django
+admin** — so makerspace staff on port 80 can never reach the Django console. The superadmin reaches
+`/control/` only via direct backend access (dev: `http://localhost:8001/control/`; production: the
+backend port is unpublished, so publish it to localhost or use a tunnel / `docker compose exec`).
+The React staff console at `/admin` (port 80) is where Space/Inventory/Guest/Print managers and the
+Super Admin do day-to-day work. Non-technical install path: `setup.sh` / `setup.ps1` (first-run wizard:
 Docker check → generate secrets incl. a Fernet `API_CLIENT_ENC_KEY` → write root `.env` → build via
 `docker-compose.prod.yml` + `docker-compose.build.yml` → wait for readiness → `setup_instance` →
 print URL/creds), `docker-compose.build.yml` (build-from-source overlay; GHCR images are not yet

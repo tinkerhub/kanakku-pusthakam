@@ -9,7 +9,7 @@ class AdminSuperuserOnlyMiddleware:
         try:
             prefix = reverse("admin:index")
         except Exception:
-            prefix = "/admin/"
+            prefix = "/control/"
         self.admin_prefix = prefix if prefix.endswith("/") else f"{prefix}/"
         self.admin_root = self.admin_prefix.rstrip("/")
 
@@ -47,7 +47,7 @@ class AdminCspEvalMiddleware:
 
     def __call__(self, request):
         response = self.get_response(request)
-        if request.path_info == "/admin" or request.path_info.startswith("/admin/"):
+        if request.path_info == "/control" or request.path_info.startswith("/control/"):
             # Unfold's standard Alpine build requires unsafe-eval; the Django admin is
             # superuser-gated, so keep this exception scoped to admin responses only.
             merged = dict(getattr(response, "_csp_update", None) or {})

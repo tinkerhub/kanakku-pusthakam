@@ -27,7 +27,7 @@ def test_non_superadmin_staff_is_denied_from_django_admin_index():
     client = Client()
     client.force_login(user)
 
-    response = client.get("/admin/")
+    response = client.get("/control/")
 
     assert response.status_code == 403
 
@@ -42,7 +42,7 @@ def test_superadmin_is_allowed_to_django_admin_index():
     client = Client()
     client.force_login(user)
 
-    response = client.get("/admin/")
+    response = client.get("/control/")
 
     assert response.status_code == 200
 
@@ -70,7 +70,7 @@ def test_react_staff_admin_api_path_is_not_gated_by_django_admin_middleware():
 def test_django_admin_login_csp_allows_unsafe_eval():
     client = Client()
 
-    response = client.get("/admin/login/", SERVER_NAME="localhost")
+    response = client.get("/control/login/", SERVER_NAME="localhost")
 
     assert response.status_code == 200
     csp = response["Content-Security-Policy"]

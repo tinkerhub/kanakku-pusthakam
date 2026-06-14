@@ -97,8 +97,8 @@ def test_repeated_failed_admin_logins_are_locked_out():
     try:
         responses = [
             client.post(
-                "/admin/login/",
-                {"username": "admin-lock", "password": "wrong", "next": "/admin/"},
+                "/control/login/",
+                {"username": "admin-lock", "password": "wrong", "next": "/control/"},
             )
             for _ in range(3)
         ]

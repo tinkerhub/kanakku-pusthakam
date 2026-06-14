@@ -32,7 +32,10 @@ def docs_root(_request):
 
 urlpatterns = [
     path("", docs_root, name="docs-root"),
-    path("admin/", admin.site.urls),
+    # Mounted at /control/ (not /admin/) so it never collides with the React staff
+    # console, which owns /admin on the SPA. The Django admin is the Super Admin
+    # control plane and lives on its own dedicated prefix.
+    path("control/", admin.site.urls),
     path("api/", include("apps.inventory.urls")),          # existing, unchanged
     # Versioned alias of the public routes. Namespaced so it does NOT collide with the
     # unnamespaced names above — reverse("public-inventory") stays /api/public/...,

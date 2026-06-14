@@ -85,10 +85,11 @@ if ($firstRun) {
   $suffix = ""; if ($port -ne "80") { $suffix = ":$port" }
   Say "All done!"
   Write-Host "  Public catalog : http://$webhost$suffix/"
-  Write-Host "  Admin login    : http://$webhost$suffix/admin/   (username: $adminUser)"
+  Write-Host "  Staff console  : http://$webhost$suffix/admin   (React, username: $adminUser)"
+  Write-Host "  Control plane  : /control/ on the backend only; not published on the public port"
   if ($genPass) { Warn "  Generated admin password: $adminPass   (save this now)" }
   Write-Host ""
-  Write-Host "Next: log into /admin/, add inventory, and turn on 'public inventory' for your makerspace."
+  Write-Host "Next: log into the React staff console at /admin, add inventory, and turn on 'public inventory' for your makerspace."
 }
 else {
   Say "App started. To create the first admin (only if you haven't yet), run:"

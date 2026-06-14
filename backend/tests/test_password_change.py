@@ -92,13 +92,13 @@ def test_must_change_password_blocks_django_admin():
     client = Client()
     client.force_login(user)
 
-    blocked = client.get("/admin/")
+    blocked = client.get("/control/")
     assert blocked.status_code == 403
 
     user.must_change_password = False
     user.save(update_fields=["must_change_password"])
     client.force_login(user)
-    assert client.get("/admin/").status_code == 200
+    assert client.get("/control/").status_code == 200
 
 
 def test_change_password_blacklists_outstanding_refresh_tokens():

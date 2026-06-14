@@ -74,10 +74,11 @@ if [ "$FIRST_RUN" = 1 ]; then
   SUFFIX=""; [ "$PORT" != "80" ] && SUFFIX=":$PORT"
   say "All done! 🎉"
   echo   "  Public catalog : http://${HOST}${SUFFIX}/"
-  echo   "  Admin login    : http://${HOST}${SUFFIX}/admin/   (username: ${ADMINUSER})"
+  echo   "  Staff console  : http://${HOST}${SUFFIX}/admin   (React, username: ${ADMINUSER})"
+  echo   "  Control plane  : /control/ on the backend only; not published on the public port"
   [ "$GEN_PASS" = 1 ] && warn "  Generated admin password: ${ADMINPASS}   (save this now)"
   echo
-  echo   "Next: log into /admin/, add inventory, and turn on 'public inventory' for your makerspace."
+  echo   "Next: log into the React staff console at /admin, add inventory, and turn on 'public inventory' for your makerspace."
 else
   say "App started. To create the first admin (only if you haven't yet), run:"
   echo "  ${COMPOSE[*]} exec backend python manage.py setup_instance --username admin --password 'a-strong-password' --makerspace-name 'My Makerspace'"

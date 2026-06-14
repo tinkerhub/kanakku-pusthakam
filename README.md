@@ -9,8 +9,8 @@ One deployment can host many makerspaces (tenants). Each owns its inventory, pub
 staff, Telegram group, QR namespace, and audit scope.
 
 - **Public** → React catalog: pick a makerspace, browse by category, request hardware. No login.
-- **Super Admin** → the **Django admin** is the sole superadmin control plane: create makerspaces
-  and run every operation (requests, transfers, stocktake, QR, printing) as audited admin actions.
+- **Super Admin** → the **React staff console** at `/admin` is for day-to-day work. The
+  **Django control plane** at `/control/` is an operator-only backend surface.
 - **All other staff** → the **React staff console** (JWT login). They have **no Django admin access**.
 
 ## Why this exists
@@ -31,7 +31,7 @@ per-makerspace membership.
 
 | Role | Works in | Can do | Cannot do |
 |---|---|---|---|
-| **Super Admin** | Django admin only | Everything, globally: create/manage makerspaces, all hardware/printing/ops actions, staff, settings, API clients, audit | — |
+| **Super Admin** | React staff console; operator-only Django control plane | Everything, globally: create/manage makerspaces, all hardware/printing/ops actions, staff, settings, API clients, audit | — |
 | **Space Manager** | React staff console | Full hardware lifecycle for their space (accept/reject, assign box, issue, return, evidence, QR), direct handouts, manage inventory & staff & settings | Other makerspaces; Django admin |
 | **Inventory Manager** | React staff console | Full hardware lifecycle + inventory edit + QR + evidence + audit for their space | Printing, staff, makerspace settings; Django admin |
 | **Guest Admin** | React staff console | Issue accepted requests + process returns (evidence/QR/remark/audit) | Accept/reject, edit inventory, manage QR, direct handouts; Django admin |
@@ -90,9 +90,10 @@ docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --bu
 | Surface | URL |
 |---|---|
 | Public frontend | `http://localhost` |
+| React staff console | `http://localhost/admin` |
 | API (via frontend proxy) | `http://localhost/api` |
 | API (direct container) | `http://localhost:8001/api` |
-| Django admin (superadmin) | `http://localhost:8001/admin/` |
+| Django control plane (superadmin) | `/control/` on the backend only. It is **not exposed** on the public frontend port. Dev: `http://localhost:8001/control/`; production: the backend port is not published, so publish it to localhost temporarily, use a tunnel, or use `docker compose exec backend`. |
 
 Seed demo data and create the first superadmin / makerspace:
 
