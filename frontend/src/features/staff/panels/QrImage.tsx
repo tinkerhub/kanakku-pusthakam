@@ -11,7 +11,7 @@ export function QrImage({ qrId, label }: { qrId: number; label: string }) {
   const qr = useStaffGet<QrPrintPayload>(["qr-image", qrId], `/admin/qr/${qrId}/print`);
   const src = useMemo(() => {
     if (!qr.data?.svg) return "";
-    return `data:image/svg+xml;utf8,${encodeURIComponent(qr.data.svg)}`;
+    return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(qr.data.svg)))}`;
   }, [qr.data?.svg]);
 
   if (qr.isLoading) {

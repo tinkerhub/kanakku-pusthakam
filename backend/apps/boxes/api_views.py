@@ -10,6 +10,7 @@ from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.audit import services as audit
 from apps.boxes.models import Box, QrCode, QrScanEvent
+from apps.boxes.qr_render import render_qr_label_svg
 from apps.boxes.serializers import (
     BoxSerializer,
     CreateBoxQrSerializer,
@@ -202,14 +203,12 @@ class QrPrintView(QrPermissionMixin, APIView):
         responses={200: OpenApiResponse(description="SVG QR label.")},
     )
     def get(self, request, pk, *args, **kwargs):
-        import segno
-
         qr = get_object_or_404(QrCode, pk=pk)
         self._require_qr(request.user, qr.makerspace_id)
         return Response(
             {
                 "payload": qr.payload,
-                "svg": segno.make(qr.payload).svg_inline(scale=5),
+                "svg": render_qr_label_svg(qr.payload),
                 "target": qr_target_payload(qr),
             }
         )
