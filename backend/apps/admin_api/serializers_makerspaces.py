@@ -1,0 +1,114 @@
+from rest_framework import serializers
+
+from apps.makerspaces.models import Makerspace, TenantFrontend
+
+
+class MakerspaceSerializer(serializers.ModelSerializer):
+    telegram_bot_token = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+    )
+    smtp_password = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+    )
+    telegram_bot_token_set = serializers.SerializerMethodField()
+    smtp_password_set = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Makerspace
+        fields = [
+            "id",
+            "name",
+            "public_code",
+            "slug",
+            "location",
+            "public_inventory_enabled",
+            "public_api_key",
+            "cors_allowed_origins",
+            "enabled_modules",
+            "theme_config",
+            "branding_config",
+            "telegram_group_chat_id",
+            "telegram_bot_token",
+            "telegram_bot_token_set",
+            "smtp_host",
+            "smtp_port",
+            "smtp_username",
+            "smtp_password",
+            "smtp_password_set",
+            "smtp_use_tls",
+            "smtp_from_email",
+            "default_loan_days",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "public_api_key",
+            "telegram_bot_token_set",
+            "smtp_password_set",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_telegram_bot_token_set(self, obj) -> bool:
+        return bool(obj.telegram_bot_token)
+
+    def get_smtp_password_set(self, obj) -> bool:
+        return bool(obj.smtp_password)
+
+    def validate_public_code(self, value):
+        return value.upper()
+
+    def validate_default_loan_days(self, value):
+        if value < 1:
+            raise serializers.ValidationError("Default loan days must be at least 1.")
+        return value
+
+    def update(self, instance, validated_data):
+        telegram_bot_token = validated_data.pop("telegram_bot_token", None)
+        smtp_password = validated_data.pop("smtp_password", None)
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        if telegram_bot_token:
+            instance.set_telegram_bot_token(telegram_bot_token)
+        if smtp_password:
+            instance.set_smtp_password(smtp_password)
+        instance.save()
+        return instance
+
+
+class ReturnPolicySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Makerspace
+        fields = ["id", "default_loan_days"]
+        read_only_fields = ["id"]
+
+    def validate_default_loan_days(self, value):
+        if value < 1:
+            raise serializers.ValidationError("Default loan days must be at least 1.")
+        return value
+
+
+class TenantFrontendSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TenantFrontend
+        fields = [
+            "id",
+            "makerspace",
+            "token",
+            "hostname",
+            "frontend_type",
+            "allowed_origins",
+            "enabled_modules",
+            "theme_config",
+            "branding_config",
+            "is_primary",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "makerspace", "token", "created_at", "updated_at"]
