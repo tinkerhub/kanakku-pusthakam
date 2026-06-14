@@ -2,6 +2,7 @@ import type React from "react";
 import { useEffect, useState } from "react";
 
 import { Modal } from "../../../components/ui/Modal";
+import { EvidenceUpload } from "./EvidenceUpload";
 import type { HardwareRequest } from "./Queues";
 
 export type ReturnDueValues = {
@@ -98,16 +99,16 @@ export function RejectRequestModal({ row, open, pending, error, onClose, onSubmi
   );
 }
 
-export function AssignIssueModal({ row, open, pending, error, onClose, onSubmit }: FormModalProps<AssignIssueValues>) {
+export function AssignIssueModal({ row, open, pending, error, onClose, onSubmit, makerspaceId }: FormModalProps<AssignIssueValues> & { makerspaceId: number }) {
   const [boxCode, setBoxCode] = useState(row?.assigned_box?.code ?? "");
-  const [evidenceId, setEvidenceId] = useState("");
+  const [evidenceId, setEvidenceId] = useState<number | null>(null);
   const [remark, setRemark] = useState("Issued from staff app.");
   const [validationError, setValidationError] = useState("");
 
   useEffect(() => {
     if (open) {
       setBoxCode(row?.assigned_box?.code ?? "");
-      setEvidenceId("");
+      setEvidenceId(null);
       setRemark("Issued from staff app.");
       setValidationError("");
     }
@@ -120,17 +121,15 @@ export function AssignIssueModal({ row, open, pending, error, onClose, onSubmit 
         className="grid gap-3"
         onSubmit={(event) =>
           submitForm(event, () => {
-            const evidenceText = evidenceId.trim();
-            const parsedEvidenceId = Number(evidenceText);
             if (!boxCode.trim()) {
               setValidationError("Box QR code is required.");
               return;
             }
-            if (!evidenceText || !Number.isFinite(parsedEvidenceId)) {
-              setValidationError("Issue evidence id must be a number.");
+            if (evidenceId === null) {
+              setValidationError("Upload an issue photo before issuing.");
               return;
             }
-            onSubmit({ boxCode: boxCode.trim(), evidenceId: parsedEvidenceId, remark });
+            onSubmit({ boxCode: boxCode.trim(), evidenceId, remark });
           })
         }
       >
@@ -138,10 +137,10 @@ export function AssignIssueModal({ row, open, pending, error, onClose, onSubmit 
           <span className="font-medium text-ink">Box QR code</span>
           <input className="desk-input" value={boxCode} disabled={pending} onChange={(event) => setBoxCode(event.target.value)} />
         </label>
-        <label className="grid gap-1 text-sm">
-          <span className="font-medium text-ink">Issue photo/evidence id</span>
-          <input className="desk-input" inputMode="numeric" value={evidenceId} disabled={pending} onChange={(event) => setEvidenceId(event.target.value)} />
-        </label>
+        <div className="grid gap-1 text-sm">
+          <span className="font-medium text-ink">Issue photo</span>
+          <EvidenceUpload makerspaceId={makerspaceId} evidenceType="issue" disabled={pending} onUploaded={setEvidenceId} />
+        </div>
         <label className="grid gap-1 text-sm">
           <span className="font-medium text-ink">Remark</span>
           <textarea className="desk-input min-h-20 w-full resize-y" value={remark} disabled={pending} onChange={(event) => setRemark(event.target.value)} />
@@ -152,8 +151,8 @@ export function AssignIssueModal({ row, open, pending, error, onClose, onSubmit 
   );
 }
 
-export function ReturnRequestModal({ row, open, pending, error, onClose, onSubmit }: FormModalProps<ReturnRequestValues>) {
-  const [evidenceId, setEvidenceId] = useState("");
+export function ReturnRequestModal({ row, open, pending, error, onClose, onSubmit, makerspaceId }: FormModalProps<ReturnRequestValues> & { makerspaceId: number }) {
+  const [evidenceId, setEvidenceId] = useState<number | null>(null);
   const [boxCode, setBoxCode] = useState(row?.assigned_box?.code ?? "");
   const [remark, setRemark] = useState("");
   const [resolutions, setResolutions] = useState<ReturnRequestValues["resolutions"]>([]);
@@ -161,7 +160,7 @@ export function ReturnRequestModal({ row, open, pending, error, onClose, onSubmi
 
   useEffect(() => {
     if (!open || !row) return;
-    setEvidenceId("");
+    setEvidenceId(null);
     setBoxCode(row.assigned_box?.code ?? "");
     setRemark("");
     setValidationError("");
@@ -184,10 +183,8 @@ export function ReturnRequestModal({ row, open, pending, error, onClose, onSubmi
         className="grid gap-3"
         onSubmit={(event) =>
           submitForm(event, () => {
-            const evidenceText = evidenceId.trim();
-            const parsedEvidenceId = Number(evidenceText);
-            if (!evidenceText || !Number.isFinite(parsedEvidenceId)) {
-              setValidationError("Return evidence id must be a number.");
+            if (evidenceId === null) {
+              setValidationError("Upload a return photo before submitting.");
               return;
             }
             if (!remark.trim()) {
@@ -202,15 +199,15 @@ export function ReturnRequestModal({ row, open, pending, error, onClose, onSubmi
               setValidationError("Resolution quantities cannot be negative.");
               return;
             }
-            onSubmit({ evidenceId: parsedEvidenceId, boxCode: boxCode.trim(), remark: remark.trim(), resolutions });
+            onSubmit({ evidenceId, boxCode: boxCode.trim(), remark: remark.trim(), resolutions });
           })
         }
       >
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1 text-sm">
-            <span className="font-medium text-ink">Return evidence id</span>
-            <input className="desk-input" inputMode="numeric" value={evidenceId} disabled={pending} onChange={(event) => setEvidenceId(event.target.value)} />
-          </label>
+          <div className="grid gap-1 text-sm">
+            <span className="font-medium text-ink">Return photo</span>
+            <EvidenceUpload makerspaceId={makerspaceId} evidenceType="return" disabled={pending} onUploaded={setEvidenceId} />
+          </div>
           <label className="grid gap-1 text-sm">
             <span className="font-medium text-ink">Box QR code</span>
             <input className="desk-input" value={boxCode} disabled={pending} onChange={(event) => setBoxCode(event.target.value)} />

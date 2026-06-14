@@ -239,6 +239,7 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
         error={modalError}
         onClose={closeModals}
         onSubmit={submitAssignIssue}
+        makerspaceId={makerspace.id}
       />
       <ReturnRequestModal
         row={returnRow}
@@ -247,6 +248,7 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
         error={modalError}
         onClose={closeModals}
         onSubmit={submitReturn}
+        makerspaceId={makerspace.id}
       />
     </div>
   );
