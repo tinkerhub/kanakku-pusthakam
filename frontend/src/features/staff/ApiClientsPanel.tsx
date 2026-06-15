@@ -122,7 +122,7 @@ export function ApiClientsPanel({
   });
   const testTelegram = useMutation({
     mutationFn: () =>
-      staffRequest<{ delivered: boolean }>("/integrations/telegram/test-alert", {
+      staffRequest<{ delivered: boolean; detail?: string }>("/integrations/telegram/test-alert", {
         method: "POST",
         body: JSON.stringify({
           makerspace_id: makerspace.id,
@@ -211,8 +211,9 @@ export function ApiClientsPanel({
               </button>
               {saveSettings.error ? <p className="mt-2 text-sm text-danger">{saveSettings.error.message}</p> : null}
               {testTelegram.data ? (
-                <p className="mt-2 text-sm text-muted">
+                <p className={`mt-2 text-sm ${testTelegram.data.delivered ? "text-muted" : "text-danger"}`}>
                   Telegram delivered: {testTelegram.data.delivered ? "yes" : "no"}
+                  {!testTelegram.data.delivered && testTelegram.data.detail ? ` — ${testTelegram.data.detail}` : ""}
                 </p>
               ) : null}
               {testTelegram.error ? <p className="mt-2 text-sm text-danger">{testTelegram.error.message}</p> : null}

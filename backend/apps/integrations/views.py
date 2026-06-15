@@ -15,7 +15,7 @@ from apps.integrations.serializers import (
     TelegramTestAlertSerializer,
     TelegramWebhookSerializer,
 )
-from apps.integrations.telegram import send_message
+from apps.integrations.telegram import TelegramDeliveryError, send_message
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.guards import require_module
 
@@ -79,8 +79,32 @@ class TelegramTestAlertView(APIView):
             raise PermissionDenied()
         if not rbac.can(request.user, rbac.Action.MANAGE_MAKERSPACE, makerspace.id):
             raise PermissionDenied()
-        delivered = send_message(makerspace, serializer.validated_data["message"])
-        return Response({"delivered": delivered})
+        # send_message returns False only when the makerspace has no token/chat_id
+        # configured; a real Telegram failure (bad token, bot not in the group,
+        # network) RAISES TelegramDeliveryError. Catch it here so the staff console
+        # gets a clear {delivered:false, detail} instead of an opaque 500 — the test
+        # alert is a diagnostic, so a delivery failure is an expected outcome, not a
+        # server error.
+        try:
+            delivered = send_message(makerspace, serializer.validated_data["message"])
+        except TelegramDeliveryError:
+            return Response(
+                {
+                    "delivered": False,
+                    "detail": (
+                        "Telegram rejected the message. Check the bot token is correct "
+                        "and the bot has been added to the group chat."
+                    ),
+                }
+            )
+        if not delivered:
+            return Response(
+                {
+                    "delivered": False,
+                    "detail": "Telegram is not configured — save a bot token and group chat ID first.",
+                }
+            )
+        return Response({"delivered": True})
 
 
 def _webhook_secret_ok(request):

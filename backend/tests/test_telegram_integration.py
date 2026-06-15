@@ -122,6 +122,45 @@ def test_suspended_user_cannot_send_telegram_test_alert():
     assert response.status_code == 403
 
 
+def test_test_alert_unconfigured_returns_delivered_false_with_detail():
+    # No token/chat_id saved → send_message returns False. The endpoint must report
+    # delivered:false + a "not configured" detail (HTTP 200), not an error.
+    makerspace = make_space("telegram-unconfigured")
+    admin = make_member("telegram-unconfigured-admin", makerspace)
+
+    response = authenticated_client(admin).post(
+        "/api/v1/integrations/telegram/test-alert",
+        {"makerspace_id": makerspace.id, "message": "hi"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["delivered"] is False
+    assert "configured" in response.json()["detail"].lower()
+
+
+def test_test_alert_delivery_failure_returns_delivered_false_not_500(monkeypatch):
+    # A real Telegram failure raises TelegramDeliveryError. The endpoint must catch it
+    # and return delivered:false + detail (HTTP 200) so the staff console shows a clear
+    # message instead of a generic 500.
+    makerspace = make_space("telegram-delivery-failure")
+    admin = make_member("telegram-failure-admin", makerspace)
+    monkeypatch.setattr(
+        "apps.integrations.views.send_message",
+        Mock(side_effect=TelegramDeliveryError("boom")),
+    )
+
+    response = authenticated_client(admin).post(
+        "/api/v1/integrations/telegram/test-alert",
+        {"makerspace_id": makerspace.id, "message": "hi"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["delivered"] is False
+    assert response.json()["detail"]
+
+
 def test_telegram_delivery_uses_decrypted_makerspace_bot_token(monkeypatch, settings):
     settings.TELEGRAM_API_URL = "https://telegram.test"
     makerspace = make_space("telegram-encrypted-token")
