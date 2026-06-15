@@ -58,6 +58,54 @@ def buckets_url(makerspace):
     )
 
 
+def checkin_verify_url(makerspace):
+    return reverse(
+        "printing:public-checkin-verify",
+        kwargs={"makerspace_slug": makerspace.slug},
+    )
+
+
+def test_checkin_verify_omits_external_id():
+    makerspace = make_space("public-print-verify")
+    enable_printing(makerspace)
+
+    response = public_client().post(
+        checkin_verify_url(makerspace),
+        {"identifier": "u@e.com"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert set(response.data.keys()) == {"username"}
+
+
+def test_presign_blocked_for_inactive_requester(monkeypatch):
+    from apps.accounts.models import User
+
+    makerspace = make_space("public-print-presign-blocked")
+    enable_printing(makerspace)
+    User.objects.create(
+        username="blocked-checkin",
+        external_checkin_user_id="blocked@e.com",
+        access_status=User.AccessStatus.SUSPENDED,
+    )
+    mock_upload(monkeypatch)
+
+    response = public_client().post(
+        presign_url(makerspace),
+        {
+            "identifier": "blocked@e.com",
+            "kind": "stl",
+            "filename": "p.stl",
+            "content_type": "application/octet-stream",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert not PrintRequestFile.objects.exists()
+
+
 def test_public_buckets_lists_active_only():
     makerspace = make_space("public-print-buckets")
     enable_printing(makerspace)

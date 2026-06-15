@@ -12,8 +12,9 @@ class PrintCheckinVerifyRequestSerializer(serializers.Serializer):
 
 
 class PrintCheckinVerifyResponseSerializer(serializers.Serializer):
+    # Only a display name — never the stable Check-In external_id (avoids identifier
+    # disclosure; the server re-verifies the identifier on submit anyway).
     username = serializers.CharField()
-    external_id = serializers.CharField()
 
 
 class PrintPresignRequestSerializer(serializers.Serializer):

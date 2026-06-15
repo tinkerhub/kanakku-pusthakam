@@ -50,7 +50,7 @@ export function fetchPrintBuckets(slug: string) {
 }
 
 export function verifyPrintCheckin(slug: string, identifier: string) {
-  return publicV1Request<{ username: string; external_id: string }>(
+  return publicV1Request<{ username: string }>(
     `/printing/public/${slug}/checkin/verify`,
     { method: "POST", body: JSON.stringify({ identifier }) },
   );

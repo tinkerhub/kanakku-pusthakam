@@ -11505,13 +11505,9 @@
                 "properties": {
                     "username": {
                         "type": "string"
-                    },
-                    "external_id": {
-                        "type": "string"
                     }
                 },
                 "required": [
-                    "external_id",
                     "username"
                 ]
             },

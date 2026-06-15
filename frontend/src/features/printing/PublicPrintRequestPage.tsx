@@ -48,7 +48,7 @@ export function PublicPrintRequestPage() {
     mutationFn: (id: string) => verifyPrintCheckin(makerspaceSlug, id),
     onSuccess: (data, id) => {
       setVerifiedIdentifier(id);
-      setVerifiedName(data.username || data.external_id);
+      setVerifiedName(data.username);
     },
   });
   const verified =
