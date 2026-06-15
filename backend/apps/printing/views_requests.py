@@ -31,6 +31,7 @@ class PrintRequestCreateListView(generics.ListCreateAPIView):
             PrintRequest.objects.select_related(
                 "bucket__makerspace", "requester", "handled_by"
             )
+            .prefetch_related("files")
             .filter(requester=self.request.user)
             .order_by("-created_at")
         )
@@ -64,6 +65,7 @@ class PrintRequestDetailView(generics.RetrieveAPIView):
             PrintRequest.objects.select_related(
                 "bucket__makerspace", "requester", "handled_by"
             )
+            .prefetch_related("files")
             .filter(requester=self.request.user)
             .order_by("-created_at")
         )
@@ -77,7 +79,7 @@ class ManagedPrintRequestQuerysetMixin:
     def get_queryset(self):
         qs = PrintRequest.objects.select_related(
             "bucket__makerspace", "requester", "handled_by"
-        ).order_by("-created_at")
+        ).prefetch_related("files").order_by("-created_at")
         qs = rbac.scope_by_action(
             self.request.user,
             rbac.Action.MANAGE_PRINTING,

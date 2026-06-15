@@ -93,7 +93,10 @@ export function StockTransferPanel({
       staffRequest(`/admin/makerspace/${sourceMakerspaceId}/stock-transfers`, {
         method: "POST",
         body: JSON.stringify({
-          source_container_id: sourceContainerId ? Number(sourceContainerId) : null,
+          // Cross-makerspace transfers ignore the source container (and the control is
+          // disabled), so never send a stale value the backend would otherwise record.
+          source_container_id:
+            isCrossMakerspace || !sourceContainerId ? null : Number(sourceContainerId),
           // destination_container_id is resolved within the destination makerspace
           // (same makerspace for intra-transfers), so it is valid in both modes.
           destination_container_id: destinationContainerId ? Number(destinationContainerId) : null,
