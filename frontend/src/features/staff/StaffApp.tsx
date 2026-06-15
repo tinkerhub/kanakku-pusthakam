@@ -30,6 +30,7 @@ import {
   ProcurementPanel,
   QrTools,
   RequestsPanel,
+  ScannerPanel,
   StocktakePanel,
   StockTransferPanel,
   Users,
@@ -39,7 +40,7 @@ import {
 
 const ALL_TABS = [
   "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
-  "stocktake", "containers", "ledger", "reports", "bulk", "qr", "api", "users", "audit",
+  "stocktake", "containers", "ledger", "reports", "bulk", "qr", "scanner", "api", "users", "audit",
 ] as const;
 // Membership roles that get the full staff console. Anything else (print_manager,
 // or an unknown role) is failed closed to the 3D-printing surfaces only.
@@ -338,6 +339,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
           ) : null}
           {activeMakerspace && activeTab === "bulk" ? <BulkImport makerspace={activeMakerspace} /> : null}
           {activeMakerspace && activeTab === "qr" ? <QrTools makerspace={activeMakerspace} /> : null}
+          {activeMakerspace && activeTab === "scanner" ? <ScannerPanel makerspace={activeMakerspace} /> : null}
           {activeMakerspace && activeTab === "api" ? (
             <ApiClientsPanel makerspace={activeMakerspace} isSuperadmin={isSuperadmin} />
           ) : null}

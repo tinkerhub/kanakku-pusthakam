@@ -10,6 +10,7 @@ export { PrintingPanel } from "./panels/PrintingPanel";
 export { ProcurementPanel } from "./panels/ProcurementPanel";
 export { QrTools } from "./panels/QrTools";
 export { Queues } from "./panels/Queues";
+export { ScannerPanel } from "./panels/ScannerPanel";
 export { RequestsPanel } from "./panels/RequestsPanel";
 export { StocktakePanel } from "./panels/StocktakePanel";
 export { StockTransferPanel } from "./panels/StockTransferPanel";
