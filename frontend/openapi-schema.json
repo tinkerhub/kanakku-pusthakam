@@ -2405,6 +2405,15 @@
                         "schema": {
                             "type": "integer"
                         }
+                    },
+                    {
+                        "name": "page_size",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return per page.",
+                        "schema": {
+                            "type": "integer"
+                        }
                     }
                 ],
                 "tags": [
@@ -11944,14 +11953,18 @@
                         "default": 1
                     },
                     "source_link": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 200
                     },
                     "contact_email": {
                         "type": "string",
-                        "format": "email"
+                        "format": "email",
+                        "maxLength": 254
                     },
                     "contact_phone": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 40
                     },
                     "file_ids": {
                         "type": "array",

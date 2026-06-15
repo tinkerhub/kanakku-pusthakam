@@ -3,8 +3,16 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+
+class InventoryPagination(PageNumberPagination):
+    # Opt-in larger pages (?page_size=) so pickers that need the full product list
+    # (e.g. direct handout / transfers) aren't limited to the default first 24.
+    page_size_query_param = "page_size"
+    max_page_size = 1000
 
 from apps.accounts import rbac
 from apps.admin_api.permissions import IsActiveStaff, require_action
@@ -22,6 +30,7 @@ from apps.operations.models import InventoryAdjustment
 class InventoryListCreateView(generics.ListCreateAPIView):
     serializer_class = InventoryProductAdminSerializer
     permission_classes = [IsActiveStaff]
+    pagination_class = InventoryPagination
 
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]

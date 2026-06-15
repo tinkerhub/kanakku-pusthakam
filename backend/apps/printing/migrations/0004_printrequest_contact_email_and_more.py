@@ -35,10 +35,14 @@ class Migration(migrations.Migration):
             name='project_brief',
             field=models.TextField(blank=True),
         ),
+        # Add nullable WITHOUT a default first: a callable default on AddField is
+        # evaluated once, so existing rows would all get the SAME uuid (then the unique
+        # AlterField below would fail). Nullable-no-default leaves existing rows NULL for
+        # the RunPython backfill to fill with per-row unique values.
         migrations.AddField(
             model_name='printrequest',
             name='public_token',
-            field=models.UUIDField(db_index=True, default=uuid.uuid4, editable=False, null=True),
+            field=models.UUIDField(db_index=True, editable=False, null=True),
         ),
         migrations.RunPython(_fill_public_tokens, migrations.RunPython.noop),
         migrations.AlterField(

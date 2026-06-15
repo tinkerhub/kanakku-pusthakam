@@ -43,9 +43,10 @@ class PrintRequestSubmitSerializer(serializers.Serializer):
     material = serializers.CharField(required=False, allow_blank=True, max_length=100)
     color = serializers.CharField(required=False, allow_blank=True, max_length=100)
     quantity = serializers.IntegerField(min_value=1, default=1)
-    source_link = serializers.CharField(required=False, allow_blank=True)
-    contact_email = serializers.EmailField(required=False, allow_blank=True)
-    contact_phone = serializers.CharField(required=False, allow_blank=True)
+    # Bound to the model column limits so overlong input is a clean 400, not a DB DataError.
+    source_link = serializers.URLField(required=False, allow_blank=True, max_length=200)
+    contact_email = serializers.EmailField(required=False, allow_blank=True, max_length=254)
+    contact_phone = serializers.CharField(required=False, allow_blank=True, max_length=40)
     file_ids = serializers.ListField(
         child=serializers.IntegerField(),
         required=False,

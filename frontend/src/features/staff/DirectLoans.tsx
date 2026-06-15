@@ -34,8 +34,8 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   const [qrPayloads, setQrPayloads] = useState("");
   const [dueAt, setDueAt] = useState("");
   const products = useStaffGet<{ results: ProductOption[] }>(
-    ["inventory", makerspace.id],
-    `/admin/makerspace/${makerspace.id}/inventory`,
+    ["inventory-all", makerspace.id],
+    `/admin/makerspace/${makerspace.id}/inventory?page_size=1000`,
   );
   const loans = useStaffGet<{ results: DirectLoan[] }>(
     ["direct-loans", makerspace.id],
