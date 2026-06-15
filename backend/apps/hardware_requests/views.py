@@ -18,6 +18,7 @@ from apps.hardware_requests.queue_views import (
     AcceptedRequestsView,
     ActiveLoansView,
     PendingRequestsView,
+    RequestHistoryView,
 )
 from apps.hardware_requests.review_views import AcceptRequestView, RejectRequestView
 from apps.hardware_requests.self_checkout_views import (
@@ -38,6 +39,7 @@ __all__ = [
     "PublicToolCheckoutView",
     "PublicToolReturnView",
     "RejectRequestView",
+    "RequestHistoryView",
     "RequestLookupView",
     "RequestStatusView",
     "RequestSubmitView",

@@ -916,3 +916,58 @@ def test_suspended_staff_cannot_view_accepted_queue():
     response = authenticated_client(guest).get(accepted_requests_url(makerspace))
 
     assert response.status_code == 403
+
+
+def history_url(makerspace):
+    return f"/api/v1/admin/makerspace/{makerspace.id}/request-history"
+
+
+def test_request_history_lists_only_terminal_statuses_with_item_metadata():
+    makerspace = make_space("history-space")
+    admin = make_member("history-admin", makerspace)
+    product = make_product(makerspace)
+    individual = make_product(
+        makerspace, name="Serial Meter", tracking_mode="individual"
+    )
+
+    returned = make_hardware_request(
+        makerspace, product, status=HardwareRequest.Status.RETURNED
+    )
+    rejected = make_hardware_request(
+        makerspace, individual, status=HardwareRequest.Status.REJECTED
+    )
+    closed = make_hardware_request(
+        makerspace, product, status=HardwareRequest.Status.CLOSED_WITH_ISSUE
+    )
+    # Non-terminal requests must be excluded.
+    make_hardware_request(
+        makerspace, product, status=HardwareRequest.Status.PENDING_APPROVAL
+    )
+    make_hardware_request(
+        makerspace, product, status=HardwareRequest.Status.ISSUED
+    )
+
+    response = authenticated_client(admin).get(history_url(makerspace))
+
+    assert response.status_code == 200
+    ids = {row["id"] for row in response.data["results"]}
+    assert ids == {returned.id, rejected.id, closed.id}
+    # The individual-tracked rejected request exposes the asset-scan flag for the issue UI.
+    rejected_row = next(r for r in response.data["results"] if r["id"] == rejected.id)
+    assert rejected_row["items"][0]["requires_asset_qr"] is True
+    assert rejected_row["items"][0]["tracking_mode"] == "individual"
+    returned_row = next(r for r in response.data["results"] if r["id"] == returned.id)
+    assert returned_row["items"][0]["requires_asset_qr"] is False
+
+
+def test_request_history_is_tenant_scoped():
+    own = make_space("history-own")
+    other = make_space("history-other")
+    admin = make_member("history-scope-admin", own)
+    product = make_product(other)
+    make_hardware_request(other, product, status=HardwareRequest.Status.RETURNED)
+
+    response = authenticated_client(admin).get(history_url(own))
+
+    assert response.status_code == 200
+    assert response.data["results"] == []

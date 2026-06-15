@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from apps.inventory.models import TrackingMode
+
 
 class RequestItemInputSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
@@ -82,6 +84,11 @@ class AdminRequestItemSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     product_id = serializers.IntegerField(read_only=True)
     product_name = serializers.CharField(source="product.name", read_only=True)
+    # Exposed so the staff issue UI knows which accepted units require a scanned asset QR.
+    # individual-mode products must be issued with one AVAILABLE asset QR per accepted unit
+    # (handover_workflow._issue_individual_assets), so the modal must collect scans for them.
+    tracking_mode = serializers.CharField(source="product.tracking_mode", read_only=True)
+    requires_asset_qr = serializers.SerializerMethodField()
     requested_quantity = serializers.IntegerField(read_only=True)
     accepted_quantity = serializers.IntegerField(read_only=True)
     issued_quantity = serializers.IntegerField(read_only=True)
@@ -89,6 +96,9 @@ class AdminRequestItemSerializer(serializers.Serializer):
     damaged_quantity = serializers.IntegerField(read_only=True)
     missing_quantity = serializers.IntegerField(read_only=True)
     needs_fix_quantity = serializers.IntegerField(read_only=True)
+
+    def get_requires_asset_qr(self, obj) -> bool:
+        return obj.product.tracking_mode == TrackingMode.INDIVIDUAL
 
 
 class AdminRequestSerializer(serializers.Serializer):

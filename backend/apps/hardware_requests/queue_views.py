@@ -96,6 +96,40 @@ class ActiveLoansView(generics.ListAPIView):
         return super().get(request, *args, **kwargs)
 
 
+class RequestHistoryView(generics.ListAPIView):
+    # Terminal requests (returned / rejected / closed_with_issue) had no staff surface —
+    # once a loan was returned or a request rejected it vanished from every queue, hiding
+    # the accountability-bearing closed_with_issue loans (damaged/missing units). Gated on
+    # ISSUE_REQUEST (the handover-queue viewers) to match the accepted/active loan views.
+    permission_classes = [CanViewHandoverQueue]
+    serializer_class = AdminRequestSerializer
+
+    def get_queryset(self):
+        makerspace_id = self.kwargs["makerspace_id"]
+        require_module(makerspace_id, "guest_handover")
+        _require_action(self.request.user, rbac.Action.ISSUE_REQUEST, makerspace_id)
+        return (
+            request_queryset()
+            .filter(
+                makerspace_id=makerspace_id,
+                status__in=[
+                    HardwareRequest.Status.RETURNED,
+                    HardwareRequest.Status.REJECTED,
+                    HardwareRequest.Status.CLOSED_WITH_ISSUE,
+                ],
+            )
+            .order_by("-updated_at", "-created_at")
+        )
+
+    @extend_schema(
+        tags=["Admin requests"],
+        summary="List terminal request history (returned / rejected / closed with issue)",
+        responses={200: AdminRequestSerializer(many=True), **ADMIN_LIST_ERROR_RESPONSES},
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+
 def _require_action(user, action, makerspace_id):
     get_object_or_404(Makerspace, pk=makerspace_id)
     if not rbac.can(user, action, makerspace_id):

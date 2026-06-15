@@ -51,6 +51,11 @@ urlpatterns = [
         name="active-loans",
     ),
     path(
+        "admin/makerspace/<int:makerspace_id>/request-history",
+        views.RequestHistoryView.as_view(),
+        name="request-history",
+    ),
+    path(
         "admin/makerspace/<int:makerspace_id>/direct-loans",
         views.DirectLoanListCreateView.as_view(),
         name="direct-loans",

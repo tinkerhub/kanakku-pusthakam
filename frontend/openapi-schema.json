@@ -3099,6 +3099,71 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/request-history": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_request_history_list",
+                "summary": "List terminal request history (returned / rejected / closed with issue)",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "Admin requests"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedAdminRequestList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/return-policy": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_return_policy_retrieve",
@@ -9180,6 +9245,14 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "tracking_mode": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "requires_asset_qr": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
                     "requested_quantity": {
                         "type": "integer",
                         "readOnly": true
@@ -9219,7 +9292,9 @@
                     "product_id",
                     "product_name",
                     "requested_quantity",
-                    "returned_quantity"
+                    "requires_asset_qr",
+                    "returned_quantity",
+                    "tracking_mode"
                 ]
             },
             "ApiClient": {

@@ -84,6 +84,7 @@ export const openApiPaths = [
   "/api/v1/admin/makerspace/{makerspace_id}/pending-requests",
   "/api/v1/admin/makerspace/{makerspace_id}/qr-print-batches",
   "/api/v1/admin/makerspace/{makerspace_id}/reports/{report_key}/export",
+  "/api/v1/admin/makerspace/{makerspace_id}/request-history",
   "/api/v1/admin/makerspace/{makerspace_id}/return-policy",
   "/api/v1/admin/makerspace/{makerspace_id}/stock-transfers",
   "/api/v1/admin/makerspace/{makerspace_id}/stocktakes",
