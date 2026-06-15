@@ -51,6 +51,26 @@ def mock_upload(monkeypatch):
     )
 
 
+def buckets_url(makerspace):
+    return reverse(
+        "printing:public-buckets",
+        kwargs={"makerspace_slug": makerspace.slug},
+    )
+
+
+def test_public_buckets_lists_active_only():
+    makerspace = make_space("public-print-buckets")
+    enable_printing(makerspace)
+    active = make_bucket(makerspace, name="PLA")
+    make_bucket(makerspace, name="Retired", is_active=False)
+
+    response = public_client().get(buckets_url(makerspace))
+
+    assert response.status_code == 200
+    ids = [bucket["id"] for bucket in response.data]
+    assert ids == [active.id]
+
+
 def test_public_submit_creates_pending_request():
     makerspace = make_space("public-print-submit")
     enable_printing(makerspace)

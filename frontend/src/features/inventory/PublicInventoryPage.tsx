@@ -139,6 +139,11 @@ export function PublicInventoryPage() {
               <div className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">
                 {inventoryQuery.data?.count ?? "-"} listed items
               </div>
+              {modules.has("printing") ? (
+                <Link className="desk-button" to={`/m/${makerspaceSlug}/print`}>
+                  Request a 3D print
+                </Link>
+              ) : null}
               <ThemeToggle />
               <Link className="desk-button" to="/admin">
                 Staff login

@@ -6,6 +6,7 @@ import { Spinner } from "./components/ui/Spinner";
 import { PublicInventoryPage } from "./features/inventory/PublicInventoryPage";
 import { PublicItemDetailPage } from "./features/inventory/PublicItemDetailPage";
 import { usePublicMakerspaces } from "./features/inventory/usePublicInventory";
+import { PublicPrintRequestPage } from "./features/printing/PublicPrintRequestPage";
 import { KioskPage, ScannerPage, SuperadminPage } from "./features/staff/PlatformApps";
 import { StaffApp } from "./features/staff/StaffApp";
 
@@ -149,6 +150,7 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/m/:slug" element={<PublicInventoryPage />} />
       <Route path="/m/:slug/items/:id" element={<PublicItemDetailPage />} />
+      <Route path="/m/:slug/print" element={<PublicPrintRequestPage />} />
       <Route path="/kiosk/:slug" element={<KioskPage />} />
       <Route path="/admin" element={<StaffApp />} />
       <Route path="/guest-admin" element={<StaffApp guestOnly />} />

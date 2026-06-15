@@ -13,7 +13,7 @@ from apps.checkin import client as checkin
 from apps.makerspaces.lookup import get_public_makerspace
 from apps.makerspaces.platform import module_enabled
 from apps.printing import public_workflow
-from apps.printing.models import PrintRequest, PrintRequestFile
+from apps.printing.models import PrintBucket, PrintRequest, PrintRequestFile
 from apps.printing.public_serializers import (
     PrintCheckinVerifyRequestSerializer,
     PrintCheckinVerifyResponseSerializer,
@@ -21,6 +21,7 @@ from apps.printing.public_serializers import (
     PrintPresignResponseSerializer,
     PrintRequestSubmitResponseSerializer,
     PrintRequestSubmitSerializer,
+    PublicPrintBucketSerializer,
     PublicPrintStatusSerializer,
 )
 from apps.printing.storage import (
@@ -41,6 +42,25 @@ def _honeypot_filled(payload):
     except AttributeError:
         return False
     return bool(str(value).strip())
+
+
+class PublicPrintBucketsView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ClientTierRateThrottle]
+    throttle_scope = "public_read"
+
+    @extend_schema(
+        tags=["Public printing"],
+        auth=[],
+        responses={200: PublicPrintBucketSerializer(many=True)},
+    )
+    def get(self, request, makerspace_slug):
+        makerspace = get_public_makerspace(makerspace_slug)
+        _require_module(makerspace)
+        buckets = PrintBucket.objects.filter(
+            makerspace=makerspace, is_active=True
+        ).order_by("name")
+        return Response(PublicPrintBucketSerializer(buckets, many=True).data)
 
 
 class PrintCheckinVerifyView(APIView):

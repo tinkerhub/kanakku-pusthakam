@@ -1,0 +1,218 @@
+import type { ChangeEvent, Dispatch, SetStateAction } from "react";
+
+import { Card } from "../../components/ui/Card";
+import { Spinner } from "../../components/ui/Spinner";
+import type { PrintStatus } from "./publicApi";
+
+export type TextInputProps = {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+  type?: string;
+};
+
+const steps = [
+  { key: "pending", label: "Requested" },
+  { key: "accepted", label: "Accepted" },
+  { key: "printing", label: "Printing" },
+  { key: "completed", label: "Ready to collect" },
+];
+
+export function TextInput({
+  label,
+  value,
+  onChange,
+  required = false,
+  type = "text",
+}: TextInputProps) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+        {label}
+      </span>
+      <input
+        className="desk-input w-full"
+        required={required}
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
+export function TextArea({
+  label,
+  value,
+  onChange,
+}: TextInputProps) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+        {label}
+      </span>
+      <textarea
+        className="desk-input min-h-24 w-full"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
+export function FilePicker({
+  label,
+  accept,
+  files,
+  setFiles,
+}: {
+  label: string;
+  accept: string;
+  files: File[];
+  setFiles: Dispatch<SetStateAction<File[]>>;
+}) {
+  function addFiles(event: ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(event.target.files ?? []);
+    setFiles((current) => [...current, ...selected]);
+    event.target.value = "";
+  }
+
+  return (
+    <div>
+      <label className="block">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+          {label}
+        </span>
+        <input
+          accept={accept}
+          className="desk-input w-full"
+          multiple
+          type="file"
+          onChange={addFiles}
+        />
+      </label>
+      {files.length === 0 ? (
+        <p className="mt-2 text-sm text-muted">No files selected.</p>
+      ) : (
+        <ul className="mt-2 space-y-2">
+          {files.map((file, index) => (
+            <li
+              className="flex items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2 text-sm"
+              key={`${file.name}-${file.lastModified}-${index}`}
+            >
+              <span className="min-w-0 truncate text-ink">{file.name}</span>
+              <button
+                className="text-xs font-semibold text-danger"
+                type="button"
+                onClick={() =>
+                  setFiles((current) =>
+                    current.filter((_, fileIndex) => fileIndex !== index),
+                  )
+                }
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export function StatusStepper({ status }: { status: PrintStatus }) {
+  const currentIndex = steps.findIndex((step) => step.key === status.status);
+  const terminalError = status.status === "rejected" || status.status === "failed";
+
+  if (terminalError) {
+    return (
+      <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+        {status.title} is {status.status}.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-2 sm:grid-cols-4">
+        {steps.map((step, index) => {
+          const complete = currentIndex >= index;
+          return (
+            <div
+              className={`rounded-md border px-3 py-2 text-sm ${
+                complete
+                  ? "border-success/40 bg-success/10 text-success"
+                  : "border-line bg-surface text-muted"
+              }`}
+              key={step.key}
+            >
+              <p className="font-semibold">{step.label}</p>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-sm text-muted">
+        Current status:{" "}
+        <span className="font-semibold capitalize text-ink">
+          {status.status.replace("_", " ")}
+        </span>
+      </p>
+    </div>
+  );
+}
+
+export function SubmittedTokenCard({ token }: { token: string }) {
+  return (
+    <Card>
+      <p className="text-xs font-semibold uppercase tracking-wide text-success">
+        Request submitted
+      </p>
+      <h2 className="mt-2 text-xl font-semibold text-ink">Save this token</h2>
+      <p className="mt-2 break-all rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink">
+        {token}
+      </p>
+      <p className="mt-2 text-sm text-muted">
+        Use it later to check the status of this print request.
+      </p>
+    </Card>
+  );
+}
+
+export function StatusResult({
+  isPending,
+  error,
+  status,
+}: {
+  isPending: boolean;
+  error: Error | null;
+  status?: PrintStatus;
+}) {
+  if (isPending) {
+    return (
+      <div className="grid min-h-24 place-items-center">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <p className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+        {error.message}
+      </p>
+    );
+  }
+
+  return status ? (
+    <div className="space-y-3">
+      <div>
+        <h2 className="text-lg font-semibold text-ink">{status.title}</h2>
+        <p className="mt-1 text-xs text-muted">
+          Created {new Date(status.created_at).toLocaleString()}
+        </p>
+      </div>
+      <StatusStepper status={status} />
+    </div>
+  ) : null;
+}

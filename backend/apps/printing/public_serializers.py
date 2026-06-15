@@ -1,6 +1,12 @@
 from rest_framework import serializers
 
 
+class PublicPrintBucketSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    description = serializers.CharField()
+
+
 class PrintCheckinVerifyRequestSerializer(serializers.Serializer):
     identifier = serializers.CharField(trim_whitespace=True)
 
