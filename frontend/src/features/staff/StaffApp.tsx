@@ -33,6 +33,7 @@ import {
   ScannerPanel,
   StocktakePanel,
   StockTransferPanel,
+  TenantFrontendsPanel,
   Users,
   type Makerspace,
   useStaffGet,
@@ -40,7 +41,7 @@ import {
 
 const ALL_TABS = [
   "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
-  "stocktake", "containers", "ledger", "reports", "bulk", "qr", "scanner", "api", "users", "audit",
+  "stocktake", "containers", "ledger", "reports", "bulk", "qr", "scanner", "frontends", "api", "users", "audit",
 ] as const;
 // Membership roles that get the full staff console. Anything else (print_manager,
 // or an unknown role) is failed closed to the 3D-printing surfaces only.
@@ -208,6 +209,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     if (tabName === "tobuy") return canUseToBuy;
     if (tabName === "needsfix") return canEditInventory;
     if (tabName === "containers") return canEditInventory; // MANAGE_QR roles (space/inventory mgr + superadmin)
+    if (tabName === "frontends") return canManageMakerspace;
     if (tabName === "printing") return canSeePrinting; // hide printer/spool mgmt from inventory managers
     if (tabName === "requests") return canSeeHardware || canSeePrinting;
     return true;
@@ -215,6 +217,8 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   // Only the makerspace admin (Space Manager) + superadmin may pick which stream
   // (hardware/printing) a To-Buy item goes to; other roles are auto-tagged.
   const canChooseToBuyKind = isSuperadmin || activeRole === "space_manager";
+  // MANAGE_MAKERSPACE holders (Space Manager + superadmin) manage the tenant-frontend registry.
+  const canManageMakerspace = isSuperadmin || activeRole === "space_manager";
   // Derived (no useEffect): switching makerspace recomputes synchronously, and a
   // tab that isn't allowed for the current role falls back to the first allowed.
   const activeTab = allowedTabs.includes(tab) ? tab : allowedTabs[0];
@@ -254,7 +258,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
                 }`}
                 onClick={() => setTab(item)}
               >
-                  {item === "qr" ? "QR Tools" : item === "direct" ? "Direct handout" : item === "api" ? "API access" : item === "stocktake" ? "Stocktake" : item === "printing" ? "3D Printing" : item === "tobuy" ? "To Buy" : item === "needsfix" ? "To-be-fixed" : item === "containers" ? "Containers" : item[0].toUpperCase() + item.slice(1)}
+                  {item === "qr" ? "QR Tools" : item === "direct" ? "Direct handout" : item === "api" ? "API access" : item === "stocktake" ? "Stocktake" : item === "printing" ? "3D Printing" : item === "tobuy" ? "To Buy" : item === "needsfix" ? "To-be-fixed" : item === "containers" ? "Containers" : item === "frontends" ? "Frontends" : item[0].toUpperCase() + item.slice(1)}
               </button>
             ))}
           </nav>
@@ -340,6 +344,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
           {activeMakerspace && activeTab === "bulk" ? <BulkImport makerspace={activeMakerspace} /> : null}
           {activeMakerspace && activeTab === "qr" ? <QrTools makerspace={activeMakerspace} /> : null}
           {activeMakerspace && activeTab === "scanner" ? <ScannerPanel makerspace={activeMakerspace} /> : null}
+          {activeMakerspace && activeTab === "frontends" ? <TenantFrontendsPanel makerspace={activeMakerspace} /> : null}
           {activeMakerspace && activeTab === "api" ? (
             <ApiClientsPanel makerspace={activeMakerspace} isSuperadmin={isSuperadmin} />
           ) : null}
