@@ -1,4 +1,5 @@
 import type { ChangeEvent, Dispatch, SetStateAction } from "react";
+import { useEffect, useState } from "react";
 
 import { Card } from "../../components/ui/Card";
 import { Spinner } from "../../components/ui/Spinner";
@@ -121,9 +122,33 @@ export function FilePicker({
   );
 }
 
+function printTimeLeftLabel(status: PrintStatus, now: number): string | null {
+  if (status.status !== "printing" || !status.started_at || !status.estimated_minutes) {
+    return null;
+  }
+  const finish = new Date(status.started_at).getTime() + status.estimated_minutes * 60_000;
+  const remainingMs = finish - now;
+  if (remainingMs <= 0) {
+    return "Finishing up — past the estimate";
+  }
+  const totalMinutes = Math.ceil(remainingMs / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0 ? `~${hours}h ${minutes}m left` : `~${minutes}m left`;
+}
+
 export function StatusStepper({ status }: { status: PrintStatus }) {
   const currentIndex = steps.findIndex((step) => step.key === status.status);
   const terminalError = status.status === "rejected" || status.status === "failed";
+
+  // Live tick so the printing countdown updates without a refetch.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (status.status !== "printing") return;
+    const id = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, [status.status]);
+  const timeLeft = printTimeLeftLabel(status, now);
 
   if (terminalError) {
     return (
@@ -135,23 +160,28 @@ export function StatusStepper({ status }: { status: PrintStatus }) {
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2">
         {steps.map((step, index) => {
           const complete = currentIndex >= index;
           return (
             <div
-              className={`rounded-md border px-3 py-2 text-sm ${
+              className={`min-w-0 rounded-md border px-2 py-2 text-center text-xs ${
                 complete
                   ? "border-success/40 bg-success/10 text-success"
                   : "border-line bg-surface text-muted"
               }`}
               key={step.key}
             >
-              <p className="font-semibold">{step.label}</p>
+              <p className="break-words font-semibold leading-tight">{step.label}</p>
             </div>
           );
         })}
       </div>
+      {timeLeft ? (
+        <p className="rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-center text-sm font-semibold text-accent">
+          {timeLeft}
+        </p>
+      ) : null}
       <p className="text-sm text-muted">
         Current status:{" "}
         <span className="font-semibold capitalize text-ink">

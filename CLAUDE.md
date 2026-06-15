@@ -25,7 +25,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   call). The public page's status card is now an email form; the `?token=` deep-link still works as a fallback.
   The manual public-token box was removed.
 - **Dark-mode form fields fixed.** `index.css` sets `color-scheme: light` / `dark` on `:root` / `:root.dark`
-  so native controls (select popups, date/number spinners, autofill) follow the theme instead of rendering white.
+  so native controls (select popups, date/number spinners) follow the theme, plus a `:-webkit-autofill`
+  override so autofilled inputs (e.g. the status-check email) stop painting a light background in dark mode.
+- **Public status card.** Fixed the step labels overflowing in the narrow sidebar (2×2 centered grid,
+  wrapping). The status serializer now exposes `estimated_minutes`, and while a job is `printing` the card
+  shows a live "~Xh Ym left" countdown computed client-side from `started_at + estimated_minutes`
+  (`StatusStepper`, ticks every 30s; "Finishing up" past the estimate).
 - **Public scan consolidation.** Removed the catalog header "Scan a tool" button; the request panel's
   "QR checkout" tab is renamed **"Scan a tool"** and gained the camera `QrScanner` (was paste-only). The
   dedicated `/m/<slug>/checkout` page still exists by URL.

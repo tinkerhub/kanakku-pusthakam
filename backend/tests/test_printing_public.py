@@ -361,6 +361,7 @@ def test_status_lookup_by_token_hides_pii():
         "accepted_at",
         "started_at",
         "completed_at",
+        "estimated_minutes",
     }
 
 

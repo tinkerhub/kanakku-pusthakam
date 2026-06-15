@@ -82,3 +82,6 @@ class PublicPrintStatusSerializer(serializers.Serializer):
     accepted_at = serializers.DateTimeField(allow_null=True)
     started_at = serializers.DateTimeField(allow_null=True)
     completed_at = serializers.DateTimeField(allow_null=True)
+    # Lets the public page show a live "time left" while printing
+    # (estimated finish = started_at + estimated_minutes).
+    estimated_minutes = serializers.IntegerField()

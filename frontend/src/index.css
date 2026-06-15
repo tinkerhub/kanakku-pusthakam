@@ -48,6 +48,16 @@
     @apply bg-accent text-bg;
   }
 
+  /* Browser autofill ignores bg-* utilities and paints its own light background
+     (the white/blue field seen in dark mode). Repaint it with the theme tokens. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: rgb(var(--color-ink));
+    -webkit-box-shadow: 0 0 0 1000px rgb(var(--color-bg)) inset;
+    caret-color: rgb(var(--color-ink));
+  }
+
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;

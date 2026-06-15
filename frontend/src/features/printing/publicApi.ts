@@ -21,6 +21,7 @@ export type PrintStatus = {
   accepted_at: string | null;
   started_at: string | null;
   completed_at: string | null;
+  estimated_minutes: number;
 };
 
 export type PrintUploadBody = {

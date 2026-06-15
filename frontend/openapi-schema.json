@@ -12916,12 +12916,16 @@
                         "type": "string",
                         "format": "date-time",
                         "nullable": true
+                    },
+                    "estimated_minutes": {
+                        "type": "integer"
                     }
                 },
                 "required": [
                     "accepted_at",
                     "completed_at",
                     "created_at",
+                    "estimated_minutes",
                     "public_token",
                     "started_at",
                     "status",
