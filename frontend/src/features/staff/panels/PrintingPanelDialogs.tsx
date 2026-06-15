@@ -55,18 +55,24 @@ export function SpoolEditDialog({ spool, printers, pending, error, onClose, onSu
   );
 }
 
-export function FailPrintDialog({ open, pending, error, onClose, onSubmit }: {
+// A free-text "reason" dialog shared by Fail print (default copy) and Reject request
+// (pass title/submitLabel/placeholder). Both backends require a non-blank reason
+// (RejectFailSerializer), so the submit stays disabled until text is entered.
+export function FailPrintDialog({ open, pending, error, onClose, onSubmit, title = "Fail print", submitLabel = "Submit failure", placeholder = "Failure reason" }: {
   open: boolean;
   pending: boolean;
   error?: string;
   onClose: () => void;
   onSubmit: (reason: string) => void;
+  title?: string;
+  submitLabel?: string;
+  placeholder?: string;
 }) {
   const [reason, setReason] = useState("");
   useEffect(() => { if (open) setReason(""); }, [open]);
   return (
-    <Modal open={open} onClose={onClose} title="Fail print" footer={<DialogActions pending={pending} disabled={!reason.trim()} submitLabel="Submit failure" onCancel={onClose} onSubmit={() => onSubmit(reason.trim())} />}>
-      <textarea className="desk-input min-h-28 w-full" placeholder="Failure reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+    <Modal open={open} onClose={onClose} title={title} footer={<DialogActions pending={pending} disabled={!reason.trim()} submitLabel={submitLabel} onCancel={onClose} onSubmit={() => onSubmit(reason.trim())} />}>
+      <textarea className="desk-input min-h-28 w-full" placeholder={placeholder} value={reason} onChange={(event) => setReason(event.target.value)} />
       <ErrorText message={error} />
     </Modal>
   );

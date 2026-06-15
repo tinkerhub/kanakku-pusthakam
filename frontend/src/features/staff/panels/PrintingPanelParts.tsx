@@ -48,6 +48,7 @@ export type PrintRequest = {
   project_brief?: string;
   contact_email?: string;
   contact_phone?: string;
+  reason?: string;
   files?: {
     id: number;
     kind: string;
@@ -278,6 +279,11 @@ export function PrintRows({
             {row.project_brief ? (
               <p className="mt-1 text-xs text-muted">
                 <span className="font-medium text-ink">Brief: </span>{row.project_brief}
+              </p>
+            ) : null}
+            {row.reason ? (
+              <p className="mt-1 text-xs text-danger">
+                <span className="font-medium">Reason: </span>{row.reason}
               </p>
             ) : null}
             {row.contact_email || row.contact_phone ? (
