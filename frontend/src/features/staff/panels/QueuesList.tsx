@@ -4,6 +4,12 @@ import { StatusStepper, statusStageLabel } from "../../../components/ui/StatusSt
 import { staffRequest } from "../../../lib/api";
 import type { HardwareRequest } from "./Queues";
 
+type RequestActor = { username: string; role: string };
+type RequestAttributionFields = {
+  accepted_by?: RequestActor | null;
+  issued_by?: RequestActor | null;
+};
+
 // Evidence object keys are never exposed; fetch a short-lived signed URL on click and open it.
 async function openEvidence(id: number) {
   try {
@@ -33,6 +39,7 @@ export function RequestList({ rows, actions }: { rows: HardwareRequest[]; action
             <StatusStepper status={row.status} />
           </div>
           <p className="mt-2 text-sm text-muted">{row.requested_for || "No note"}</p>
+          <RequestAttribution row={row} />
           {row.requester_contact_email || row.requester_contact_phone ? (
             <p className="mt-1 text-xs text-muted">
               <span className="font-medium text-ink">Contact: </span>
@@ -81,6 +88,19 @@ export function RequestList({ rows, actions }: { rows: HardwareRequest[]; action
       ))}
     </div>
   );
+}
+
+function RequestAttribution({ row }: { row: HardwareRequest }) {
+  const attributed = row as HardwareRequest & RequestAttributionFields;
+  const parts = [
+    attributed.accepted_by ? `Accepted by ${formatActor(attributed.accepted_by)}` : "",
+    attributed.issued_by ? `Issued by ${formatActor(attributed.issued_by)}` : "",
+  ].filter(Boolean);
+  return parts.length ? <p className="mt-1 text-xs text-muted">{parts.join(" | ")}</p> : null;
+}
+
+function formatActor(actor: RequestActor) {
+  return actor.role ? `${actor.username} (${actor.role})` : actor.username;
 }
 
 function statusBadgeClassName(status: string) {

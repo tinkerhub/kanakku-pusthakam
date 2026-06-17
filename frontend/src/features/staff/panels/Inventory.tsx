@@ -19,7 +19,8 @@ type ItemForm = {
   storage_location: string; is_public: boolean; public_self_checkout_enabled: boolean; show_public_count: boolean; public_availability_mode: string;
 };
 type AdjustmentForm = { delta_available: string; delta_damaged: string; delta_lost: string; reason: string };
-type LendingHistoryEntry = { username: string; issued_at: string; quantity: number };
+type Actor = { username: string; role: string };
+type LendingHistoryEntry = { id: number; username: string; issued_at: string; quantity: number; accepted_by: Actor | null; issued_by: Actor | null };
 type LendingHistoryResponse = { product_id: number; last_borrower: LendingHistoryEntry | null; recent: LendingHistoryEntry[] };
 
 const emptyForm: ItemForm = {
@@ -164,12 +165,18 @@ function LendingHistory({ productId }: { productId: number }) {
       {history.isLoading ? <p className="text-sm text-muted">Loading lending history...</p> : null}
       {history.error ? <p className="text-sm text-danger">{history.error.message}</p> : null}
       {!history.isLoading && !history.error && !recent.length ? <p className="text-sm text-muted">No lending history yet.</p> : null}
-      {last ? <p className="text-sm text-ink">Last borrower: {last.username} ({formatDate(last.issued_at)})</p> : null}
+      {last ? (
+        <div className="text-sm text-ink">
+          <p>Last borrower: {last.username} ({formatDate(last.issued_at)})</p>
+          <AttributionLine acceptedBy={last.accepted_by} issuedBy={last.issued_by} />
+        </div>
+      ) : null}
       {recent.length ? (
         <ul className="grid gap-1 text-sm text-muted">
           {recent.map((entry) => (
-            <li key={`${entry.username}-${entry.issued_at}`}>
+            <li key={entry.id}>
               {entry.username} — {entry.quantity} on {formatDate(entry.issued_at)}
+              <AttributionLine acceptedBy={entry.accepted_by} issuedBy={entry.issued_by} />
             </li>
           ))}
         </ul>
@@ -202,6 +209,18 @@ function InventoryAvailability({ product }: { product: AdminProduct }) {
 
 function InventoryMetric({ label, value }: { label: string; value: number }) {
   return <div className="rounded-md border border-line bg-surface p-3"><p className="text-xs font-semibold uppercase text-muted">{label}</p><p className="mt-1 text-xl font-bold text-ink">{value}</p></div>;
+}
+
+function AttributionLine({ acceptedBy, issuedBy }: { acceptedBy: Actor | null; issuedBy: Actor | null }) {
+  const parts = [
+    acceptedBy ? `Accepted by ${formatActor(acceptedBy)}` : "",
+    issuedBy ? `Issued by ${formatActor(issuedBy)}` : "",
+  ].filter(Boolean);
+  return parts.length ? <p className="text-xs text-muted">{parts.join(" | ")}</p> : null;
+}
+
+function formatActor(actor: Actor) {
+  return actor.role ? `${actor.username} (${actor.role})` : actor.username;
 }
 
 function formatDate(value: string) {

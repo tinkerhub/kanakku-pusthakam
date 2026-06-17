@@ -101,6 +101,11 @@ class AdminRequestItemSerializer(serializers.Serializer):
         return obj.product.tracking_mode == TrackingMode.INDIVIDUAL
 
 
+class AdminRequestActorSerializer(serializers.Serializer):
+    username = serializers.CharField(read_only=True)
+    role = serializers.CharField(read_only=True)
+
+
 class AdminRequestSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     makerspace_id = serializers.IntegerField(read_only=True)
@@ -115,6 +120,8 @@ class AdminRequestSerializer(serializers.Serializer):
         read_only=True,
         allow_null=True,
     )
+    accepted_by = AdminRequestActorSerializer(read_only=True, allow_null=True)
+    issued_by = AdminRequestActorSerializer(read_only=True, allow_null=True)
     accepted_at = serializers.DateTimeField(read_only=True)
     issued_at = serializers.DateTimeField(read_only=True)
     return_due_at = serializers.DateTimeField(read_only=True)
