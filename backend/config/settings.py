@@ -276,14 +276,15 @@ REST_FRAMEWORK = {
     "URL_FORMAT_OVERRIDE": None,
 }
 
-# TLS-dependent hardening. Gated behind ENABLE_HTTPS (env), NOT DEBUG: the provided
-# Docker/prod compose runs DEBUG=False but serves plain HTTP behind nginx (it sets
-# X-Forwarded-Proto: $scheme = http) and the backend healthcheck hits http://localhost:8000.
-# Forcing SSL redirect / Secure cookies there would 301-loop the API and break admin login.
-# Deployments terminating real TLS set ENABLE_HTTPS=true (and a proxy that sends
-# X-Forwarded-Proto: https). Individual toggles still override the group default.
+# TLS-dependent hardening. Gated behind ENABLE_HTTPS (env), NOT DEBUG: the default
+# Docker/prod compose serves plain HTTP and must not trust client-supplied forwarded
+# proto headers. TLS overlays set TRUST_X_FORWARDED_PROTO=true only when a trusted
+# reverse proxy is the sole path to the backend.
 ENABLE_HTTPS = env.bool("ENABLE_HTTPS", default=False)
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+TRUST_X_FORWARDED_PROTO = env.bool("TRUST_X_FORWARDED_PROTO", default=False)
+SECURE_PROXY_SSL_HEADER = (
+    ("HTTP_X_FORWARDED_PROTO", "https") if TRUST_X_FORWARDED_PROTO else None
+)
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=ENABLE_HTTPS)
 SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=ENABLE_HTTPS)
 CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=ENABLE_HTTPS)

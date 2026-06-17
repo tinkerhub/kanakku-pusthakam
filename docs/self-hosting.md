@@ -1,4 +1,4 @@
-# Self-Hosting Guide
+﻿# Self-Hosting Guide
 
 This project is Docker-first for operators who do not want to build Django or Vite locally.
 
@@ -105,20 +105,29 @@ Manual dependency audit: `pip install pip-audit && pip-audit -r backend/requirem
 
 ## HTTPS & security hardening
 
-TLS-dependent settings are **env-gated, not `DEBUG`-gated**, so the default HTTP-behind-nginx stack
-works out of the box. For a real domain with TLS:
+TLS-dependent settings are **env-gated, not `DEBUG`-gated**, so the default HTTP stack works out of
+the box. The default frontend nginx does **not** trust inbound `X-Forwarded-Proto`; it forwards only
+its own scheme to Django.
 
-1. Put a reverse proxy that terminates TLS in front of the frontend container (e.g. Caddy, or
-   nginx/Traefik with a certificate) and have it forward `X-Forwarded-Proto: https`.
-2. Set `ENABLE_HTTPS=true` — this turns on `SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE`,
-   `CSRF_COOKIE_SECURE`, and HSTS.
-3. Set `CSRF_TRUSTED_ORIGINS=https://your-domain.org` so login POSTs are accepted.
+For a real domain with automatic TLS, use the Caddy overlay:
 
-> **Important:** when `ENABLE_HTTPS=true`, the frontend container's HTTP port must be reachable
-> **only through your TLS proxy** — do not publish it publicly (bind it to the proxy or a private
-> network). The frontend honors a forwarded `X-Forwarded-Proto`, so a client that could reach the
-> raw HTTP port directly could otherwise spoof `https` and bypass the SSL redirect. (With the
-> default `ENABLE_HTTPS=false` there is no redirect, so this does not apply.)
+```env
+PUBLIC_DOMAIN=inventory.example.org
+CSRF_TRUSTED_ORIGINS=https://inventory.example.org
+AWS_S3_PUBLIC_ENDPOINT_URL=https://files.inventory.example.org
+MINIO_CORS_ALLOWED_ORIGINS_JSON=["https://inventory.example.org"]
+```
+
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.tls.yml --profile tls up -d
+```
+
+The overlay enables `ENABLE_HTTPS=true` and `TRUST_X_FORWARDED_PROTO=true` for the backend. Caddy is
+then the trusted TLS boundary: `/api`, `/static`, and docs paths go directly to Django with
+`X-Forwarded-Proto: https`, while the React app goes to the frontend container. Keep any direct
+backend/frontend HTTP ports private when the TLS overlay is active.
+
+
 
 Always-on protections (any transport): `django-axes` locks out brute-force admin logins
 (`AXES_FAILURE_LIMIT`, keyed by ip+username), a scoped throttle limits the JWT login endpoint, the
@@ -129,7 +138,7 @@ frontend port.
 
 Secrets (`SECRET_KEY`, `API_CLIENT_ENC_KEY`, makerspace Telegram bot tokens, makerspace SMTP
 passwords) live only in the backend. `API_CLIENT_ENC_KEY` is the Fernet key that encrypts the
-per-makerspace integration secrets at rest — **back it up and do not rotate it casually**, or
+per-makerspace integration secrets at rest â€” **back it up and do not rotate it casually**, or
 previously stored tokens/passwords can no longer be decrypted.
 
 ## Environment reference
@@ -149,6 +158,7 @@ previously stored tokens/passwords can no longer be decrypted.
 | `AWS_S3_PUBLIC_ENDPOINT_URL` | yes for uploads | Browser-reachable MinIO/S3 endpoint used in presigned URLs |
 | `MINIO_CORS_ALLOWED_ORIGINS_JSON` | yes for uploads | JSON array of frontend origins allowed to POST/GET objects |
 | `ENABLE_HTTPS` | no (default false) | Turns on SSL redirect, Secure cookies, HSTS |
+| `TRUST_X_FORWARDED_PROTO` | no (default false) | Trusts `X-Forwarded-Proto` only for the TLS proxy overlay |
 | `CSRF_TRUSTED_ORIGINS` | when HTTPS | `https://` origin(s) trusted for login POSTs |
 | `AXES_FAILURE_LIMIT` | no (default 5) | Failed admin logins before lockout |
 | `HTTP_PORT` | no (default 80) | Published frontend port |
@@ -199,7 +209,7 @@ Restore order is database first, then object files. Stop the stack, restore the 
 ## Tenant Frontends
 
 One backend can serve **many makerspaces**. A makerspace without its own server can be hosted as an
-additional tenant on another makerspace's instance — each tenant gets its own makerspace record,
+additional tenant on another makerspace's instance â€” each tenant gets its own makerspace record,
 public URL/slug, branding, and (optionally) its own frontend origin, all isolated by makerspace
 scoping. Register a frontend per tenant so CORS and bootstrap resolve correctly.
 
