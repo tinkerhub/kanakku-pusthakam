@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from apps.accounts.models import User
 from apps.hardware_requests.models import HardwareRequest
 from apps.inventory.models import TrackingMode
 from tests.test_issue import (
@@ -16,6 +17,7 @@ from tests.test_issue import (
     make_member,
     make_product,
     make_space,
+    make_user,
 )
 
 pytestmark = pytest.mark.django_db
@@ -135,6 +137,41 @@ def test_needs_fix_shelf_lists_and_repairs():
     assert product.needs_fix_quantity == 0
     assert product.available_quantity == 5
     assert product.total_quantity == 5
+
+
+def test_superadmin_needs_fix_shelf_hides_disabled_space_unless_explicit():
+    visible_space = make_space("shelf-visible-superadmin")
+    hidden_space = make_space("shelf-hidden-superadmin")
+    hidden_space.superadmin_access_enabled = False
+    hidden_space.save(update_fields=["superadmin_access_enabled"])
+    visible_product = make_product(
+        visible_space,
+        name="Visible fix",
+        total_quantity=2,
+        available_quantity=1,
+        needs_fix_quantity=1,
+    )
+    hidden_product = make_product(
+        hidden_space,
+        name="Hidden fix",
+        total_quantity=2,
+        available_quantity=1,
+        needs_fix_quantity=1,
+    )
+    superadmin = make_user(
+        "shelf-hidden-superadmin",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    client = authenticated_client(superadmin)
+
+    listing = client.get(_shelf_url())
+    assert listing.status_code == 200
+    assert {row["id"] for row in listing.data["results"]} == {visible_product.id}
+
+    listing = client.get(_shelf_url(), {"makerspace": hidden_space.id})
+    assert listing.status_code == 200
+    assert {row["id"] for row in listing.data["results"]} == {hidden_product.id}
 
 
 def test_needs_fix_shelf_scrap_drops_total():

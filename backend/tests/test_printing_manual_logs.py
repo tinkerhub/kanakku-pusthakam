@@ -145,6 +145,83 @@ def test_manual_print_log_rejects_cross_printer_spool():
     assert spool.remaining_weight_grams == Decimal("1000.00")
 
 
+@pytest.mark.parametrize(
+    ("printer_updates", "slug"),
+    [
+        ({"is_active": False}, "inactive"),
+        ({"status": PrintPrinter.Status.MAINTENANCE}, "maintenance"),
+    ],
+)
+def test_manual_print_log_rejects_inactive_or_non_active_printer(
+    printer_updates,
+    slug,
+):
+    makerspace = make_space(f"manual-log-printer-{slug}")
+    manager = make_print_manager(f"manual-log-printer-{slug}-manager", makerspace)
+    printer = PrintPrinter.objects.create(
+        makerspace=makerspace,
+        name=f"Printer {slug}",
+        **printer_updates,
+    )
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PLA",
+        initial_weight_grams=1000,
+        remaining_weight_grams=1000,
+    )
+
+    response = authenticated_client(manager).post(
+        manual_log_url(),
+        {
+            "makerspace_id": makerspace.id,
+            "printer_id": printer.id,
+            "filament_spool_id": spool.id,
+            "grams_used": "12.00",
+            "title": "Blocked printer",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data["detail"] == "Printer is not active."
+    assert not ManualPrintLog.objects.exists()
+    spool.refresh_from_db()
+    assert spool.remaining_weight_grams == Decimal("1000.00")
+
+
+@pytest.mark.parametrize("grams_used", ["0.00", "-1.00"])
+def test_manual_print_log_rejects_non_positive_grams(grams_used):
+    makerspace = make_space(f"manual-log-grams-{grams_used.replace('.', 'x')}")
+    manager = make_print_manager(f"manual-log-grams-{grams_used}-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Prusa")
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PLA",
+        initial_weight_grams=1000,
+        remaining_weight_grams=1000,
+    )
+
+    response = authenticated_client(manager).post(
+        manual_log_url(),
+        {
+            "makerspace_id": makerspace.id,
+            "printer_id": printer.id,
+            "filament_spool_id": spool.id,
+            "grams_used": grams_used,
+            "title": "Bad grams",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "grams_used" in response.data
+    assert not ManualPrintLog.objects.exists()
+    spool.refresh_from_db()
+    assert spool.remaining_weight_grams == Decimal("1000.00")
+
+
 def test_printing_report_merges_manual_logs_and_includes_manual_only_printers():
     makerspace = make_space("manual-log-report")
     bucket = make_bucket(makerspace)

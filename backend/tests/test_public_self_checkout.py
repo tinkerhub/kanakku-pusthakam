@@ -2,9 +2,9 @@ import pytest
 from django.test import override_settings
 from rest_framework.test import APIClient
 
-from apps.boxes.models import QrCode, QrScanEvent
+from apps.boxes.models import Box, QrCode, QrScanEvent
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
-from apps.inventory.models import InventoryProduct
+from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.makerspaces.models import Makerspace
 
 pytestmark = pytest.mark.django_db
@@ -32,6 +32,14 @@ def make_qr(makerspace, product):
         makerspace=makerspace,
         target_type=QrCode.TargetType.PRODUCT,
         target_id=product.id,
+    )
+
+
+def make_asset_qr(makerspace, asset):
+    return QrCode.objects.create(
+        makerspace=makerspace,
+        target_type=QrCode.TargetType.ASSET,
+        target_id=asset.id,
     )
 
 
@@ -63,6 +71,123 @@ def test_public_checkout_requires_tool_opt_in():
     assert HardwareRequest.objects.count() == 0
     product.refresh_from_db()
     assert product.available_quantity == 2
+    assert product.issued_quantity == 0
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_public_checkout_requires_public_self_checkout_flags():
+    makerspace = make_space("checkout-private")
+    product = make_product(
+        makerspace,
+        is_public=False,
+        public_self_checkout_enabled=False,
+    )
+    qr = make_qr(makerspace, product)
+
+    response = api_client().post(
+        checkout_url(makerspace),
+        {"identifier": "member-1", "payload": qr.payload},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data["detail"] == "Tool is not enabled for public self-checkout."
+    assert HardwareRequest.objects.count() == 0
+    product.refresh_from_db()
+    assert product.available_quantity == 2
+    assert product.issued_quantity == 0
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_public_checkout_rejects_product_qr_for_individual_tracked_product():
+    makerspace = make_space("checkout-individual-product-qr")
+    product = make_product(
+        makerspace,
+        public_self_checkout_enabled=True,
+        tracking_mode=TrackingMode.INDIVIDUAL,
+    )
+    qr = make_qr(makerspace, product)
+
+    response = api_client().post(
+        checkout_url(makerspace),
+        {"identifier": "member-1", "payload": qr.payload},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data["detail"] == (
+        "Individual-tracked products require a scanned asset QR."
+    )
+    assert HardwareRequest.objects.count() == 0
+    product.refresh_from_db()
+    assert product.available_quantity == 2
+    assert product.issued_quantity == 0
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_public_checkout_accepts_asset_qr_for_individual_tracked_product():
+    makerspace = make_space("checkout-individual-asset-qr")
+    product = make_product(
+        makerspace,
+        public_self_checkout_enabled=True,
+        tracking_mode=TrackingMode.INDIVIDUAL,
+        total_quantity=1,
+        available_quantity=1,
+    )
+    asset = InventoryAsset.objects.create(
+        makerspace=makerspace,
+        product=product,
+        asset_tag="IND-PUBLIC-1",
+        public_self_checkout_enabled=True,
+    )
+    qr = make_asset_qr(makerspace, asset)
+
+    response = api_client().post(
+        checkout_url(makerspace),
+        {"identifier": "member-1", "payload": qr.payload},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["items"] == [{"product_name": product.name, "quantity": 1}]
+    asset.refresh_from_db()
+    assert asset.status == InventoryAsset.Status.ISSUED
+    product.refresh_from_db()
+    assert product.available_quantity == 0
+    assert product.issued_quantity == 1
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_public_checkout_rejects_box_qr_fallback_for_individual_tracked_product():
+    makerspace = make_space("checkout-individual-box")
+    box = Box.objects.create(makerspace=makerspace, label="Individual shelf")
+    product = make_product(
+        makerspace,
+        box=box,
+        public_self_checkout_enabled=True,
+        tracking_mode=TrackingMode.INDIVIDUAL,
+        total_quantity=1,
+        available_quantity=1,
+    )
+    qr = QrCode.objects.create(
+        makerspace=makerspace,
+        target_type=QrCode.TargetType.BOX,
+        target_id=box.id,
+    )
+
+    response = api_client().post(
+        checkout_url(makerspace),
+        {"identifier": "member-1", "payload": qr.payload},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data["detail"] == (
+        "Individual-tracked products require a scanned asset QR."
+    )
+    assert HardwareRequest.objects.count() == 0
+    product.refresh_from_db()
+    assert product.available_quantity == 1
     assert product.issued_quantity == 0
 
 

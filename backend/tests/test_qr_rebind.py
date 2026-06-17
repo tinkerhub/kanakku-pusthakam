@@ -182,6 +182,8 @@ def test_rebind_destination_conflict_returns_409():
 
     assert response.status_code == 409
     assert response.data["detail"] == "Target already has an active QR code."
+    qr.refresh_from_db()
+    assert qr.target_id == source.id
 
 
 def test_asset_cross_makerspace_rebind_is_rejected():
@@ -212,4 +214,40 @@ def test_asset_cross_makerspace_rebind_is_rejected():
     )
 
     assert response.status_code == 400
-    assert response.data[0] == "Assets cannot be rebound across makerspaces."
+    assert response.data[0] == "Only products can be rebound across makerspaces."
+
+
+def test_cross_makerspace_rebind_rejects_asset_source_qr():
+    source_space = make_space("qr-rebind-source-asset-source")
+    destination_space = make_space("qr-rebind-source-asset-dest")
+    actor = make_user(
+        "qr-rebind-source-asset-superadmin",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    source_product = make_product(source_space, name="Source Product")
+    source_asset = InventoryAsset.objects.create(
+        makerspace=source_space,
+        product=source_product,
+        asset_tag="SOURCE-ASSET-1",
+    )
+    target = make_product(destination_space, name="Destination Product")
+    qr = QrCode.objects.create(
+        makerspace=source_space,
+        target_type=QrCode.TargetType.ASSET,
+        target_id=source_asset.id,
+        created_by=actor,
+    )
+
+    response = authenticated_client(actor).post(
+        f"/api/v1/admin/qr/{qr.id}/rebind-target",
+        _rebind_payload(target),
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data[0] == "Only products can be rebound across makerspaces."
+    qr.refresh_from_db()
+    assert qr.makerspace_id == source_space.id
+    assert qr.target_type == QrCode.TargetType.ASSET
+    assert qr.target_id == source_asset.id

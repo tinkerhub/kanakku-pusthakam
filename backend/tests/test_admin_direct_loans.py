@@ -8,7 +8,7 @@ from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.boxes.models import Box, QrCode
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
-from apps.inventory.models import InventoryProduct
+from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
 pytestmark = pytest.mark.django_db
@@ -142,11 +142,46 @@ def test_admin_direct_handout_allows_non_self_checkout_product():
     assert PublicToolLoan.objects.count() == 1
 
 
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_admin_direct_qr_handout_allows_non_public_non_self_checkout_product():
+    makerspace = make_space("direct-qr-private")
+    admin = make_admin(makerspace)
+    product = make_product(
+        makerspace,
+        is_public=False,
+        public_self_checkout_enabled=False,
+    )
+    qr = make_qr(makerspace, product)
+
+    response = authed(admin).post(
+        direct_url(makerspace),
+        {"identifier": "member-direct", "qr_payloads": [qr.payload]},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["items"] == [{"product_name": product.name, "quantity": 1}]
+    product.refresh_from_db()
+    assert product.available_quantity == 2
+    assert product.issued_quantity == 1
+    loan = PublicToolLoan.objects.get()
+    assert loan.source == PublicToolLoan.Source.ADMIN_DIRECT
+    assert loan.qr_ids == [qr.id]
+
+
 def make_qr(makerspace, product):
     return QrCode.objects.create(
         makerspace=makerspace,
         target_type=QrCode.TargetType.PRODUCT,
         target_id=product.id,
+    )
+
+
+def make_asset_qr(makerspace, asset):
+    return QrCode.objects.create(
+        makerspace=makerspace,
+        target_type=QrCode.TargetType.ASSET,
+        target_id=asset.id,
     )
 
 
@@ -222,6 +257,161 @@ def test_direct_loan_rejects_duplicate_qr_payload():
     product.refresh_from_db()
     assert product.available_quantity == 5
     assert product.issued_quantity == 0
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_direct_loan_rejects_product_qr_for_individual_tracked_product():
+    makerspace = make_space("direct-individual-product-qr")
+    admin = make_admin(makerspace)
+    product = make_product(makerspace, tracking_mode=TrackingMode.INDIVIDUAL)
+    qr = make_qr(makerspace, product)
+
+    response = authed(admin).post(
+        direct_url(makerspace),
+        {"identifier": "member-direct", "qr_payloads": [qr.payload]},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data["detail"] == (
+        "Individual-tracked products require a scanned asset QR."
+    )
+    assert PublicToolLoan.objects.count() == 0
+    product.refresh_from_db()
+    assert product.available_quantity == 3
+    assert product.issued_quantity == 0
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_direct_loan_accepts_asset_qr_for_individual_tracked_product():
+    makerspace = make_space("direct-individual-asset-qr")
+    admin = make_admin(makerspace)
+    product = make_product(
+        makerspace,
+        tracking_mode=TrackingMode.INDIVIDUAL,
+        total_quantity=1,
+        available_quantity=1,
+    )
+    asset = InventoryAsset.objects.create(
+        makerspace=makerspace,
+        product=product,
+        asset_tag="IND-1",
+    )
+    qr = make_asset_qr(makerspace, asset)
+
+    response = authed(admin).post(
+        direct_url(makerspace),
+        {"identifier": "member-direct", "qr_payloads": [qr.payload]},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["items"] == [{"product_name": product.name, "quantity": 1}]
+    asset.refresh_from_db()
+    assert asset.status == InventoryAsset.Status.ISSUED
+    product.refresh_from_db()
+    assert product.available_quantity == 0
+    assert product.issued_quantity == 1
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_direct_loan_rejects_box_qr_fallback_for_individual_tracked_product():
+    makerspace = make_space("direct-individual-box")
+    admin = make_admin(makerspace)
+    box = Box.objects.create(makerspace=makerspace, label="Individual shelf")
+    product = make_product(
+        makerspace,
+        box=box,
+        tracking_mode=TrackingMode.INDIVIDUAL,
+        total_quantity=1,
+        available_quantity=1,
+    )
+    qr = QrCode.objects.create(
+        makerspace=makerspace,
+        target_type=QrCode.TargetType.BOX,
+        target_id=box.id,
+    )
+
+    response = authed(admin).post(
+        direct_url(makerspace),
+        {"identifier": "member-direct", "qr_payloads": [qr.payload]},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data["detail"] == (
+        "Individual-tracked products require a scanned asset QR."
+    )
+    assert PublicToolLoan.objects.count() == 0
+    product.refresh_from_db()
+    assert product.available_quantity == 1
+    assert product.issued_quantity == 0
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_direct_loan_rejects_inactive_container():
+    makerspace = make_space("direct-inactive-container")
+    admin = make_admin(makerspace)
+    product = make_product(makerspace)
+    container = Box.objects.create(
+        makerspace=makerspace,
+        label="Inactive tote",
+        is_active=False,
+    )
+
+    response = authed(admin).post(
+        direct_url(makerspace),
+        {
+            "identifier": "member-direct",
+            "container_id": container.id,
+            "items": [{"product_id": product.id, "quantity": 1}],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data["detail"] == "Container is not active."
+    assert PublicToolLoan.objects.count() == 0
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_direct_loan_duplicate_active_container_returns_409():
+    makerspace = make_space("direct-duplicate-container")
+    admin = make_admin(makerspace)
+    first = make_product(makerspace, name="First Tool")
+    second = make_product(makerspace, name="Second Tool")
+    container = Box.objects.create(makerspace=makerspace, label="Loan tote")
+    client = authed(admin)
+
+    created = client.post(
+        direct_url(makerspace),
+        {
+            "identifier": "member-direct-1",
+            "container_id": container.id,
+            "items": [{"product_id": first.id, "quantity": 1}],
+        },
+        format="json",
+    )
+    assert created.status_code == 201
+
+    duplicate = client.post(
+        direct_url(makerspace),
+        {
+            "identifier": "member-direct-2",
+            "container_id": container.id,
+            "items": [{"product_id": second.id, "quantity": 1}],
+        },
+        format="json",
+    )
+
+    assert duplicate.status_code == 409
+    assert duplicate.data["detail"] == (
+        "That container is already out on another direct handout."
+    )
+    assert PublicToolLoan.objects.count() == 1
+    second.refresh_from_db()
+    assert second.available_quantity == 3
+    assert second.issued_quantity == 0
 
 
 def make_guest(makerspace):

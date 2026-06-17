@@ -332,6 +332,25 @@ def test_report_payments_totals():
     )
     workflow.complete(pending, manager)
 
+    drifted_paid = make_request(
+        bucket,
+        requester,
+        title="Drifted paid",
+        status=PrintRequest.Status.ACCEPTED,
+    )
+    drifted_paid.price = Decimal("99.00")
+    drifted_paid.payment_status = PrintRequest.PaymentStatus.PAID
+    drifted_paid.save(update_fields=["price", "payment_status", "updated_at"])
+    drifted_pending = make_request(
+        bucket,
+        requester,
+        title="Drifted pending",
+        status=PrintRequest.Status.PRINTING,
+    )
+    drifted_pending.price = Decimal("42.00")
+    drifted_pending.payment_status = PrintRequest.PaymentStatus.PENDING
+    drifted_pending.save(update_fields=["price", "payment_status", "updated_at"])
+
     response = authenticated_client(manager).get(makerspace_report_url(makerspace))
 
     assert response.status_code == 200

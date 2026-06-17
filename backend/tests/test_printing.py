@@ -1061,6 +1061,35 @@ def test_manage_rbac_requester_manager_scope_cross_tenant_and_superadmin():
     assert result_ids(response) == {own_request.id, other_request.id}
 
 
+def test_superadmin_managed_print_list_hides_disabled_space_unless_explicit():
+    visible_space = make_space("manage-visible-superadmin")
+    hidden_space = make_space("manage-hidden-superadmin")
+    hidden_space.superadmin_access_enabled = False
+    hidden_space.save(update_fields=["superadmin_access_enabled"])
+    visible_bucket = make_bucket(visible_space)
+    hidden_bucket = make_bucket(hidden_space)
+    requester = make_user(
+        "manage-hidden-superadmin-requester",
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    visible_request = make_request(visible_bucket, requester, title="Visible")
+    hidden_request = make_request(hidden_bucket, requester, title="Hidden")
+    superadmin = make_user(
+        "manage-hidden-superadmin",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    client = authenticated_client(superadmin)
+
+    response = client.get(managed_list_url())
+    assert response.status_code == 200
+    assert result_ids(response) == {visible_request.id}
+
+    response = client.get(managed_list_url(), {"makerspace": hidden_space.id})
+    assert response.status_code == 200
+    assert result_ids(response) == {hidden_request.id}
+
+
 def test_guest_admin_without_manage_printing_gets_empty_list_or_403_with_makerspace():
     makerspace = make_space("guest-admin-printing")
     bucket = make_bucket(makerspace)
