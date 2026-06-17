@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { staffRequest } from "../../../lib/api";
@@ -33,6 +33,8 @@ type FrontendForm = {
   is_active: boolean;
 };
 
+type DeploymentMode = "central" | "single";
+
 const lines = (value: string) => value.split("\n").map((line) => line.trim()).filter(Boolean);
 const singleOrigin = (value: string) => {
   const origin = value.trim().replace(/\/+$/, "");
@@ -58,6 +60,11 @@ export function TenantFrontendsPanel({ makerspace }: { makerspace: Makerspace })
     ["frontends", makerspace.id],
     `/admin/makerspace/${makerspace.id}/frontends`,
   );
+  const singleTenantFrontend = frontends.data?.results?.find(
+    (frontend) => frontend.frontend_type === "staff_admin" && frontend.is_active,
+  );
+  const [deploymentMode, setDeploymentMode] = useState<DeploymentMode>("central");
+  const [singleTenantOrigin, setSingleTenantOrigin] = useState("");
   const [form, setForm] = useState<FrontendForm>({
     frontend_type: "public_portal",
     origin: "",
@@ -66,6 +73,40 @@ export function TenantFrontendsPanel({ makerspace }: { makerspace: Makerspace })
     is_active: true,
   });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["frontends", makerspace.id] });
+
+  useEffect(() => {
+    if (singleTenantFrontend) {
+      setDeploymentMode("single");
+      setSingleTenantOrigin(originFromFrontend(singleTenantFrontend));
+      return;
+    }
+    setDeploymentMode("central");
+  }, [singleTenantFrontend]);
+
+  const enableSingleTenant = useMutation({
+    mutationFn: () =>
+      staffRequest(`/admin/makerspace/${makerspace.id}/frontends`, {
+        method: "POST",
+        body: JSON.stringify({
+          frontend_type: "staff_admin",
+          hostname: hostnameFromOrigin(singleTenantOrigin),
+          allowed_origins: singleOrigin(singleTenantOrigin),
+          enabled_modules: [],
+          is_primary: true,
+          is_active: true,
+        }),
+      }),
+    onSuccess: () => invalidate(),
+  });
+
+  const disableSingleTenant = useMutation({
+    mutationFn: () =>
+      staffRequest(`/admin/frontends/${singleTenantFrontend?.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_active: false, is_primary: false }),
+      }),
+    onSuccess: () => invalidate(),
+  });
 
   const create = useMutation({
     mutationFn: () =>
@@ -92,9 +133,96 @@ export function TenantFrontendsPanel({ makerspace }: { makerspace: Makerspace })
     },
   });
   const createError = create.error instanceof Error ? create.error.message : undefined;
+  const deploymentError =
+    enableSingleTenant.error instanceof Error
+      ? enableSingleTenant.error.message
+      : disableSingleTenant.error instanceof Error
+        ? disableSingleTenant.error.message
+        : undefined;
 
   return (
     <Panel title="Frontend origins">
+      <section className="mb-4 rounded-md border border-line bg-surface p-3">
+        <h3 className="text-sm font-semibold text-ink">Deployment mode</h3>
+        <div className="mt-3 grid gap-2 md:grid-cols-2">
+          <button
+            className={`rounded-md border px-3 py-3 text-left text-sm transition ${
+              deploymentMode === "central"
+                ? "border-accent bg-accent/10 text-ink"
+                : "border-line bg-panel text-muted hover:border-accent/60"
+            }`}
+            type="button"
+            onClick={() => setDeploymentMode("central")}
+          >
+            <span className="block font-semibold">Central multi-tenant portal</span>
+            <span className="mt-1 block text-xs">Uses /m/{makerspace.slug} and the shared /admin.</span>
+          </button>
+          <button
+            className={`rounded-md border px-3 py-3 text-left text-sm transition ${
+              deploymentMode === "single"
+                ? "border-accent bg-accent/10 text-ink"
+                : "border-line bg-panel text-muted hover:border-accent/60"
+            }`}
+            type="button"
+            onClick={() => setDeploymentMode("single")}
+          >
+            <span className="block font-semibold">Single-tenant branded site</span>
+            <span className="mt-1 block text-xs">Uses a tenant token in config.js for this makerspace.</span>
+          </button>
+        </div>
+
+        {deploymentMode === "central" ? (
+          <div className="mt-3 rounded-md border border-line bg-panel p-3 text-sm text-muted">
+            <p>
+              Public catalog: <span className="font-mono text-ink">/m/{makerspace.slug}</span>
+            </p>
+            {singleTenantFrontend ? (
+              <button
+                className="desk-button mt-3"
+                disabled={disableSingleTenant.isPending}
+                type="button"
+                onClick={() => disableSingleTenant.mutate()}
+              >
+                {disableSingleTenant.isPending ? "Switching..." : "Switch to central mode"}
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="mt-3 grid gap-3 rounded-md border border-line bg-panel p-3">
+            <label className="grid gap-1 text-sm">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted">Site origin</span>
+              <input
+                className="desk-input"
+                placeholder="https://alphamakerspace.com"
+                value={singleTenantOrigin}
+                onChange={(event) => setSingleTenantOrigin(event.target.value)}
+              />
+            </label>
+            {singleTenantFrontend ? (
+              <div className="grid gap-1 text-sm">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted">Tenant token</span>
+                <code className="break-all rounded-md border border-line bg-bg px-3 py-2 text-xs text-ink">
+                  {singleTenantFrontend.token}
+                </code>
+                <p className="text-xs text-muted">
+                  Set <span className="font-mono">TENANT_TOKEN</span> to this value on the hosted frontend.
+                </p>
+              </div>
+            ) : (
+              <button
+                className="desk-button-primary w-fit"
+                disabled={enableSingleTenant.isPending || !singleTenantOrigin.trim()}
+                type="button"
+                onClick={() => enableSingleTenant.mutate()}
+              >
+                {enableSingleTenant.isPending ? "Enabling..." : "Enable single-tenant site"}
+              </button>
+            )}
+          </div>
+        )}
+        {deploymentError ? <p className="mt-2 text-sm text-danger">{deploymentError}</p> : null}
+      </section>
+
       {frontends.isLoading ? <p className="text-sm text-muted">Loading frontends...</p> : null}
       <div className="grid gap-2">
         {frontends.data?.results?.map((frontend) => (
