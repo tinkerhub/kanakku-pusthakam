@@ -1,9 +1,7 @@
 import type React from "react";
 
-import { API_URL } from "../../../lib/api";
+import { API_V1_URL, getAccessToken } from "../../../lib/api";
 
-const API_V1_URL = API_URL.replace(/\/api$/, "/api/v1");
-const ACCESS_TOKEN_KEY = "makerspace.access";
 
 export type FilamentSpool = {
   id: number;
@@ -82,7 +80,7 @@ export type SpoolPayload = {
 };
 
 export async function printingRequest<T>(path: string, options: RequestInit = {}) {
-  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+  const token = getAccessToken();
   const response = await fetch(`${API_V1_URL}${path}`, {
     ...options,
     headers: {

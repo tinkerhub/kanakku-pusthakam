@@ -19,6 +19,7 @@ import {
   type Makerspace,
   useStaffGet,
 } from "./StaffPanels";
+import { useTenant } from "../../lib/tenant";
 
 const ALL_TABS = [
   "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
@@ -32,6 +33,7 @@ const FULL_ACCESS_ROLES = ["space_manager", "inventory_manager", "guest_admin"];
 const PRINTING_TABS = ["requests", "printing", "tobuy", "reports", "api"];
 
 export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
+  const tenant = useTenant();
   const queryClient = useQueryClient();
   const [user, setUser] = useState<StaffAuthUser | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
@@ -39,12 +41,16 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const [restoring, setRestoring] = useState(true);
   const hydrateUser = useCallback((nextUser: StaffAuthUser) => {
     setUser(nextUser);
+    if (tenant.mode === "single" && tenant.makerspaceId !== null) {
+      setSelected(tenant.makerspaceId);
+      return;
+    }
     // Superadmin operates one makerspace at a time and must pick it explicitly
     // first (the MakerspacePicker screen). Other staff drop into their first
     // membership directly.
     const superadmin = nextUser.is_superuser || nextUser.role === "superadmin";
     setSelected(superadmin ? null : nextUser.makerspaces[0]?.id ?? null);
-  }, []);
+  }, [tenant.makerspaceId, tenant.mode]);
 
   useEffect(() => {
     let active = true;
@@ -96,8 +102,20 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     Boolean(user) && !user?.must_change_password,
   );
   const activeMakerspace = useMemo(
-    () => makerspaces.data?.find((item) => item.id === selected),
-    [makerspaces.data, selected],
+    () => {
+      const matched = makerspaces.data?.find((item) => item.id === selected);
+      if (matched || tenant.mode !== "single" || !tenant.bootstrap) {
+        return matched;
+      }
+      return {
+        id: tenant.bootstrap.makerspace.id,
+        name: tenant.bootstrap.makerspace.name,
+        public_code: tenant.bootstrap.makerspace.public_code,
+        slug: tenant.bootstrap.makerspace.slug,
+        telegram_group_chat_id: "",
+      };
+    },
+    [makerspaces.data, selected, tenant],
   );
 
   if (restoring) {
@@ -145,6 +163,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
 
   // Backend treats is_superuser OR role === "superadmin" as superadmin; mirror that.
   const isSuperadmin = user.is_superuser || user.role === "superadmin";
+  const singleTenantLocked = tenant.mode === "single" && tenant.makerspaceId !== null;
 
   const signOut = async () => {
     await logoutStaff();
@@ -153,9 +172,40 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     queryClient.clear();
   };
 
+  const hasSingleTenantAccess =
+    !singleTenantLocked ||
+    isSuperadmin ||
+    user.makerspaces.some((item) => item.id === tenant.makerspaceId);
+
+  if (!hasSingleTenantAccess) {
+    return (
+      <main className="desk-shell grid place-items-center px-5">
+        <section className="desk-panel w-full max-w-md p-6">
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+            Access denied
+          </p>
+          <h1 className="mt-2 text-xl font-bold text-ink">
+            You do not have access to this makerspace.
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-muted">
+            This branded admin dashboard is locked to{" "}
+            {tenant.bootstrap?.makerspace.name ?? "this makerspace"}. Sign in with an
+            account that has a membership for it.
+          </p>
+          <div className="mt-4 flex items-center gap-2">
+            <ThemeToggle />
+            <button className="desk-button" type="button" onClick={signOut}>
+              Sign out
+            </button>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   // Superadmin must choose which makerspace to operate before the console loads.
   // (Other roles auto-select their first membership at login.)
-  if (isSuperadmin && selected === null) {
+  if (!singleTenantLocked && isSuperadmin && selected === null) {
     return (
       <MakerspacePicker
         makerspaces={makerspaces.data ?? []}
@@ -187,7 +237,8 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   // EDIT_INVENTORY roles only (guest admins can't repair/scrap stock).
   const canEditInventory = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
   const canViewAudit = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
-  // MANAGE_MAKERSPACE holders (Space Manager + superadmin) manage the tenant-frontend registry.
+  // MANAGE_MAKERSPACE holders (Space Manager + superadmin) manage frontend origins,
+  // API clients, and makerspace settings.
   // Declared before allowedTabs because the filter callback below reads it immediately.
   const canManageMakerspace = isSuperadmin || activeRole === "space_manager";
   const allowedTabs: readonly string[] = (fullAccess ? ALL_TABS : PRINTING_TABS).filter((tabName) => {
@@ -196,7 +247,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     if (tabName === "containers") return canEditInventory; // MANAGE_QR roles (space/inventory mgr + superadmin)
     if (tabName === "frontends") return canManageMakerspace;
     if (tabName === "settings") return canManageMakerspace;
-    if (tabName === "platform") return isSuperadmin;
+    if (tabName === "platform") return isSuperadmin && !singleTenantLocked;
     if (tabName === "printing") return canSeePrinting; // hide printer/spool mgmt from inventory managers
     if (tabName === "requests") return canSeeHardware || canSeePrinting;
     return true;
@@ -204,6 +255,10 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   // Only the makerspace admin (Space Manager) + superadmin may pick which stream
   // (hardware/printing) a To-Buy item goes to; other roles are auto-tagged.
   const canChooseToBuyKind = isSuperadmin || activeRole === "space_manager";
+  const visibleMakerspaces =
+    singleTenantLocked && activeMakerspace
+      ? [activeMakerspace]
+      : makerspaces.data ?? [];
   // Derived (no useEffect): switching makerspace recomputes synchronously, and a
   // tab that isn't allowed for the current role falls back to the first allowed.
   const activeTab = allowedTabs.includes(tab) ? tab : allowedTabs[0];
@@ -221,17 +276,23 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
           </div>
         </div>
         <div className="p-4">
-          <select
-            className="desk-input w-full"
-            value={selected ?? ""}
-            onChange={(event) => setSelected(Number(event.target.value))}
-          >
-            {makerspaces.data?.map((makerspace) => (
-              <option key={makerspace.id} value={makerspace.id}>
-                {makerspace.name}
-              </option>
-            ))}
-          </select>
+          {singleTenantLocked ? (
+            <div className="rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink">
+              {activeMakerspace?.name ?? "Configured makerspace"}
+            </div>
+          ) : (
+            <select
+              className="desk-input w-full"
+              value={selected ?? ""}
+              onChange={(event) => setSelected(Number(event.target.value))}
+            >
+              {makerspaces.data?.map((makerspace) => (
+                <option key={makerspace.id} value={makerspace.id}>
+                  {makerspace.name}
+                </option>
+              ))}
+            </select>
+          )}
           <nav className="mt-4 grid gap-1">
             {allowedTabs.map((item) => (
               <button
@@ -265,7 +326,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
               <span className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">
                 {user.username}
               </span>
-              {isSuperadmin ? (
+              {isSuperadmin && !singleTenantLocked ? (
                 <button className="desk-button" onClick={() => setSelected(null)}>
                   Switch makerspace
                 </button>
@@ -283,7 +344,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
             activeMakerspace={activeMakerspace}
             activeTab={activeTab}
             guestOnly={guestOnly}
-            makerspaces={makerspaces.data ?? []}
+            makerspaces={visibleMakerspaces}
             isSuperadmin={isSuperadmin}
             printingOnly={printingOnly}
             canChooseToBuyKind={canChooseToBuyKind}

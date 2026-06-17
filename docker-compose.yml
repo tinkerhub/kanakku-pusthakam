@@ -117,8 +117,12 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_TENANT_TOKEN: ${VITE_TENANT_TOKEN:-}
         VITE_PUBLIC_API_KEY: ${VITE_PUBLIC_API_KEY:-}
         VITE_PUBLIC_CLIENT_ID: ${VITE_PUBLIC_CLIENT_ID:-}
+    environment:
+      TENANT_API_URL: ${TENANT_API_URL:-/api}
+      TENANT_TOKEN: ${TENANT_TOKEN:-}
     container_name: makerspace-manager-frontend
     ports:
       - "80:80"

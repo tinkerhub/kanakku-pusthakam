@@ -1,0 +1,69 @@
+# Single-Tenant Branded Frontend
+
+The same React frontend can run as either the central portal or as one
+makerspace's branded site.
+
+## Runtime Config
+
+Single-tenant mode is enabled by `/config.js`:
+
+```js
+window.__TENANT__ = {
+  apiUrl: "https://tinkerspace.example/api",
+  tenantToken: "pk_or_public_code_here"
+};
+```
+
+`tenantToken` is a `TenantFrontend.token` or the makerspace `public_code`. It is
+only used for `GET /api/v1/bootstrap?tenant=...`. Do not put the makerspace
+`public_api_key` in config; bootstrap returns that publishable key and the
+frontend uses it for public data calls.
+
+The production frontend container writes `/config.js` at startup from:
+
+- `TENANT_API_URL` - backend API base, for example `https://host.example/api`
+- `TENANT_TOKEN` - `TenantFrontend.token` or makerspace `public_code`
+
+`/config.js` is served with `Cache-Control: no-store`, so changing those env vars
+and restarting the container re-points the site without rebuilding the bundle.
+
+## Backend Registration
+
+For a full self-hosted makerspace site with public pages and `/admin`, create one
+active `TenantFrontend`:
+
+- `makerspace`: the target makerspace
+- `frontend_type`: `staff_admin`
+- `hostname`: the site's hostname, for example `shaan.example`
+- `token`: the token handed to the site operator
+
+Also add the site origin, for example `https://shaan.example`, to
+`makerspace.cors_allowed_origins`. `TenantFrontend` allows general CORS and the
+staff refresh/logout CSRF flow; `cors_allowed_origins` lets the publishable-key
+public API calls validate.
+
+Staff refresh/logout rejects non-localhost `http://` origins. Use HTTPS for
+hosted staff dashboards; local development may keep `http://localhost`.
+
+## Routes
+
+Central mode remains unchanged:
+
+- `/` - makerspace directory
+- `/m/:slug` - public catalog
+- `/m/:slug/items/:id` - item detail
+- `/m/:slug/print` - public print requests
+- `/m/:slug/checkout` - public self-checkout
+- `/admin` - shared staff console with makerspace switching
+
+Single-tenant mode uses clean root routes:
+
+- `/` - configured makerspace catalog
+- `/items/:id` - item detail
+- `/print` - public print requests
+- `/checkout` - public self-checkout
+- `/admin` - staff console locked to the configured makerspace
+- `/guest-admin` - guest handover console locked to the configured makerspace
+
+The single-tenant lock is UI-only. Backend authorization remains membership based:
+a user can only act on makerspaces allowed by their `MakerspaceMembership`.

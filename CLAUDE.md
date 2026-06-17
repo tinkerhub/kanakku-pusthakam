@@ -2,6 +2,27 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — single-tenant branded frontend (2026-06-17)
+
+Implements the "bring-your-own-site" frontend mode from
+`docs/prd-single-tenant-frontend.md`. The same React build now runs in central mode
+(unchanged `/m/<slug>` + shared `/admin`) or single-tenant mode when `/config.js`
+sets a runtime `tenantToken`.
+
+- Runtime config carries only `apiUrl` + bootstrap tenant token (`TenantFrontend.token`
+  or `Makerspace.public_code`). Bootstrap returns the makerspace slug/modules/theme/
+  branding and the publishable key; public API calls use that returned key.
+- Frontend tenant context is the source of truth for mode, slug, modules, branding,
+  and route building. Single-tenant routes are `/`, `/items/:id`, `/print`,
+  `/checkout`, `/admin`, `/guest-admin`; central routes stay unchanged.
+- Staff access tokens are in memory only. The legacy `makerspace.access` localStorage
+  value is deleted on startup/auth cleanup; refresh still uses the httpOnly cookie.
+- Single-tenant `/admin` is UI-locked to the configured makerspace and hides switching.
+  This is UX only: backend authorization remains `MakerspaceMembership`/RBAC.
+- Staff refresh/logout rejects non-localhost `http://` origins before consulting static
+  or registered staff origins. Public CORS behavior is unchanged.
+- Operator runbook: `docs/single-tenant-frontend.md`.
+
 ## Recent batch — superadmin makerspace archive → purge + hard-hide P2 (2026-06-17)
 
 Adds a superadmin-only **two-step makerspace removal** (Codex Stage-1 plan-reviewed: APPROVED after

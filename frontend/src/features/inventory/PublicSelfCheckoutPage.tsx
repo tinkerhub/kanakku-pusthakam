@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 
 import { Card } from "../../components/ui/Card";
 import QrScanner from "../../components/ui/QrScanner";
+import { useTenant, useTenantPath } from "../../lib/tenant";
 import { formatSlug } from "./PublicInventoryParts";
 import { checkoutTool, returnTool } from "./selfCheckoutApi";
 import type { PublicToolLoanResult } from "./selfCheckoutApi";
@@ -47,19 +48,22 @@ function ResultCard({ result }: { result: PublicToolLoanResult }) {
 
 export function PublicSelfCheckoutPage() {
   const { slug } = useParams();
-  const makerspaceSlug = slug ?? "";
+  const tenant = useTenant();
+  const makerspaceSlug = tenant.mode === "single" ? tenant.slug : slug ?? "";
+  const tenantPath = useTenantPath(makerspaceSlug);
   const [mode, setMode] = useState<Mode>("checkout");
   const [identifier, setIdentifier] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
 
-  const bootstrapQuery = useTenantBootstrap(makerspaceSlug);
+  const bootstrapQuery = useTenantBootstrap(makerspaceSlug, tenant.mode === "central");
+  const bootstrap = tenant.mode === "single" ? tenant.bootstrap : bootstrapQuery.data;
   const modules = useMemo(
-    () => new Set(bootstrapQuery.data?.modules ?? []),
-    [bootstrapQuery.data?.modules],
+    () => (tenant.mode === "single" ? tenant.modules : new Set(bootstrap?.modules ?? [])),
+    [bootstrap?.modules, tenant],
   );
   const displayName =
-    bootstrapQuery.data?.branding.display_name ||
-    bootstrapQuery.data?.makerspace.name ||
+    bootstrap?.branding.display_name ||
+    bootstrap?.makerspace.name ||
     formatSlug(makerspaceSlug) ||
     "Makerspace";
   const enabled = modules.has("self_checkout");
@@ -96,7 +100,7 @@ export function PublicSelfCheckoutPage() {
                 Scan a physical tool label to check it out or return it.
               </p>
             </div>
-            <Link className="desk-button" to={`/m/${makerspaceSlug}`}>
+            <Link className="desk-button" to={tenantPath()}>
               Back to inventory
             </Link>
           </div>
@@ -118,7 +122,7 @@ export function PublicSelfCheckoutPage() {
             <h2 className="mt-2 text-xl font-semibold text-ink">
               Self-checkout is not enabled for this makerspace.
             </h2>
-            <Link className="desk-button mt-4" to={`/m/${makerspaceSlug}`}>
+            <Link className="desk-button mt-4" to={tenantPath()}>
               Back to inventory
             </Link>
           </Card>

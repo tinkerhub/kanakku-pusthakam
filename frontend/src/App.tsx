@@ -11,6 +11,7 @@ import { PublicPrintRequestPage } from "./features/printing/PublicPrintRequestPa
 import { KioskPage, ScannerPage, SuperadminPage } from "./features/staff/PlatformApps";
 import { ResetPasswordPage } from "./features/staff/ResetPasswordPage";
 import { StaffApp } from "./features/staff/StaffApp";
+import { useTenant } from "./lib/tenant";
 
 function LandingPage() {
   const makerspacesQuery = usePublicMakerspaces();
@@ -147,6 +148,47 @@ function NotFoundPage() {
 }
 
 export default function App() {
+  const tenant = useTenant();
+
+  if (tenant.mode === "single" && tenant.loading) {
+    return (
+      <main className="desk-shell grid place-items-center px-5">
+        <div className="desk-panel w-full max-w-md p-6 text-sm font-semibold text-muted">
+          Loading site...
+        </div>
+      </main>
+    );
+  }
+
+  if (tenant.mode === "single" && tenant.error) {
+    return (
+      <main className="desk-shell grid place-items-center px-5">
+        <div className="desk-panel w-full max-w-md p-6">
+          <h1 className="text-xl font-bold text-ink">Site unavailable</h1>
+          <p className="mt-2 text-sm text-muted">
+            The configured tenant could not be resolved.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (tenant.mode === "single") {
+    return (
+      <Routes>
+        <Route path="/" element={<PublicInventoryPage />} />
+        <Route path="/items/:id" element={<PublicItemDetailPage />} />
+        <Route path="/checkout" element={<PublicSelfCheckoutPage />} />
+        <Route path="/print" element={<PublicPrintRequestPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/admin" element={<StaffApp />} />
+        <Route path="/guest-admin" element={<StaffApp guestOnly />} />
+        <Route path="/scanner" element={<ScannerPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    );
+  }
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />

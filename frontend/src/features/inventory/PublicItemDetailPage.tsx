@@ -3,18 +3,22 @@ import { Link, useParams } from "react-router-dom";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
 import { Spinner } from "../../components/ui/Spinner";
+import { useTenant, useTenantPath } from "../../lib/tenant";
 import { AvailabilityBadge } from "./AvailabilityBadge";
 import { usePublicInventoryDetail, useTenantBootstrap } from "./usePublicInventory";
 
 export function PublicItemDetailPage() {
   const { slug, id } = useParams();
-  const makerspaceSlug = slug ?? "";
+  const tenant = useTenant();
+  const makerspaceSlug = tenant.mode === "single" ? tenant.slug : slug ?? "";
+  const tenantPath = useTenantPath(makerspaceSlug);
   const itemId = Number(id ?? 0);
-  const bootstrap = useTenantBootstrap(makerspaceSlug);
+  const bootstrap = useTenantBootstrap(makerspaceSlug, tenant.mode === "central");
   const item = usePublicInventoryDetail(makerspaceSlug, itemId);
+  const bootstrapData = tenant.mode === "single" ? tenant.bootstrap : bootstrap.data;
   const displayName =
-    bootstrap.data?.branding.display_name ||
-    bootstrap.data?.makerspace.name ||
+    bootstrapData?.branding.display_name ||
+    bootstrapData?.makerspace.name ||
     makerspaceSlug;
 
   return (
@@ -29,7 +33,7 @@ export function PublicItemDetailPage() {
           </div>
           <div className="flex gap-2">
             <ThemeToggle />
-            <Link className="desk-button" to={`/m/${makerspaceSlug}`}>
+            <Link className="desk-button" to={tenantPath()}>
               Catalog
             </Link>
           </div>

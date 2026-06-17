@@ -41,6 +41,8 @@ def _origin_allowed(raw):
     if not parts.scheme or not parts.netloc:
         return False
     candidate = f"{parts.scheme}://{parts.netloc}"
+    if parts.scheme == "http" and parts.hostname not in {"localhost", "127.0.0.1", "::1"}:
+        return False
     # Only static CORS origins or registered STAFF-console origins may pass the refresh/logout
     # CSRF check — NOT public/integration origins (Makerspace.cors_allowed_origins), which could
     # otherwise read a staff access token via /auth/refresh.

@@ -113,6 +113,32 @@ def test_refresh_allows_registered_staff_frontend_origin():
     assert "refresh_token" in resp.cookies
 
 
+def test_refresh_rejects_non_localhost_http_staff_frontend_origin():
+    makerspace = Makerspace.objects.create(name="HTTP Staff", slug="http-staff")
+    TenantFrontend.objects.create(
+        makerspace=makerspace,
+        hostname="staff.example",
+        frontend_type=TenantFrontend.FrontendType.STAFF_ADMIN,
+        is_active=True,
+    )
+    client = APIClient()
+    _login(client)
+
+    rejected = client.post(
+        REFRESH,
+        HTTP_X_REFRESH_CSRF="1",
+        HTTP_ORIGIN="http://staff.example",
+    )
+    accepted = client.post(
+        REFRESH,
+        HTTP_X_REFRESH_CSRF="1",
+        HTTP_ORIGIN="https://staff.example",
+    )
+
+    assert rejected.status_code == 403
+    assert accepted.status_code == 200
+
+
 def test_refresh_rejects_public_and_integration_origins():
     """A public-portal frontend origin and a makerspace public/API-client origin must NOT
     pass the refresh CSRF check, even though both are 'registered' for CORS — otherwise a

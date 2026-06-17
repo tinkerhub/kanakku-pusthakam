@@ -1,11 +1,13 @@
-export const API_URL =
-  import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
+import { configuredApiUrl } from "./runtimeConfig";
 
-const API_V1_URL = API_URL.replace(/\/api$/, "/api/v1");
-const PUBLIC_API_KEY = import.meta.env.VITE_PUBLIC_API_KEY ?? "";
+export const API_URL = configuredApiUrl();
+
+export const API_V1_URL = API_URL.replace(/\/api$/, "/api/v1");
 const PUBLIC_CLIENT_ID = import.meta.env.VITE_PUBLIC_CLIENT_ID ?? "";
 const ACCESS_TOKEN_KEY = "makerspace.access";
 const REFRESH_CSRF_HEADER = "X-Refresh-CSRF";
+let runtimePublishableKey = import.meta.env.VITE_PUBLIC_API_KEY ?? "";
+let accessToken = "";
 
 export type TenantBootstrap = {
   makerspace: {
@@ -59,12 +61,23 @@ async function publicHeaders(): Promise<HeadersInit> {
   if (PUBLIC_CLIENT_ID) {
     return { "X-Client-Id": PUBLIC_CLIENT_ID };
   }
-  return PUBLIC_API_KEY ? { "X-Publishable-Key": PUBLIC_API_KEY } : {};
+  return runtimePublishableKey ? { "X-Publishable-Key": runtimePublishableKey } : {};
 }
 
-function authHeaders(): HeadersInit {
-  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-  return token ? { Authorization: `Bearer ${token}` } : {};
+export function setRuntimePublishableKey(key: string) {
+  runtimePublishableKey = key;
+}
+
+export function getAccessToken() {
+  return accessToken;
+}
+
+export function cleanupLegacyAccessToken() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+}
+
+export function authHeaders(): HeadersInit {
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 }
 
 export async function fetchJson<T>(url: string): Promise<T> {
@@ -116,11 +129,13 @@ export async function bootstrapTenant(params: { tenant?: string; slug?: string }
 }
 
 export function setAccessToken(token: string) {
-  localStorage.setItem(ACCESS_TOKEN_KEY, token);
+  accessToken = token;
+  cleanupLegacyAccessToken();
 }
 
 export function clearAccessToken() {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  accessToken = "";
+  cleanupLegacyAccessToken();
 }
 
 export async function refreshAccessToken(): Promise<boolean> {

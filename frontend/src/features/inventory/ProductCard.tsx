@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 
 type ProductCardProps = {
   product: Product;
-  makerspaceSlug: string;
+  detailPath: string;
   quantity: number;
   onDecrement: () => void;
   onIncrement: () => void;
@@ -17,7 +17,7 @@ function isUnavailable(product: Product): boolean {
 
 export function ProductCard({
   product,
-  makerspaceSlug,
+  detailPath,
   quantity,
   onDecrement,
   onIncrement,
@@ -68,7 +68,7 @@ export function ProductCard({
           {disabled ? "Not requestable" : quantity > 0 ? "Selected" : "Add to request"}
         </span>
       </div>
-      <Link className="text-sm font-semibold text-accent" to={`/m/${makerspaceSlug}/items/${product.id}`}>
+      <Link className="text-sm font-semibold text-accent" to={detailPath}>
         Details
       </Link>
     </Card>

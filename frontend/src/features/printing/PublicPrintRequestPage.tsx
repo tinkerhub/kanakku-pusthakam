@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Card } from "../../components/ui/Card";
+import { useTenant, useTenantPath } from "../../lib/tenant";
 import { formatSlug } from "../inventory/PublicInventoryParts";
 import { useTenantBootstrap } from "../inventory/usePublicInventory";
 import { StatusResult, SubmittedTokenCard } from "./PublicPrintRequestParts";
@@ -25,7 +26,9 @@ import {
 
 export function PublicPrintRequestPage() {
   const { slug } = useParams();
-  const makerspaceSlug = slug ?? "";
+  const tenant = useTenant();
+  const makerspaceSlug = tenant.mode === "single" ? tenant.slug : slug ?? "";
+  const tenantPath = useTenantPath(makerspaceSlug);
   const [identifier, setIdentifier] = useState("");
   const [verifiedIdentifier, setVerifiedIdentifier] = useState("");
   const [verifiedName, setVerifiedName] = useState("");
@@ -40,7 +43,8 @@ export function PublicPrintRequestPage() {
   // backend decoy-success (no request created).
   const [website, setWebsite] = useState("");
 
-  const bootstrapQuery = useTenantBootstrap(makerspaceSlug);
+  const bootstrapQuery = useTenantBootstrap(makerspaceSlug, tenant.mode === "central");
+  const bootstrap = tenant.mode === "single" ? tenant.bootstrap : bootstrapQuery.data;
   const spoolsQuery = useQuery({
     queryKey: ["public-print-spools", makerspaceSlug],
     queryFn: () => fetchPublicSpools(makerspaceSlug),
@@ -73,8 +77,8 @@ export function PublicPrintRequestPage() {
   const verified =
     identifier.trim().length > 0 && identifier.trim() === verifiedIdentifier;
   const displayName =
-    bootstrapQuery.data?.branding.display_name ||
-    bootstrapQuery.data?.makerspace.name ||
+    bootstrap?.branding.display_name ||
+    bootstrap?.makerspace.name ||
     formatSlug(makerspaceSlug) ||
     "Makerspace";
 
@@ -168,7 +172,7 @@ export function PublicPrintRequestPage() {
                 Submit print files — check status anytime with your email.
               </p>
             </div>
-            <Link className="desk-button" to={`/m/${makerspaceSlug}`}>
+            <Link className="desk-button" to={tenantPath()}>
               Back to inventory
             </Link>
           </div>

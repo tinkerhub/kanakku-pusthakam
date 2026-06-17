@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
+import { useTenant, useTenantPath } from "../../lib/tenant";
 import type {
   Product,
   RequestCartItem,
@@ -28,7 +29,9 @@ const PAGE_SIZE = 24;
 
 export function PublicInventoryPage() {
   const { slug } = useParams();
-  const makerspaceSlug = slug ?? "";
+  const tenant = useTenant();
+  const makerspaceSlug = tenant.mode === "single" ? tenant.slug : slug ?? "";
+  const tenantPath = useTenantPath(makerspaceSlug);
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
@@ -36,7 +39,7 @@ export function PublicInventoryPage() {
   const [cart, setCart] = useState<Record<number, RequestCartItem>>({});
   const categoryParam = view.kind === "category" ? view.slug : "";
   const sortParam = view.kind === "sort" ? view.sort : "name";
-  const bootstrapQuery = useTenantBootstrap(makerspaceSlug);
+  const bootstrapQuery = useTenantBootstrap(makerspaceSlug, tenant.mode === "central");
   const categoriesQuery = usePublicCategories(makerspaceSlug);
   const inventoryQuery = usePublicInventory(
     makerspaceSlug,
@@ -45,13 +48,14 @@ export function PublicInventoryPage() {
     categoryParam,
     sortParam,
   );
+  const bootstrap = tenant.mode === "single" ? tenant.bootstrap : bootstrapQuery.data;
   const displayName =
-    bootstrapQuery.data?.branding.display_name ||
-    bootstrapQuery.data?.makerspace.name ||
+    bootstrap?.branding.display_name ||
+    bootstrap?.makerspace.name ||
     formatSlug(makerspaceSlug) ||
     "Makerspace";
   const title = `${displayName} Inventory`;
-  const modules = new Set(bootstrapQuery.data?.modules ?? []);
+  const modules = tenant.mode === "single" ? tenant.modules : new Set(bootstrap?.modules ?? []);
   const requestEnabled = modules.has("request_workflow");
   const categories = categoriesQuery.data ?? [];
   const products = inventoryQuery.data?.results ?? [];
@@ -140,7 +144,7 @@ export function PublicInventoryPage() {
                 {inventoryQuery.data?.count ?? "-"} listed items
               </div>
               {modules.has("printing") ? (
-                <Link className="desk-button" to={`/m/${makerspaceSlug}/print`}>
+                <Link className="desk-button" to={tenantPath("print")}>
                   Request a 3D print
                 </Link>
               ) : null}
@@ -207,9 +211,9 @@ export function PublicInventoryPage() {
                 {products.map((product) => (
                   <ProductCard
                     key={product.id}
-                    makerspaceSlug={makerspaceSlug}
                     product={product}
                     quantity={cart[product.id]?.quantity ?? 0}
+                    detailPath={tenantPath(`items/${product.id}`)}
                     onDecrement={() => decrementItem(product)}
                     onIncrement={() => incrementItem(product)}
                   />

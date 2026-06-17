@@ -25,10 +25,12 @@ export function usePublicInventory(
   query: string,
   category = "",
   sort = "name",
+  enabled = true,
 ) {
   return useQuery({
     queryKey: publicInventoryKey(slug, page, query, category, sort),
     queryFn: () => fetchPublicInventory(slug, page, query, category, sort),
+    enabled: enabled && Boolean(slug),
     placeholderData: (previousData) => previousData,
   });
 }
@@ -41,18 +43,18 @@ export function usePublicCategories(slug: string) {
   });
 }
 
-export function useTenantBootstrap(slug: string) {
+export function useTenantBootstrap(slug: string, enabled = true) {
   return useQuery({
     queryKey: ["tenant-bootstrap", slug],
     queryFn: () => bootstrapTenant({ slug }),
-    enabled: Boolean(slug),
+    enabled: enabled && Boolean(slug),
   });
 }
 
-export function usePublicInventoryDetail(slug: string, id: number) {
+export function usePublicInventoryDetail(slug: string, id: number, enabled = true) {
   return useQuery({
     queryKey: publicInventoryDetailKey(slug, id),
     queryFn: () => fetchPublicInventoryDetail(slug, id),
-    enabled: Boolean(slug && id),
+    enabled: enabled && Boolean(slug && id),
   });
 }

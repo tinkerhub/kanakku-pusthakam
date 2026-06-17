@@ -5,18 +5,23 @@ import { BrowserRouter } from "react-router-dom";
 
 import App from "./App";
 import "./index.css";
+import { cleanupLegacyAccessToken } from "./lib/api";
 import { queryClient } from "./lib/queryClient";
+import { TenantProvider } from "./lib/tenant";
 
 if (localStorage.getItem("makerspace.theme") === "dark") {
   document.documentElement.classList.add("dark");
 }
+cleanupLegacyAccessToken();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <TenantProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </TenantProvider>
     </QueryClientProvider>
   </React.StrictMode>,
 );
