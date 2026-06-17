@@ -92,6 +92,12 @@ class ManagedPrintRequestQuerysetMixin:
         if makerspace_id is not None:
             require_module(makerspace_id, "printing")
             qs = qs.filter(bucket__makerspace_id=makerspace_id)
+        else:
+            qs = rbac.hide_from_superadmin(
+                self.request.user,
+                qs,
+                "bucket__makerspace_id",
+            )
 
         status_filter = self.request.query_params.get("status")
         if status_filter:

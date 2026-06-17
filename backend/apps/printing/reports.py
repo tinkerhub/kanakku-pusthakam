@@ -283,7 +283,10 @@ def _payments(requests):
 
 
 def _payment_summary(requests, payment_status):
-    row = requests.filter(payment_status=payment_status).aggregate(
+    row = requests.filter(
+        payment_status=payment_status,
+        status__in=COMPLETED_STATUSES,
+    ).aggregate(
         amount=Sum("price"),
         count=Count("id"),
     )
