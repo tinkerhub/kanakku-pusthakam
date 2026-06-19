@@ -1,5 +1,7 @@
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 
+import { GridToggle } from "./components/GridToggle";
+import { MakerspaceBrand } from "./components/MakerspaceBrand";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Card } from "./components/ui/Card";
 import { Spinner } from "./components/ui/Spinner";
@@ -35,6 +37,7 @@ function LandingPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <GridToggle />
             <ThemeToggle />
             <Link className="desk-button" to="/admin">
               Staff login
@@ -106,24 +109,46 @@ function LandingPage() {
         ) : null}
 
         {makerspacesQuery.data && makerspacesQuery.data.length > 0 ? (
-          <div className="grid gap-3">
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {makerspacesQuery.data.map((makerspace) => (
               <Link
                 key={makerspace.slug}
-                className="desk-panel group flex items-center justify-between gap-4 p-4 transition hover:border-accent/50 hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30"
+                className="group flex flex-col border-2 border-ink bg-panel transition-transform duration-150 hover:-translate-y-1 hover:shadow-brutal focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
                 to={`/m/${makerspace.slug}`}
               >
-                <div>
-                  <h2 className="text-base font-semibold text-ink">
-                    {makerspace.name}
-                  </h2>
-                  <p className="mt-1 text-sm text-muted">
+                <div className="relative h-40 overflow-hidden border-b-2 border-secondary bg-surface">
+                  {makerspace.cover_image_url ? (
+                    <img
+                      src={makerspace.cover_image_url}
+                      alt={`${makerspace.name} cover`}
+                      loading="lazy"
+                      className="h-full w-full object-cover grayscale transition-all duration-500 group-hover:grayscale-0"
+                    />
+                  ) : (
+                    <div className="blueprint-bg h-full w-full" />
+                  )}
+                  <span className="absolute left-3 top-3 chip chip-available">
+                    <span className="h-2 w-2 rounded-full bg-white" /> Public
+                  </span>
+                </div>
+                <div className="flex flex-1 flex-col p-card-padding p-5">
+                  <MakerspaceBrand
+                    name={makerspace.name}
+                    logoUrl={makerspace.logo_url}
+                    size="md"
+                  />
+                  <p className="mt-2 font-mono text-xs uppercase text-muted">
                     {makerspace.location || makerspace.slug}
                   </p>
+                  <div className="mt-auto flex items-center justify-between pt-5">
+                    <span className="font-mono text-xs uppercase text-muted">
+                      {makerspace.public_code}
+                    </span>
+                    <span className="inline-flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-tight text-secondary">
+                      Open catalog &rarr;
+                    </span>
+                  </div>
                 </div>
-                <p className="text-sm font-semibold text-accent group-hover:text-accent/90">
-                  Open
-                </p>
               </Link>
             ))}
           </div>

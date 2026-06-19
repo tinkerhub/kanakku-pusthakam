@@ -1,7 +1,6 @@
-import { Card } from "../../components/ui/Card";
-import type { Product } from "../../types/inventory";
-import { AvailabilityBadge } from "./AvailabilityBadge";
 import { Link } from "react-router-dom";
+
+import type { Availability, Product } from "../../types/inventory";
 
 type ProductCardProps = {
   product: Product;
@@ -15,6 +14,28 @@ function isUnavailable(product: Product): boolean {
   return product.availability?.label === "Unavailable";
 }
 
+function statusChip(availability: Availability): { text: string; cls: string } | null {
+  if (availability === null) {
+    return null;
+  }
+  const label = availability.label ?? "Available";
+  const count =
+    availability.mode === "exact_count" && availability.count != null
+      ? availability.count
+      : null;
+
+  if (label === "Unavailable") {
+    return { text: "Unavailable", cls: "chip" };
+  }
+  if (label === "Limited") {
+    return { text: count != null ? `Limited (${count})` : "Limited", cls: "chip chip-active" };
+  }
+  return {
+    text: count != null ? `Available (${count})` : "Available",
+    cls: "chip chip-available",
+  };
+}
+
 export function ProductCard({
   product,
   detailPath,
@@ -23,54 +44,79 @@ export function ProductCard({
   onIncrement,
 }: ProductCardProps) {
   const disabled = isUnavailable(product);
+  const chip = statusChip(product.availability);
+  const idLabel = `ID: ${String(product.id).padStart(4, "0")}`;
 
   return (
-    <Card
-      className="flex h-full flex-col gap-3 transition hover:border-accent/40"
-      padding="sm"
-    >
-      <div className="flex flex-1 flex-col gap-2">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-base font-semibold leading-6 text-ink">
-            {product.name}
-          </h2>
-          <AvailabilityBadge availability={product.availability} />
-        </div>
-        <p className="line-clamp-2 text-sm leading-6 text-muted">
+    <article className="group flex h-full flex-col border-2 border-ink bg-panel transition-transform duration-150 hover:-translate-y-1">
+      {/* Image header — blueprint placeholder when no photo on file. */}
+      <div className="relative h-44 overflow-hidden border-b-2 border-secondary bg-surface">
+        {product.image_url ? (
+          <img
+            src={product.image_url}
+            alt={product.name}
+            loading="lazy"
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="blueprint-bg grid h-full w-full place-items-center">
+            <span className="font-display text-4xl font-bold uppercase text-ink/15">
+              {product.name.slice(0, 2)}
+            </span>
+          </div>
+        )}
+        {chip ? (
+          <span className={`absolute right-2 top-2 ${chip.cls}`}>{chip.text}</span>
+        ) : null}
+      </div>
+
+      {/* Body */}
+      <div className="flex flex-1 flex-col p-4">
+        <h2 className="font-display text-lg font-semibold uppercase leading-tight text-ink">
+          {product.name}
+        </h2>
+        <p className="mt-1 font-mono text-xs uppercase text-muted">{idLabel}</p>
+        <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted">
           {product.description || "No description provided."}
         </p>
-      </div>
-      <div className="flex items-center justify-between gap-2 border-t border-line pt-2">
-        <div className="flex items-center rounded-md border border-line bg-bg">
-          <button
-            aria-label={`Remove ${product.name}`}
-            className="h-9 w-9 text-lg font-semibold text-ink transition hover:bg-line disabled:cursor-not-allowed disabled:text-muted"
-            disabled={quantity === 0}
-            type="button"
-            onClick={onDecrement}
+        {product.category_name ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="chip">{product.category_name}</span>
+          </div>
+        ) : null}
+
+        <div className="mt-auto flex items-center justify-between gap-2 pt-4">
+          <div className="flex items-center border-2 border-ink bg-bg">
+            <button
+              aria-label={`Remove ${product.name}`}
+              className="h-9 w-9 font-mono text-lg font-semibold text-ink transition hover:bg-surface disabled:cursor-not-allowed disabled:text-muted"
+              disabled={quantity === 0}
+              type="button"
+              onClick={onDecrement}
+            >
+              -
+            </button>
+            <span className="grid h-9 min-w-10 place-items-center border-x-2 border-ink px-2 font-mono text-sm font-semibold text-ink">
+              {quantity}
+            </span>
+            <button
+              aria-label={`Add ${product.name}`}
+              className="h-9 w-9 font-mono text-lg font-semibold text-ink transition hover:bg-surface disabled:cursor-not-allowed disabled:text-muted"
+              disabled={disabled}
+              type="button"
+              onClick={onIncrement}
+            >
+              +
+            </button>
+          </div>
+          <Link
+            className="font-mono text-xs font-semibold uppercase tracking-tight text-secondary underline-offset-4 hover:underline"
+            to={detailPath}
           >
-            -
-          </button>
-          <span className="grid h-9 min-w-10 place-items-center border-x border-line px-3 text-sm font-semibold text-ink">
-            {quantity}
-          </span>
-          <button
-            aria-label={`Add ${product.name}`}
-            className="h-9 w-9 text-lg font-semibold text-ink transition hover:bg-line disabled:cursor-not-allowed disabled:text-muted"
-            disabled={disabled}
-            type="button"
-            onClick={onIncrement}
-          >
-            +
-          </button>
+            Details &rarr;
+          </Link>
         </div>
-        <span className="text-xs font-medium text-muted">
-          {disabled ? "Not requestable" : quantity > 0 ? "Selected" : "Add to request"}
-        </span>
       </div>
-      <Link className="text-sm font-semibold text-accent" to={detailPath}>
-        Details
-      </Link>
-    </Card>
+    </article>
   );
 }

@@ -15,6 +15,7 @@ export type Product = {
   category_slug?: string | null;
   tracking_mode?: "quantity" | "individual";
   availability: Availability;
+  image_url?: string | null;
 };
 
 export type PublicCategory = {
@@ -31,6 +32,8 @@ export type Makerspace = {
   public_code: string;
   slug: string;
   location: string;
+  logo_url?: string | null;
+  cover_image_url?: string | null;
 };
 
 export type PaginatedResponse<T> = {
