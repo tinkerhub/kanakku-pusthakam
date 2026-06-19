@@ -1,3 +1,5 @@
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from apps.accounts.models import User
@@ -49,6 +51,15 @@ class StaffCreateSerializer(serializers.Serializer):
         ]
     )
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    def validate_password(self, value):
+        if not value:
+            return value
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages)
+        return value
 
 
 class RestrictUserSerializer(serializers.Serializer):
