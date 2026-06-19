@@ -11,6 +11,7 @@ import {
   staffRequest,
   type StaffAuthUser,
 } from "../../lib/api";
+import { GridToggle } from "../../components/GridToggle";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { ChangePasswordGate } from "./ChangePasswordGate";
 import { LoginPanel } from "./LoginPanel";
@@ -33,12 +34,56 @@ const FULL_ACCESS_ROLES = ["space_manager", "inventory_manager", "guest_admin"];
 // "requests" is included so they reach the (printing-only) unified Requests tab.
 const PRINTING_TABS = ["requests", "printing", "tobuy", "reports", "api"];
 
+// Human labels for every tab key (single source — was an inline ternary in the nav).
+const TAB_LABELS: Record<string, string> = {
+  requests: "Requests",
+  direct: "Direct handout",
+  ledger: "Ledger",
+  inventory: "Inventory",
+  categories: "Categories",
+  needsfix: "To-be-fixed",
+  stocktake: "Stocktake",
+  transfers: "Transfers",
+  containers: "Containers",
+  bulk: "Bulk import",
+  qr: "QR Tools",
+  scanner: "Scanner",
+  printing: "3D Printing",
+  tobuy: "To Buy",
+  reports: "Reports",
+  audit: "Audit log",
+  users: "Users",
+  settings: "Settings",
+  api: "API access",
+  platform: "Platform email",
+};
+
+// The flat 20-tab list, grouped into labelled sections (permissions unchanged —
+// each section only renders the tabs the active role is allowed; empty sections
+// are hidden). Reduces scan cost without changing what a role can reach.
+const TAB_GROUPS: { label: string; tabs: string[] }[] = [
+  { label: "Operate", tabs: ["requests", "direct", "ledger"] },
+  {
+    label: "Inventory",
+    tabs: ["inventory", "categories", "needsfix", "stocktake", "transfers", "containers", "bulk", "qr", "scanner"],
+  },
+  { label: "3D Printing", tabs: ["printing", "tobuy"] },
+  { label: "Insights", tabs: ["reports", "audit"] },
+  // Rarely-used admin tabs collapsed behind one expander by default.
+  { label: "Admin", tabs: ["users", "settings", "api", "platform"] },
+];
+
 export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const tenant = useTenant();
   const queryClient = useQueryClient();
   const [user, setUser] = useState<StaffAuthUser | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
-  const [tab, setTab] = useState("requests");
+  // Empty until the user picks a tab, so the first render lands on the role-appropriate
+  // default (computed below) instead of always "requests".
+  const [tab, setTab] = useState("");
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    () => new Set(["Admin"]),
+  );
   const [restoring, setRestoring] = useState(true);
   const hydrateUser = useCallback((nextUser: StaffAuthUser) => {
     setUser(nextUser);
@@ -56,7 +101,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const expireSession = useCallback(() => {
     setUser(null);
     setSelected(null);
-    setTab("requests");
+    setTab("");
     queryClient.clear();
   }, [queryClient]);
 
@@ -278,24 +323,44 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       ? [activeMakerspace]
       : makerspaces.data ?? [];
   // Derived (no useEffect): switching makerspace recomputes synchronously, and a
-  // tab that isn't allowed for the current role falls back to the first allowed.
-  const activeTab = allowedTabs.includes(tab) ? tab : allowedTabs[0];
+  // tab that isn't allowed for the current role falls back to the role-appropriate
+  // default landing tab (then the first allowed tab).
+  const defaultTab = printingOnly ? "printing" : "requests";
+  const activeTab = allowedTabs.includes(tab)
+    ? tab
+    : allowedTabs.includes(defaultTab)
+      ? defaultTab
+      : allowedTabs[0];
+  const toggleGroup = (label: string) =>
+    setCollapsedGroups((current) => {
+      const next = new Set(current);
+      if (next.has(label)) {
+        next.delete(label);
+      } else {
+        next.add(label);
+      }
+      return next;
+    });
 
   return (
     <main className="desk-shell grid lg:grid-cols-[260px_1fr]">
-      <aside className="border-b border-line bg-panel lg:min-h-screen lg:border-b-0 lg:border-r">
-        <div className="flex items-center gap-3 border-b border-line px-5 py-4">
-          <span className="grid h-9 w-9 place-items-center rounded-md bg-accent text-sm font-black text-bg">
+      <aside className="border-b-2 border-ink bg-panel lg:min-h-screen lg:border-b-0 lg:border-r-2">
+        <div className="flex items-center gap-3 border-b-2 border-ink px-5 py-4">
+          <span className="grid h-9 w-9 place-items-center border-2 border-ink bg-accent font-display text-sm font-bold text-white">
             MM
           </span>
           <div>
-            <p className="text-sm font-semibold text-ink">Makerspace Manager</p>
-            <p className="text-xs text-muted">{guestOnly ? "Guest admin" : isSuperadmin ? "Super Admin" : printingOnly ? "Print Manager" : "Space Manager"}</p>
+            <p className="font-display text-sm font-bold uppercase tracking-tight text-ink">
+              Makerspace Mgr
+            </p>
+            <p className="font-mono text-xs uppercase text-muted">
+              {guestOnly ? "Guest admin" : isSuperadmin ? "Super Admin" : printingOnly ? "Print Manager" : "Space Manager"}
+            </p>
           </div>
         </div>
         <div className="p-4">
           {singleTenantLocked ? (
-            <div className="rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink">
+            <div className="rounded-sm border-2 border-ink bg-surface px-3 py-2 text-sm font-semibold text-ink">
               {activeMakerspace?.name ?? "Configured makerspace"}
             </div>
           ) : (
@@ -311,39 +376,61 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
               ))}
             </select>
           )}
-          <nav className="mt-4 grid gap-1">
-            {allowedTabs.map((item) => (
-              <button
-                key={item}
-                className={`rounded-md px-3 py-2 text-left text-sm font-medium transition ${
-                  activeTab === item
-                    ? "bg-accent text-bg"
-                    : "text-muted hover:bg-surface hover:text-ink"
-                }`}
-                onClick={() => setTab(item)}
-              >
-                  {item === "qr" ? "QR Tools" : item === "direct" ? "Direct handout" : item === "api" ? "API access" : item === "stocktake" ? "Stocktake" : item === "printing" ? "3D Printing" : item === "tobuy" ? "To Buy" : item === "needsfix" ? "To-be-fixed" : item === "containers" ? "Containers" : item === "platform" ? "Platform email" : item === "settings" ? "Settings" : item[0].toUpperCase() + item.slice(1)}
-              </button>
-            ))}
+          <nav className="mt-4 space-y-3">
+            {TAB_GROUPS.map((group) => {
+              const tabs = group.tabs.filter((t) => allowedTabs.includes(t));
+              if (tabs.length === 0) {
+                return null;
+              }
+              // A group is open unless collapsed — but always open if it holds the
+              // active tab, so the current section is never hidden.
+              const open = !collapsedGroups.has(group.label) || tabs.includes(activeTab);
+              return (
+                <div key={group.label}>
+                  <button
+                    className="flex w-full items-center justify-between px-3 py-1 font-mono text-xs font-semibold uppercase tracking-tight text-muted transition hover:text-ink"
+                    type="button"
+                    onClick={() => toggleGroup(group.label)}
+                  >
+                    <span>{group.label}</span>
+                    <span aria-hidden>{open ? "−" : "+"}</span>
+                  </button>
+                  {open ? (
+                    <div className="mt-1 grid gap-1">
+                      {tabs.map((item) => (
+                        <button
+                          key={item}
+                          className={`desk-nav-item ${activeTab === item ? "desk-nav-item-active" : ""}`}
+                          onClick={() => setTab(item)}
+                        >
+                          <span>{TAB_LABELS[item] ?? item}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </nav>
         </div>
       </aside>
 
       <section className="min-w-0">
-        <header className="border-b border-line bg-bg/95 px-5 py-4">
+        <header className="border-b-2 border-ink bg-surface px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+              <p className="font-mono text-xs font-semibold uppercase tracking-tight text-accent">
                 {activeMakerspace?.public_code ?? activeMakerspace?.slug ?? "No workspace"}
               </p>
-              <h1 className="text-2xl font-bold text-ink">
+              <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-ink">
                 {activeMakerspace?.name ?? "Inventory Control"}
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <span className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">
+              <span className="rounded-sm border-2 border-ink bg-panel px-3 py-2 font-mono text-xs uppercase text-muted">
                 {user.username}
               </span>
+              <GridToggle />
               {isSuperadmin && !singleTenantLocked ? (
                 <button className="desk-button" onClick={() => setSelected(null)}>
                   Switch makerspace
