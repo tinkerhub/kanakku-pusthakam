@@ -414,7 +414,7 @@ function FormFooter({ formId, pending, submitLabel, tone = "default", onCancel }
       <button className="desk-button" type="button" disabled={pending} onClick={onCancel}>
         Cancel
       </button>
-      <button className={tone === "danger" ? "desk-button bg-danger text-white" : "desk-button"} type="submit" form={formId} disabled={pending}>
+      <button className={tone === "danger" ? "desk-button bg-danger text-bg hover:bg-danger/90 hover:text-bg" : "desk-button"} type="submit" form={formId} disabled={pending}>
         {pending ? "Working..." : submitLabel}
       </button>
     </div>

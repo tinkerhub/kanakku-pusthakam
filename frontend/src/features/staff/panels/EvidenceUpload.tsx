@@ -81,10 +81,10 @@ export function EvidenceUpload({
           const file = event.target.files?.[0];
           if (file) handleFile(file);
         }}
-        className="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-bg"
+        className="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-on-accent"
       />
       {status === "uploading" ? <p className="text-xs text-muted">Uploading {fileName}…</p> : null}
-      {status === "done" ? <p className="text-xs text-green-600">Photo uploaded ✓</p> : null}
+      {status === "done" ? <p className="text-xs text-success">Photo uploaded ✓</p> : null}
       {status === "error" ? <p className="text-xs text-danger">{error}</p> : null}
     </div>
   );

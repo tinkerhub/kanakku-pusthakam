@@ -29,7 +29,7 @@ export function chartRows(data: ReportRows | undefined, labelKey: string, valueK
 
 export function DataState(props: { loading: boolean; error: unknown; empty: boolean; children: React.ReactNode }) {
   if (props.loading) return <p className="mt-3 text-sm text-muted">Loading reports...</p>;
-  if (props.error) return <p className="mt-3 text-sm text-red-600">{props.error instanceof Error ? props.error.message : "Unable to load report."}</p>;
+  if (props.error) return <p className="mt-3 text-sm text-danger">{props.error instanceof Error ? props.error.message : "Unable to load report."}</p>;
   if (props.empty) return <p className="mt-3 text-sm text-muted">No records.</p>;
   return <>{props.children}</>;
 }
@@ -56,7 +56,7 @@ export function BarChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
       {rows.map((row, index) => {
         const width = `${Math.max((row.value / maxValue) * 100, 4)}%`;
         return (
-          <div key={`${row.label}-${index}`} className="grid grid-cols-[minmax(7rem,11rem)_1fr_auto] items-center gap-2 text-sm">
+          <div key={`${row.label}-${index}`} className="grid grid-cols-[minmax(0,1fr)_minmax(4rem,2fr)_auto] items-center gap-2 text-sm sm:grid-cols-[minmax(7rem,11rem)_1fr_auto]">
             <span className="truncate text-ink" title={row.label}>
               {row.label}
             </span>
@@ -157,8 +157,8 @@ export function ReportTable({ data }: { data?: ReportRows }) {
   if (!tableHeaders.length || !rows.length) return <p className="text-sm text-muted">No records.</p>;
 
   return (
-    <div className="mt-4 max-h-80 overflow-auto rounded-md border border-line">
-      <table className="min-w-full divide-y divide-line text-left text-sm">
+    <div className="mt-4 max-h-80 overflow-x-auto overflow-y-auto rounded-md border border-line">
+      <table className="min-w-[640px] divide-y divide-line text-left text-sm">
         <thead className="sticky top-0 bg-surface text-xs uppercase tracking-wide text-muted">
           <tr>
             {tableHeaders.map((header) => (

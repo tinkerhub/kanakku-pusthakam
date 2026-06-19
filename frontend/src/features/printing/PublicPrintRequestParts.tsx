@@ -100,7 +100,7 @@ export function FilePicker({
         <ul className="mt-2 space-y-2">
           {files.map((file, index) => (
             <li
-              className="flex items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2 text-sm"
+              className="flex min-w-0 items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2 text-sm"
               key={`${file.name}-${file.lastModified}-${index}`}
             >
               <span className="min-w-0 truncate text-ink">{file.name}</span>
@@ -157,7 +157,7 @@ export function StatusStepper({ status }: { status: PrintStatus }) {
 
   if (terminalError) {
     return (
-      <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+      <div className="status-box status-box-danger w-full justify-start">
         {status.title} is {status.status}.
       </div>
     );
@@ -165,16 +165,17 @@ export function StatusStepper({ status }: { status: PrintStatus }) {
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {steps.map((step, index) => {
-          const complete = currentIndex >= index;
+          const state =
+            index < currentIndex
+              ? "status-box-done"
+              : index === currentIndex
+                ? "status-box-active"
+                : "";
           return (
             <div
-              className={`min-w-0 rounded-md border px-2 py-2 text-center text-xs ${
-                complete
-                  ? "border-success/40 bg-success/10 text-success"
-                  : "border-line bg-surface text-muted"
-              }`}
+              className={`status-box w-full ${state}`}
               key={step.key}
             >
               <p className="break-words font-semibold leading-tight">{step.label}</p>
@@ -242,7 +243,7 @@ export function StatusResult({
   return status ? (
     <div className="space-y-3">
       <div>
-        <h2 className="text-lg font-semibold text-ink">{status.title}</h2>
+        <h2 className="break-words text-lg font-semibold text-ink">{status.title}</h2>
         <p className="mt-1 text-xs text-muted">
           Created {new Date(status.created_at).toLocaleString()}
         </p>

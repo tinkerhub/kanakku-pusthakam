@@ -63,7 +63,7 @@ export function CatalogSidebar({
       ? "desk-nav-item desk-nav-item-active shrink-0 whitespace-nowrap lg:shrink lg:whitespace-normal"
       : "desk-nav-item shrink-0 whitespace-nowrap lg:shrink lg:whitespace-normal";
   const countClass = (active: boolean) =>
-    active ? "ml-2 text-xs text-accent/80" : "ml-2 text-xs text-muted";
+    active ? "ml-2 text-xs text-on-accent/80" : "ml-2 text-xs text-muted";
 
   return (
     <Card

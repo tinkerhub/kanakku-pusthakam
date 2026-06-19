@@ -341,8 +341,10 @@ def test_print_manager_accepts_starts_and_completes_with_audit_and_emails(
         response = client.post(action_url(print_request, "accept"), format="json")
         assert response.status_code == 200
         assert mail.outbox == []
-    assert len(callbacks) == 1
-    assert len(mail.outbox) == 1
+    assert len(callbacks) == 2
+    assert len(mail.outbox) == 2
+    assert ["lifecycle-requester@e.com"] in [message.to for message in mail.outbox]
+    assert ["lifecycle-manager@e.com"] in [message.to for message in mail.outbox]
     print_request.refresh_from_db()
     assert print_request.status == PrintRequest.Status.ACCEPTED
     assert print_request.accepted_at is not None
@@ -354,8 +356,8 @@ def test_print_manager_accepts_starts_and_completes_with_audit_and_emails(
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         response = client.post(action_url(print_request, "start"), format="json")
         assert response.status_code == 200
-    assert len(callbacks) == 1
-    assert len(mail.outbox) == 2
+    assert len(callbacks) == 2
+    assert len(mail.outbox) == 4
     print_request.refresh_from_db()
     assert print_request.status == PrintRequest.Status.PRINTING
     assert AuditLog.objects.filter(action="print.started").count() == 1
@@ -363,9 +365,9 @@ def test_print_manager_accepts_starts_and_completes_with_audit_and_emails(
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         response = client.post(action_url(print_request, "complete"), format="json")
         assert response.status_code == 200
-        assert len(mail.outbox) == 2
-    assert len(callbacks) == 1
-    assert len(mail.outbox) == 3
+        assert len(mail.outbox) == 4
+    assert len(callbacks) == 2
+    assert len(mail.outbox) == 6
     print_request.refresh_from_db()
     assert print_request.status == PrintRequest.Status.COMPLETED
     assert print_request.completed_at is not None
@@ -949,15 +951,22 @@ def test_print_manager_rejects_pending_request_with_reason_audit_and_email(
         assert response.status_code == 200
         assert mail.outbox == []
 
-    assert len(callbacks) == 1
-    assert len(mail.outbox) == 1
+    assert len(callbacks) == 2
+    assert len(mail.outbox) == 2
+    assert ["reject-requester@e.com"] in [message.to for message in mail.outbox]
+    assert ["reject-manager@e.com"] in [message.to for message in mail.outbox]
     print_request.refresh_from_db()
     assert print_request.status == PrintRequest.Status.REJECTED
     assert print_request.reason == "Model needs supports clarified."
     assert AuditLog.objects.get(action="print.rejected").target_id == str(print_request.id)
 
 
-def test_print_manager_fails_printing_request_with_reason_and_no_email():
+def test_print_manager_fails_printing_request_no_requester_email_notifies_staff(
+    django_capture_on_commit_callbacks,
+):
+    # Failing a print must NEVER email the requester (unchanged contract), but the new
+    # staff-notification feature DOES alert the makerspace's print staff. Execute the
+    # on_commit callbacks so the assertion reflects real delivery, not just the sync path.
     makerspace = make_space("fail-flow")
     bucket = make_bucket(makerspace)
     requester = make_user("fail-requester", access_status=User.AccessStatus.ACTIVE)
@@ -967,20 +976,28 @@ def test_print_manager_fails_printing_request_with_reason_and_no_email():
         requester,
         status=PrintRequest.Status.PRINTING,
     )
+    print_request.contact_email = "fail-buyer@example.com"
+    print_request.save(update_fields=["contact_email", "updated_at"])
     reset_outbox()
 
-    response = authenticated_client(manager).post(
-        action_url(print_request, "fail"),
-        {"reason": "Nozzle jammed.", "percent_complete": 0},
-        format="json",
-    )
+    with django_capture_on_commit_callbacks(execute=True):
+        response = authenticated_client(manager).post(
+            action_url(print_request, "fail"),
+            {"reason": "Nozzle jammed.", "percent_complete": 0},
+            format="json",
+        )
 
     assert response.status_code == 200
     print_request.refresh_from_db()
     assert print_request.status == PrintRequest.Status.FAILED
     assert print_request.reason == "Nozzle jammed."
     assert AuditLog.objects.get(action="print.failed").target_id == str(print_request.id)
-    assert mail.outbox == []
+    recipients = [address for message in mail.outbox for address in message.to]
+    # No requester-facing email on failure.
+    assert "fail-buyer@example.com" not in recipients
+    assert requester.email not in recipients
+    # Staff (the print manager) are notified of the failure.
+    assert manager.email in recipients
 
 
 def test_print_manager_fail_requires_percent_complete():

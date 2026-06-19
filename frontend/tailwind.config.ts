@@ -8,6 +8,7 @@ export default {
       colors: {
         accent: "rgb(var(--color-accent) / <alpha-value>)",
         "accent-bright": "rgb(var(--color-accent-bright) / <alpha-value>)",
+        "on-accent": "rgb(var(--color-on-accent) / <alpha-value>)",
         secondary: "rgb(var(--color-secondary) / <alpha-value>)",
         ink: "rgb(var(--color-ink) / <alpha-value>)",
         bg: "rgb(var(--color-bg) / <alpha-value>)",

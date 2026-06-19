@@ -1,6 +1,5 @@
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 
-import { GridToggle } from "./components/GridToggle";
 import { MakerspaceBrand } from "./components/MakerspaceBrand";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Card } from "./components/ui/Card";
@@ -26,18 +25,17 @@ function LandingPage() {
   return (
     <main className="desk-shell">
       <header className="border-b border-line bg-panel">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
-          <div className="flex items-center gap-3">
-            <span className="grid h-9 w-9 place-items-center rounded-md bg-accent text-sm font-black text-bg">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid h-9 w-9 place-items-center rounded-md bg-accent text-sm font-black text-on-accent">
               MM
             </span>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-semibold text-ink">Makerspace Manager</p>
               <p className="text-xs text-muted">Shared equipment portal</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <GridToggle />
+          <div className="flex flex-wrap items-center gap-2">
             <ThemeToggle />
             <Link className="desk-button" to="/admin">
               Staff login
@@ -46,7 +44,7 @@ function LandingPage() {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl gap-6 px-5 py-8 lg:grid-cols-[280px_1fr]">
+      <section className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="desk-panel h-fit p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-accent">
             Inventory Directory
@@ -69,7 +67,7 @@ function LandingPage() {
           </div>
         </aside>
 
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <div className="desk-panel flex flex-wrap items-center justify-between gap-3 p-4">
             <div>
               <h2 className="text-lg font-semibold text-ink">Available public catalogs</h2>
@@ -128,20 +126,20 @@ function LandingPage() {
                     <div className="blueprint-bg h-full w-full" />
                   )}
                   <span className="absolute left-3 top-3 chip chip-available">
-                    <span className="h-2 w-2 rounded-full bg-white" /> Public
+                    <span className="h-2 w-2 rounded-full bg-bg" /> Public
                   </span>
                 </div>
-                <div className="flex flex-1 flex-col p-card-padding p-5">
+                <div className="flex min-w-0 flex-1 flex-col p-card-padding p-5">
                   <MakerspaceBrand
                     name={makerspace.name}
                     logoUrl={makerspace.logo_url}
                     size="md"
                   />
-                  <p className="mt-2 font-mono text-xs uppercase text-muted">
+                  <p className="mt-2 break-words font-mono text-xs uppercase text-muted">
                     {makerspace.location || makerspace.slug}
                   </p>
-                  <div className="mt-auto flex items-center justify-between pt-5">
-                    <span className="font-mono text-xs uppercase text-muted">
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-5">
+                    <span className="min-w-0 truncate font-mono text-xs uppercase text-muted">
                       {makerspace.public_code}
                     </span>
                     <span className="inline-flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-tight text-secondary">

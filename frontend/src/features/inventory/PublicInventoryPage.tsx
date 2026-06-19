@@ -133,8 +133,8 @@ export function PublicInventoryPage() {
             Public Inventory
           </p>
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h1 className="text-3xl font-bold text-ink sm:text-4xl">{title}</h1>
+            <div className="min-w-0">
+              <h1 className="break-words text-3xl font-bold text-ink sm:text-4xl">{title}</h1>
               <p className="mt-2 text-sm text-muted">
                 Shared tools and equipment published by this makerspace.
               </p>
@@ -157,14 +157,14 @@ export function PublicInventoryPage() {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-screen-2xl gap-5 px-5 py-6 lg:grid-cols-[200px_minmax(0,1fr)_360px] sm:px-8">
+      <section className="mx-auto grid max-w-screen-2xl grid-cols-1 gap-5 px-5 py-6 sm:px-8 lg:grid-cols-[200px_minmax(0,1fr)_360px]">
         <CatalogSidebar
           categories={categories}
           view={view}
           onSelect={selectView}
         />
 
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <Card>
             <form
               className="flex flex-col gap-3 sm:flex-row"
@@ -220,11 +220,11 @@ export function PublicInventoryPage() {
                 ))}
               </div>
               <div className="desk-panel flex flex-wrap items-center justify-between gap-3 p-3">
-                <p className="text-sm text-muted">
+                <p className="min-w-0 text-sm text-muted">
                   Page {page} of {pageCount}
                   {inventoryQuery.isFetching ? " loading..." : ""}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button
                     className="desk-button"
                     disabled={!inventoryQuery.data?.previous || page === 1}
@@ -249,7 +249,7 @@ export function PublicInventoryPage() {
           ) : null}
         </div>
 
-        <div>
+        <div className="min-w-0">
           <PublicRequestPanel
             items={selectedItems}
             makerspaceSlug={makerspaceSlug}

@@ -28,7 +28,7 @@ export function RequestList({ rows, actions }: { rows: HardwareRequest[]; action
         <article key={row.id} className="border-b border-line bg-surface/50 p-3 last:border-b-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold text-ink">#{row.id} {row.requester_username}</h3>
-            <span className={`rounded-md border px-2 py-0.5 text-xs font-medium ${statusBadgeClassName(row.status)}`}>
+            <span className={`status-box ${statusBadgeClassName(row.status)}`}>
               {statusStageLabel(row.status)}
             </span>
             <div className="desk-actions ml-auto flex flex-wrap gap-2 text-sm">
@@ -106,17 +106,17 @@ function formatActor(actor: RequestActor) {
 function statusBadgeClassName(status: string) {
   switch (status) {
     case "returned":
-      return "border-green-600/40 bg-green-600/10 text-green-700";
+      return "status-box-done";
     case "accepted":
     case "issued":
     case "partially_returned":
-      return "border-amber-600/40 bg-amber-500/10 text-amber-700";
+      return "status-box-active";
     case "rejected":
     case "closed_with_issue":
-      return "border-danger bg-danger/10 text-danger";
+      return "status-box-danger";
     case "draft":
     case "pending_approval":
     default:
-      return "border-slate-300 bg-slate-100 text-slate-700";
+      return "";
   }
 }

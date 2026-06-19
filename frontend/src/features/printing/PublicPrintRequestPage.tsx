@@ -177,8 +177,8 @@ export function PublicPrintRequestPage() {
             Public 3D Print Request
           </p>
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h1 className="text-3xl font-bold text-ink sm:text-4xl">
+            <div className="min-w-0">
+              <h1 className="break-words text-3xl font-bold text-ink sm:text-4xl">
                 {displayName}
               </h1>
               <p className="mt-2 text-sm text-muted">
@@ -229,8 +229,8 @@ export function PublicPrintRequestPage() {
       ) : null}
 
       {!bootstrapQuery.isLoading && enabled ? (
-        <section className="mx-auto grid max-w-screen-xl gap-5 px-5 py-6 lg:grid-cols-[minmax(0,1fr)_360px] sm:px-8">
-        <div className="space-y-4">
+        <section className="mx-auto grid max-w-screen-xl grid-cols-1 gap-5 px-5 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-4">
           <Card>
             <p className="text-xs font-semibold uppercase tracking-wide text-accent">
               Check-In
@@ -284,7 +284,7 @@ export function PublicPrintRequestPage() {
           />
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:overflow-y-auto">
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:overflow-y-auto">
           {submittedToken ? <SubmittedTokenCard token={submittedToken} /> : null}
           <Card>
             <p className="text-xs font-semibold uppercase tracking-wide text-accent">

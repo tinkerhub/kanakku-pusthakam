@@ -6,6 +6,7 @@ from django.utils import timezone
 from apps.integrations.email import send_makerspace_email
 from apps.integrations.telegram import TelegramDeliveryError, send_message
 from apps.hardware_requests.models import HardwareEmailTemplate
+from apps.hardware_requests.staff_notifications import send_staff_hardware_email
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,6 @@ DEFAULT_TEMPLATES = {
     },
 }
 
-
 def notify_request_submitted(request):
     """Telegram integration point for submitted hardware requests."""
     logger.info(
@@ -68,6 +68,7 @@ def notify_request_submitted(request):
         _build_submitted_request_message(request),
     )
     _send_templated_email(request, HardwareEmailTemplate.Key.REQUEST_RECEIVED)
+    _send_staff_email(request, "submitted")
 
 
 def notify_request_accepted(request):
@@ -80,6 +81,7 @@ def notify_request_accepted(request):
         },
     )
     _send_templated_email(request, HardwareEmailTemplate.Key.REQUEST_ACCEPTED)
+    _send_staff_email(request, "accepted")
 
 
 def notify_request_rejected(request):
@@ -92,6 +94,7 @@ def notify_request_rejected(request):
         },
     )
     _send_templated_email(request, HardwareEmailTemplate.Key.REQUEST_REJECTED)
+    _send_staff_email(request, "rejected")
 
 
 def notify_request_issued(request):
@@ -106,6 +109,7 @@ def notify_request_issued(request):
     )
     _send_request_message(request, f"Hardware request #{request.pk} has been issued.")
     _send_templated_email(request, HardwareEmailTemplate.Key.REQUEST_ISSUED)
+    _send_staff_email(request, "issued")
 
 
 def notify_request_returned(request):
@@ -120,6 +124,7 @@ def notify_request_returned(request):
     )
     _send_request_message(request, f"Hardware request #{request.pk} has been returned.")
     _send_templated_email(request, HardwareEmailTemplate.Key.REQUEST_RETURNED)
+    _send_staff_email(request, request.status)
 
 
 def notify_return_due(request):
@@ -131,7 +136,14 @@ def notify_return_due(request):
             "status": request.status,
         },
     )
-    return _send_templated_email(request, HardwareEmailTemplate.Key.RETURN_REMINDER)
+    sent = _send_templated_email(request, HardwareEmailTemplate.Key.RETURN_REMINDER)
+    staff_sent = _send_staff_email(request, "return_reminder")
+    # Mark the reminder cycle complete if the borrower OR staff was actually reminded.
+    # Returning the borrower-only result would leave return_reminder_sent_at null whenever
+    # the borrower has no reachable email (blank contact / persistent bounce), so the cron
+    # would re-send the staff reminder every run. A transient SMTP outage hits both sends
+    # (shared makerspace connection) → both False → still retried next run, as intended.
+    return bool(sent) or bool(staff_sent)
 
 
 def _send_request_message(request, text):
@@ -239,3 +251,7 @@ def render_email(request, key):
         "text_body": Template(text_body).render(context),
         "html_body": Template(html_body).render(context) if html_body else "",
     }
+
+
+def _send_staff_email(request, event) -> bool:
+    return send_staff_hardware_email(request, event)

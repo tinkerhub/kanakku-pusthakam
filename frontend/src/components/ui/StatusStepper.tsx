@@ -23,44 +23,35 @@ export function statusStageLabel(status: string): string {
   return STAGES[statusStageIndex(status)] ?? STAGES[0];
 }
 
-function StepMarker({
+function StepBox({
   step,
+  label,
   state,
   rejected,
 }: {
   step: number;
+  label: string;
   state: "completed" | "current" | "upcoming";
   rejected: boolean;
 }) {
-  if (rejected && step === 0) {
-    return (
-      <span className="flex h-6 w-6 items-center justify-center rounded-full border border-accent bg-surface text-xs font-semibold text-accent">
-        1
-      </span>
-    );
-  }
-
-  if (state === "upcoming") {
-    return (
-      <span className="flex h-6 w-6 items-center justify-center rounded-full border border-line bg-surface text-xs font-semibold text-muted">
-        {step + 1}
-      </span>
-    );
-  }
+  const className = rejected && step === 0
+    ? "status-box status-box-danger"
+    : state === "completed"
+      ? "status-box status-box-done"
+      : state === "current"
+        ? "status-box status-box-active"
+        : "status-box";
 
   return (
-    <span className="flex h-6 w-6 items-center justify-center rounded-full border border-accent bg-accent text-xs font-semibold text-white">
-      {step + 1}
+    <span className={className} aria-current={state === "current" ? "step" : undefined}>
+      <span>{step + 1}</span>
+      <span className="min-w-0 break-words">{label}</span>
     </span>
   );
 }
 
 function RejectedBadge() {
-  return (
-    <span className="rounded-full border border-danger bg-danger/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-danger">
-      Rejected
-    </span>
-  );
+  return <span className="status-box status-box-danger">Rejected</span>;
 }
 
 export function StatusStepper({ status }: { status: string }) {
@@ -72,7 +63,7 @@ export function StatusStepper({ status }: { status: string }) {
       aria-label={`Request status: ${statusStageLabel(status)}`}
       className="w-full"
     >
-      <ol className="grid grid-cols-4 items-start gap-0">
+      <ol className="grid grid-cols-2 items-start gap-2 sm:grid-cols-4">
         {STAGES.map((stage, index) => {
           const state =
             index < activeIndex
@@ -80,7 +71,6 @@ export function StatusStepper({ status }: { status: string }) {
               : index === activeIndex
                 ? "current"
                 : "upcoming";
-          const active = state === "completed" || state === "current";
           const lineActive = index < activeIndex;
 
           return (
@@ -91,27 +81,20 @@ export function StatusStepper({ status }: { status: string }) {
               {index < STAGES.length - 1 ? (
                 <span
                   aria-hidden="true"
-                  className={`absolute left-1/2 top-3 w-full border-t ${
-                    lineActive ? "border-accent" : "border-line"
+                  className={`absolute left-1/2 top-4 hidden w-full border-t-2 sm:block ${
+                    lineActive ? "border-success" : "border-line"
                   }`}
                 />
               ) : null}
-              <span className="relative z-10 bg-surface px-1">
-                <StepMarker step={index} state={state} rejected={rejected} />
+              <span className="relative z-10 flex min-w-0 max-w-full flex-col items-center gap-1 bg-surface px-1">
+                <StepBox
+                  step={index}
+                  label={stage}
+                  state={state}
+                  rejected={rejected}
+                />
+                {rejected && index === 0 ? <RejectedBadge /> : null}
               </span>
-              <span
-                aria-current={state === "current" ? "step" : undefined}
-                className={`mt-1 min-w-0 text-[11px] font-medium leading-tight ${
-                  active ? "text-accent" : "text-muted"
-                }`}
-              >
-                {stage}
-              </span>
-              {rejected && index === 0 ? (
-                <span className="mt-1">
-                  <RejectedBadge />
-                </span>
-              ) : null}
             </li>
           );
         })}

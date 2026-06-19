@@ -120,7 +120,7 @@ export function ImageUploader({
               const file = event.target.files?.[0];
               if (file) handleFile(file);
             }}
-            className="block w-full text-sm text-muted file:mr-3 file:border-2 file:border-ink file:bg-accent file:px-3 file:py-1.5 file:font-mono file:text-xs file:font-semibold file:uppercase file:text-white"
+            className="block w-full text-sm text-muted file:mr-3 file:border-2 file:border-ink file:bg-accent file:px-3 file:py-1.5 file:font-mono file:text-xs file:font-semibold file:uppercase file:text-on-accent"
           />
           {currentUrl ? (
             <button

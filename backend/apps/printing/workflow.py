@@ -5,7 +5,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 
 from apps.audit import services as audit
-from apps.printing.emails import send_print_email
+from apps.printing.emails import queue_print_email, queue_staff_print_email
 from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
 from apps.printing.spool_reservations import (
     SpoolReservationError,
@@ -111,14 +111,9 @@ def _transition(
             else:
                 _reconcile_spool(actor, locked, Decimal("0.00"), "failed_partial")
         if event in {"accepted", "started", "rejected", "completed"}:
-            transaction.on_commit(
-                lambda request_id=locked.pk, email_event=event: send_print_email(
-                    email_event,
-                    PrintRequest.objects.select_related(
-                        "bucket__makerspace", "requester"
-                    ).get(pk=request_id),
-                )
-            )
+            queue_print_email(event, locked.pk)
+        if event in {"accepted", "started", "rejected", "completed", "failed"}:
+            queue_staff_print_email(event, locked.pk)
         return locked
 
 
@@ -247,6 +242,7 @@ def mark_collected(print_request, actor):
             target=locked,
             meta={"price": str(locked.price), "payment_status": locked.payment_status},
         )
+        queue_staff_print_email("collected", locked.pk)
         return locked
 
 
@@ -293,4 +289,5 @@ def reprint(failed_request, actor):
                 "reprint_id": clone.id,
             },
         )
+        queue_staff_print_email("reprinted", clone.pk)
         return clone

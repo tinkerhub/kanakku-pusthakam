@@ -11,7 +11,6 @@ import {
   staffRequest,
   type StaffAuthUser,
 } from "../../lib/api";
-import { GridToggle } from "../../components/GridToggle";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { ChangePasswordGate } from "./ChangePasswordGate";
 import { LoginPanel } from "./LoginPanel";
@@ -246,7 +245,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
             {tenant.bootstrap?.makerspace.name ?? "this makerspace"}. Sign in with an
             account that has a membership for it.
           </p>
-          <div className="mt-4 flex items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <ThemeToggle />
             <button className="desk-button" type="button" onClick={signOut}>
               Sign out
@@ -343,24 +342,24 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     });
 
   return (
-    <main className="desk-shell grid lg:grid-cols-[260px_1fr]">
-      <aside className="border-b-2 border-ink bg-panel lg:min-h-screen lg:border-b-0 lg:border-r-2">
-        <div className="flex items-center gap-3 border-b-2 border-ink px-5 py-4">
-          <span className="grid h-9 w-9 place-items-center border-2 border-ink bg-accent font-display text-sm font-bold text-white">
+    <main className="desk-shell grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)]">
+      <aside className="min-w-0 border-b-2 border-ink bg-panel lg:min-h-screen lg:border-b-0 lg:border-r-2">
+        <div className="flex min-w-0 items-center gap-3 border-b-2 border-ink px-5 py-4">
+          <span className="grid h-9 w-9 place-items-center border-2 border-ink bg-accent font-display text-sm font-bold text-on-accent">
             MM
           </span>
-          <div>
-            <p className="font-display text-sm font-bold uppercase tracking-tight text-ink">
+          <div className="min-w-0">
+            <p className="truncate font-display text-sm font-bold uppercase tracking-tight text-ink">
               Makerspace Mgr
             </p>
-            <p className="font-mono text-xs uppercase text-muted">
+            <p className="truncate font-mono text-xs uppercase text-muted">
               {guestOnly ? "Guest admin" : isSuperadmin ? "Super Admin" : printingOnly ? "Print Manager" : "Space Manager"}
             </p>
           </div>
         </div>
         <div className="p-4">
           {singleTenantLocked ? (
-            <div className="rounded-sm border-2 border-ink bg-surface px-3 py-2 text-sm font-semibold text-ink">
+            <div className="break-words rounded-sm border-2 border-ink bg-surface px-3 py-2 text-sm font-semibold text-ink">
               {activeMakerspace?.name ?? "Configured makerspace"}
             </div>
           ) : (
@@ -388,11 +387,11 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
               return (
                 <div key={group.label}>
                   <button
-                    className="flex w-full items-center justify-between px-3 py-1 font-mono text-xs font-semibold uppercase tracking-tight text-muted transition hover:text-ink"
+                    className="flex w-full items-center justify-between border-b-2 border-ink px-1 pb-1 font-display text-sm font-bold uppercase tracking-tight text-ink transition hover:text-accent"
                     type="button"
                     onClick={() => toggleGroup(group.label)}
                   >
-                    <span>{group.label}</span>
+                    <span className="min-w-0 truncate">{group.label}</span>
                     <span aria-hidden>{open ? "−" : "+"}</span>
                   </button>
                   {open ? (
@@ -403,7 +402,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
                           className={`desk-nav-item ${activeTab === item ? "desk-nav-item-active" : ""}`}
                           onClick={() => setTab(item)}
                         >
-                          <span>{TAB_LABELS[item] ?? item}</span>
+                          <span className="min-w-0 truncate">{TAB_LABELS[item] ?? item}</span>
                         </button>
                       ))}
                     </div>
@@ -418,19 +417,18 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       <section className="min-w-0">
         <header className="border-b-2 border-ink bg-surface px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="font-mono text-xs font-semibold uppercase tracking-tight text-accent">
+            <div className="min-w-0">
+              <p className="truncate font-mono text-xs font-semibold uppercase tracking-tight text-accent">
                 {activeMakerspace?.public_code ?? activeMakerspace?.slug ?? "No workspace"}
               </p>
-              <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-ink">
+              <h1 className="break-words font-display text-2xl font-bold uppercase tracking-tight text-ink">
                 {activeMakerspace?.name ?? "Inventory Control"}
               </h1>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-sm border-2 border-ink bg-panel px-3 py-2 font-mono text-xs uppercase text-muted">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="max-w-full truncate rounded-sm border-2 border-ink bg-panel px-3 py-2 font-mono text-xs uppercase text-muted sm:max-w-56">
                 {user.username}
               </span>
-              <GridToggle />
               {isSuperadmin && !singleTenantLocked ? (
                 <button className="desk-button" onClick={() => setSelected(null)}>
                   Switch makerspace

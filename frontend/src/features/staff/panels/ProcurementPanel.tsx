@@ -106,7 +106,7 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
       </form>
       {create.error ? <p className="mt-2 text-sm text-danger">{create.error instanceof Error ? create.error.message : "Could not add item."}</p> : null}
 
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
         <button className="desk-button" type="button" onClick={() => downloadStaffFile(`${base}/export`, `to-buy-${makerspace.slug}.csv`)}>
           Export CSV
         </button>
@@ -119,8 +119,8 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
       ) : !rows.length ? (
         <p className="mt-3 text-sm text-muted">Nothing on the list yet.</p>
       ) : (
-        <div className="mt-3 max-h-[28rem] overflow-auto rounded-md border border-line">
-          <table className="min-w-full divide-y divide-line text-left text-sm">
+        <div className="mt-3 max-h-[28rem] overflow-x-auto overflow-y-auto rounded-md border border-line">
+          <table className="min-w-[760px] divide-y divide-line text-left text-sm">
             <thead className="sticky top-0 bg-surface text-xs uppercase tracking-wide text-muted">
               <tr>
                 {["kind", "item", "qty", "link", "est. cost", "added by", "status", ""].map((header) => (
@@ -132,23 +132,23 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
               {rows.map((item) => (
                 <tr key={item.id}>
                   <td className="px-3 py-2 text-xs uppercase text-muted">{item.kind}</td>
-                  <td className="px-3 py-2">{item.name}</td>
+                  <td className="px-3 py-2"><span className="block max-w-56 break-words">{item.name}</span></td>
                   <td className="px-3 py-2">{item.quantity}</td>
                   <td className="px-3 py-2">
                     {safeHref(item.link) ? (
                       <a className="text-accent underline" href={safeHref(item.link)!} target="_blank" rel="noreferrer">link</a>
                     ) : item.link ? (
-                      <span className="text-muted" title={item.link}>{item.link}</span>
+                      <span className="block max-w-56 break-all text-muted" title={item.link}>{item.link}</span>
                     ) : (
                       "-"
                     )}
                   </td>
                   <td className="px-3 py-2">{item.estimated_unit_cost ?? "-"}</td>
-                  <td className="px-3 py-2 text-muted">{item.created_by_username ?? "-"}</td>
+                  <td className="px-3 py-2 text-muted"><span className="block max-w-40 break-words">{item.created_by_username ?? "-"}</span></td>
                   <td className="px-3 py-2">
                     <button
                       type="button"
-                      className={`rounded px-2 py-1 text-xs font-semibold ${item.status === "bought" ? "bg-accent text-bg" : "border border-line text-muted"}`}
+                      className={`rounded px-2 py-1 text-xs font-semibold ${item.status === "bought" ? "bg-accent text-on-accent" : "border border-line text-muted"}`}
                       onClick={() => update.mutate({ id: item.id, status: item.status === "bought" ? "pending" : "bought" })}
                     >
                       {item.status === "bought" ? "Bought" : "Pending"}

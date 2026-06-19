@@ -94,6 +94,7 @@ class Makerspace(models.Model):
     location = models.CharField(max_length=200, blank=True)
     public_inventory_enabled = models.BooleanField(default=True)
     superadmin_access_enabled = models.BooleanField(default=True)
+    staff_notifications_enabled = models.BooleanField(default=True)
     logo_key = models.CharField(max_length=300, blank=True, default="")
     cover_image_key = models.CharField(max_length=300, blank=True, default="")
     # Case-insensitive uniqueness is enforced by the Lower() UniqueConstraint in Meta

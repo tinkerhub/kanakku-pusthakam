@@ -24,7 +24,7 @@ export function TransferTable({
   if (!transfers.length) return <p className="text-sm text-muted">No stock transfers recorded.</p>;
   return (
     <div className="overflow-x-auto rounded-md border border-line">
-      <table className="min-w-full divide-y divide-line text-left text-sm">
+      <table className="min-w-[760px] divide-y divide-line text-left text-sm">
         <thead className="bg-surface text-xs uppercase tracking-wide text-muted">
           <tr>
             <th className="px-3 py-2">ID</th>
@@ -39,9 +39,9 @@ export function TransferTable({
           {transfers.map((transfer) => (
             <tr key={transfer.id}>
               <td className="whitespace-nowrap px-3 py-2 font-medium">#{transfer.id}</td>
-              <td className="px-3 py-2">{endpointLabel(transfer.source_makerspace ?? transfer.makerspace, transfer.source_container, makerspaceNames, sourceContainerNames)}</td>
-              <td className="px-3 py-2">{endpointLabel(transfer.destination_makerspace ?? transfer.makerspace, transfer.destination_container, makerspaceNames, destinationContainerNames)}</td>
-              <td className="min-w-48 px-3 py-2 text-muted">{transfer.reason}</td>
+              <td className="px-3 py-2"><span className="block max-w-56 break-words">{endpointLabel(transfer.source_makerspace ?? transfer.makerspace, transfer.source_container, makerspaceNames, sourceContainerNames)}</span></td>
+              <td className="px-3 py-2"><span className="block max-w-56 break-words">{endpointLabel(transfer.destination_makerspace ?? transfer.makerspace, transfer.destination_container, makerspaceNames, destinationContainerNames)}</span></td>
+              <td className="min-w-48 px-3 py-2 text-muted"><span className="block max-w-64 break-words">{transfer.reason}</span></td>
               <td className="whitespace-nowrap px-3 py-2 text-muted">{formatDate(transfer.created_at)}</td>
               <td className="whitespace-nowrap px-3 py-2">{transfer.lines.length}</td>
             </tr>

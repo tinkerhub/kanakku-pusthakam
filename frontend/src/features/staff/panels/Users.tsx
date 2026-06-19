@@ -284,10 +284,12 @@ function StaffTable({ rows, makerspaceNames, loading, onRestrict, onRestore, onR
         <tbody>
           {rows.map((membership) => (
             <tr key={membership.id} className="border-b border-line last:border-b-0">
-              <td className="px-3 py-2 font-semibold text-ink">{membership.user.username}</td>
-              <td className="px-3 py-2 text-muted">{membership.user.email || "-"}</td>
+              <td className="px-3 py-2 font-semibold text-ink"><span className="block max-w-40 break-words">{membership.user.username}</span></td>
+              <td className="px-3 py-2 text-muted"><span className="block max-w-56 break-all">{membership.user.email || "-"}</span></td>
               <td className="px-3 py-2 text-ink">
-                {makerspaceNames.get(membership.makerspace_id) ?? membership.makerspace_slug}
+                <span className="block max-w-48 break-words">
+                  {makerspaceNames.get(membership.makerspace_id) ?? membership.makerspace_slug}
+                </span>
               </td>
               <td className="px-3 py-2"><AccessBadge status={membership.user.access_status} /></td>
               <td className="px-3 py-2">

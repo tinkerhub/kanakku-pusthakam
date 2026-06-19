@@ -21,6 +21,8 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
   );
   const superadminAccessEnabled =
     settings.data?.superadmin_access_enabled ?? makerspace.superadmin_access_enabled ?? true;
+  const staffNotificationsEnabled =
+    settings.data?.staff_notifications_enabled ?? makerspace.staff_notifications_enabled ?? true;
   const reEnableBlocked = isSuperadmin && !superadminAccessEnabled;
 
   const updateAccess = useMutation({
@@ -28,6 +30,19 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
       staffRequest<Makerspace>(`/admin/makerspaces/${makerspace.id}`, {
         method: "PATCH",
         body: JSON.stringify({ superadmin_access_enabled: next }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["makerspace-settings", makerspace.id] });
+      queryClient.invalidateQueries({ queryKey: ["makerspaces"] });
+      queryClient.invalidateQueries({ queryKey: ["staff", "makerspaces"] });
+    },
+  });
+
+  const updateStaffNotifications = useMutation({
+    mutationFn: (next: boolean) =>
+      staffRequest<Makerspace>(`/admin/makerspaces/${makerspace.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ staff_notifications_enabled: next }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["makerspace-settings", makerspace.id] });
@@ -77,6 +92,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
 
   const nextValue = !superadminAccessEnabled;
   const disabled = settings.isLoading || updateAccess.isPending || reEnableBlocked;
+  const notificationsDisabled = settings.isLoading || updateStaffNotifications.isPending;
   const domainSaveDisabled =
     settings.isLoading ||
     updateCustomDomain.isPending ||
@@ -144,6 +160,34 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
                   ? "Turn off access"
                   : "Turn on access"}
             </button>
+          </div>
+        </div>
+        <div className="rounded-md border border-line bg-bg p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid max-w-2xl gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-base font-semibold text-ink">Staff email notifications</h3>
+                <Badge tone={staffNotificationsEnabled ? "success" : "neutral"}>
+                  {staffNotificationsEnabled ? "On" : "Off"}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted">
+                Email this makerspace&apos;s managers when hardware and print request statuses change.
+              </p>
+              {updateStaffNotifications.error ? (
+                <p className="text-sm text-danger">{updateStaffNotifications.error.message}</p>
+              ) : null}
+            </div>
+            <label className="flex items-start gap-3 text-sm text-ink">
+              <input
+                className="mt-1 h-4 w-4"
+                type="checkbox"
+                checked={staffNotificationsEnabled}
+                disabled={notificationsDisabled}
+                onChange={(event) => updateStaffNotifications.mutate(event.target.checked)}
+              />
+              <span className="font-semibold">Send staff emails</span>
+            </label>
           </div>
         </div>
         <div className="rounded-md border border-line bg-bg p-4">

@@ -621,11 +621,15 @@ def test_accept_and_reject_send_contact_email(django_capture_on_commit_callbacks
     assert reject_response.status_code == 200
     assert [message.to for message in mailoutbox] == [
         ["accepted@example.com"],
+        ["status-email-admin@e.com"],
         ["rejected@example.com"],
+        ["status-email-admin@e.com"],
     ]
     assert "approved" in mailoutbox[0].subject
-    assert "rejected" in mailoutbox[1].subject
-    assert "Not available today." in mailoutbox[1].body
+    assert "accepted" in mailoutbox[1].subject
+    assert "rejected" in mailoutbox[2].subject
+    assert "Not available today." in mailoutbox[2].body
+    assert "rejected" in mailoutbox[3].subject
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
@@ -655,9 +659,16 @@ def test_accept_email_uses_admin_configured_template(
         )
 
     assert response.status_code == 200
-    assert len(mailoutbox) == 1
-    assert mailoutbox[0].subject == f"Custom approval {hardware_request.id}"
-    assert f"Hi {hardware_request.requester_username}" in mailoutbox[0].body
+    assert len(mailoutbox) == 2
+    requester_email = next(
+        message for message in mailoutbox if message.to == ["templated@example.com"]
+    )
+    staff_email = next(
+        message for message in mailoutbox if message.to == ["template-email-admin@e.com"]
+    )
+    assert requester_email.subject == f"Custom approval {hardware_request.id}"
+    assert f"Hi {hardware_request.requester_username}" in requester_email.body
+    assert "accepted" in staff_email.subject
 
 
 def test_inventory_manager_can_set_return_policy_and_request_due_time():

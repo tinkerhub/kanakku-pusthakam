@@ -29,11 +29,13 @@ export function DirectLoanList({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="font-semibold text-ink">{loan.target_label}</h3>
-                <p className="text-xs text-muted">
-                  {loan.status}
-                  {loan.container_label ? ` - given in: ${loan.container_label}` : ""}
-                  {loan.due_at ? ` - due ${new Date(loan.due_at).toLocaleString()}` : ""}
-                  {loan.issued_by ? ` - Issued by ${loan.issued_by.username}` : ""}
+                <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted">
+                  <span className={`status-box ${directLoanStatusClassName(loan.status)}`}>
+                    {loan.status}
+                  </span>
+                  {loan.container_label ? <span>given in: {loan.container_label}</span> : null}
+                  {loan.due_at ? <span>due {new Date(loan.due_at).toLocaleString()}</span> : null}
+                  {loan.issued_by ? <span>Issued by {loan.issued_by.username}</span> : null}
                 </p>
               </div>
               {loan.status === "checked_out" ? (
@@ -58,6 +60,17 @@ export function DirectLoanList({
       </div>
     </Panel>
   );
+}
+
+function directLoanStatusClassName(status: string) {
+  switch (status) {
+    case "checked_out":
+      return "status-box-active";
+    case "returned":
+      return "status-box-done";
+    default:
+      return "";
+  }
 }
 
 async function openEvidence(id: number) {

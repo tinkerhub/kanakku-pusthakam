@@ -145,7 +145,7 @@ export function PublicRequestPanel({
 
           <div
             aria-label="Request actions"
-            className="desk-panel flex shrink-0 gap-1 p-1"
+            className="desk-panel flex shrink-0 flex-wrap gap-1 p-1"
             role="tablist"
           >
             <button
@@ -229,8 +229,8 @@ export function PublicRequestPanel({
                 role="tabpanel"
               >
                 <Card>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
                       <p className="text-xs font-semibold uppercase tracking-wide text-accent">
                         My Requests
                       </p>

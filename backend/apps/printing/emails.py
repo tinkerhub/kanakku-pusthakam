@@ -2,9 +2,12 @@ import logging
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
+from django.db import transaction
 from django.template.loader import render_to_string
 
-from apps.integrations.email import makerspace_mail_connection
+from apps.integrations.email import makerspace_mail_connection, send_makerspace_email
+from apps.integrations.staff_notifications import staff_emails_for_stream
+from apps.printing.models import PrintRequest
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +17,17 @@ _SUBJECTS = {
     "started": "Your makerspace print request is now printing",
     "rejected": "Your makerspace print request was rejected",
     "completed": "Your makerspace print request is ready to collect",
+}
+
+_STAFF_SUBJECTS = {
+    "submitted": "{makerspace} print request #{id} submitted",
+    "accepted": "{makerspace} print request #{id} accepted",
+    "started": "{makerspace} print request #{id} started",
+    "completed": "{makerspace} print request #{id} completed",
+    "rejected": "{makerspace} print request #{id} rejected",
+    "failed": "{makerspace} print request #{id} failed",
+    "collected": "{makerspace} print request #{id} collected",
+    "reprinted": "{makerspace} reprint request #{id} accepted",
 }
 
 
@@ -29,6 +43,28 @@ def _with_email_relations(print_request):
         type(print_request)
         .objects.select_related("bucket__makerspace", "requester")
         .get(pk=print_request.pk)
+    )
+
+
+def _request_for_email(request_id):
+    return PrintRequest.objects.select_related("bucket__makerspace", "requester").get(
+        pk=request_id
+    )
+
+
+def queue_print_email(event, request_id):
+    transaction.on_commit(
+        lambda event=event, request_id=request_id: send_print_email(
+            event, _request_for_email(request_id)
+        )
+    )
+
+
+def queue_staff_print_email(event, request_id):
+    transaction.on_commit(
+        lambda event=event, request_id=request_id: send_staff_print_email(
+            event, _request_for_email(request_id)
+        )
     )
 
 
@@ -79,3 +115,54 @@ def send_print_email(event, print_request):
             },
             exc_info=True,
         )
+
+
+def send_staff_print_email(event, print_request):
+    try:
+        print_request = _with_email_relations(print_request)
+        makerspace = print_request.bucket.makerspace
+        recipients = staff_emails_for_stream(makerspace, "printing")
+        if not recipients:
+            return
+
+        subject = _STAFF_SUBJECTS[event].format(
+            makerspace=makerspace.name,
+            id=print_request.pk,
+        )
+        body = _staff_print_body(event, print_request)
+        send_makerspace_email(makerspace, subject, body, recipients)
+    except Exception:
+        logger.warning(
+            "print_staff_email_send_failed",
+            extra={
+                "event": event,
+                "print_request_id": getattr(print_request, "pk", None),
+            },
+            exc_info=True,
+        )
+
+
+def _staff_print_body(event, print_request):
+    lines = [
+        f"Print request #{print_request.pk} {event}.",
+        "",
+        f"Status: {print_request.status}",
+        f"Title: {print_request.title}",
+        f"Requester: {print_request.requester_name or print_request.requester.username}",
+    ]
+    if print_request.contact_email:
+        lines.append(f"Email: {print_request.contact_email}")
+    elif print_request.requester.email:
+        lines.append(f"Email: {print_request.requester.email}")
+    if print_request.contact_phone:
+        lines.append(f"Phone: {print_request.contact_phone}")
+    if print_request.material:
+        lines.append(f"Material: {print_request.material}")
+    if print_request.color:
+        lines.append(f"Color: {print_request.color}")
+    lines.append(f"Quantity: {print_request.quantity}")
+    if print_request.reason:
+        lines.append(f"Reason: {print_request.reason}")
+    if print_request.reprint_of_id:
+        lines.append(f"Reprint of: #{print_request.reprint_of_id}")
+    return "\n".join(lines)

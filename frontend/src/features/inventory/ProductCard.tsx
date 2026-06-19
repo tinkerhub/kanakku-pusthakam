@@ -66,13 +66,13 @@ export function ProductCard({
           </div>
         )}
         {chip ? (
-          <span className={`absolute right-2 top-2 ${chip.cls}`}>{chip.text}</span>
+          <span className={`absolute right-2 top-2 max-w-[calc(100%-1rem)] ${chip.cls}`}>{chip.text}</span>
         ) : null}
       </div>
 
       {/* Body */}
       <div className="flex flex-1 flex-col p-4">
-        <h2 className="font-display text-lg font-semibold uppercase leading-tight text-ink">
+        <h2 className="break-words font-display text-lg font-semibold uppercase leading-tight text-ink">
           {product.name}
         </h2>
         <p className="mt-1 font-mono text-xs uppercase text-muted">{idLabel}</p>
@@ -85,7 +85,7 @@ export function ProductCard({
           </div>
         ) : null}
 
-        <div className="mt-auto flex items-center justify-between gap-2 pt-4">
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
           <div className="flex items-center border-2 border-ink bg-bg">
             <button
               aria-label={`Remove ${product.name}`}
@@ -110,7 +110,7 @@ export function ProductCard({
             </button>
           </div>
           <Link
-            className="font-mono text-xs font-semibold uppercase tracking-tight text-secondary underline-offset-4 hover:underline"
+            className="min-w-0 break-words font-mono text-xs font-semibold uppercase tracking-tight text-secondary underline-offset-4 hover:underline"
             to={detailPath}
           >
             Details &rarr;

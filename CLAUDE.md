@@ -2,10 +2,47 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — status boxes + theme/hover/responsive + per-makerspace staff emails (2026-06-20)
+
+Frontend polish + a new staff-notification feature. Codex Stage-1 plan-reviewed APPROVED (1 revision
++ delta re-review); built phases 1-5; Codex Stage-4 review clean after 2 P2 fixes; **678 backend tests
+green**. Plan (gitignored): `docs/superpowers/specs/2026-06-20-status-boxes-theme-responsive-staff-emails-plan.md`.
+
+- **Theme/hover/accents (frontend).** Fixed "text vanishes on hover": the global
+  `.desk-panel-body > button` catch-all that styled every panel button as a primary now excludes
+  buttons defining their own colour/variant (`:not([class*="desk-"]):not([class*="text-"]):not([class*="bg-"])`),
+  so ghost/`text-accent` buttons no longer render accent-on-accent. Dark-mode "Available" fixed
+  (`.chip-available` → `bg-success text-bg`). Site-wide accent-harmony pass: hardcoded
+  red/green/amber/slate/white → theme tokens; danger buttons given guaranteed hover contrast.
+- **Status boxes (frontend).** New shared `.status-box`/`-active`/`-done`/`-danger` helpers
+  (`index.css`) applied to the public hardware stepper (`components/ui/StatusStepper.tsx`, now
+  bordered boxes), public print stepper, staff print rows (`PrintingPanelParts`), staff hardware
+  queue (`QueuesList`), `DirectLoanList`, and `Ledger` overdue — consistent in both themes.
+- **Responsive.** Stepper 2-col→4-col at `sm`, tables scroll-wrapped (`overflow-x-auto`), page
+  shells single-column on mobile, headers/toolbars wrap; verified 320px→1920px.
+- **Grid toggle removed.** The blueprint grid on/off button (`GridToggle`) is deleted from all
+  pages (App + StaffApp); the 32px grid stays permanently on (dead `data-grid` CSS/JS removed).
+- **Per-makerspace staff email notifications (backend).** New `Makerspace.staff_notifications_enabled`
+  (BooleanField default True, migration `makerspaces/0020`) + a Settings checkbox. At **every**
+  lifecycle status change, the makerspace's OWN managers are emailed IN ADDITION to the requester
+  (requester emails unchanged): **hardware → Space + Inventory managers; printing → Space + Print
+  managers; NO superadmin**. Recipients resolve via `apps/integrations/staff_notifications.py`
+  (`staff_emails_for_stream(makerspace, stream)`: toggle-gated, `is_active`+`access_status=ACTIVE`,
+  lowercase dedupe, excludes superadmin, fully fail-safe → `[]`). Hardware templates in
+  `apps/hardware_requests/staff_notifications.py` (distinct partial/returned/closed_with_issue via
+  `request.status`); printing via `send_staff_print_email`/`queue_staff_print_email`
+  (`printing/emails.py`) wired in `workflow.py` (accepted/started/completed/rejected/failed/
+  collected/reprinted), `public_workflow.py`, and `views_requests.py` (authenticated submit). Every
+  staff send wraps resolve→render→reload→SMTP in try/except (log only). `notify_return_due` marks
+  the reminder cycle complete when borrower OR staff was reminded (so a borrower with no email can't
+  cause the cron to re-send the staff reminder every run). Tests: `tests/test_staff_notifications.py`.
+- **Next batch (queued, not built):** unify ALL email types (hardware/printing requester + staff)
+  into one per-makerspace editable HTML template system with global defaults + a documented merge-
+  fields section, editable in BOTH the Django `/control/` admin and the React staff console.
+
 ## Recent batch — Blueprint UI redesign + item/makerspace imagery (2026-06-20)
 
-Whole-app reskin to the **"Blueprint Creative Lab"** design system (reference checked in at
-`stitch_luminous_minimalist_interface/`) plus public images for inventory items and per-makerspace
+Whole-app reskin to the **"Blueprint Creative Lab"** design system plus public images for inventory items and per-makerspace
 logo/cover. Codex Stage-1 plan-reviewed APPROVED (2 rounds); built phase-by-phase, committed on green;
 backend suite 646 green. Plan (gitignored): `docs/superpowers/specs/2026-06-20-blueprint-ui-redesign-plan.md`.
 

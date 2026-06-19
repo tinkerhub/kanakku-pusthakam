@@ -11994,6 +11994,9 @@
                     "superadmin_access_enabled": {
                         "type": "boolean"
                     },
+                    "staff_notifications_enabled": {
+                        "type": "boolean"
+                    },
                     "logo_key": {
                         "type": "string",
                         "readOnly": true
@@ -13428,6 +13431,9 @@
                         "type": "boolean"
                     },
                     "superadmin_access_enabled": {
+                        "type": "boolean"
+                    },
+                    "staff_notifications_enabled": {
                         "type": "boolean"
                     },
                     "logo_key": {

@@ -119,24 +119,26 @@ function CountSection({ makerspace, stocktakeId }: { makerspace: Makerspace; sto
         <button disabled={!productId || record.isPending} onClick={() => record.mutate()}>{record.isPending ? "Saving..." : "Record count"}</button>
       </div>
       {recordError ? <p className="mt-2 text-sm text-danger">{recordError}</p> : null}
-      <div className="mt-3 grid gap-1">
+      <div className="mt-3 grid min-w-0 gap-1">
         {lines.length ? (
-          <table className="w-full text-left text-xs">
-            <thead className="text-muted">
-              <tr><th className="py-1">Product</th><th>Expected</th><th>Counted</th><th>Variance</th><th>Condition</th></tr>
-            </thead>
-            <tbody>
-              {lines.map((line) => (
-                <tr key={line.id} className="border-t border-line">
-                  <td className="py-1">{productName(line.product)}</td>
-                  <td>{line.expected_quantity}</td>
-                  <td>{line.counted_quantity}</td>
-                  <td className={line.variance_quantity === 0 ? "text-muted" : "text-danger"}>{line.variance_quantity}</td>
-                  <td>{line.condition}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="min-w-[560px] text-left text-xs">
+              <thead className="text-muted">
+                <tr><th className="py-1">Product</th><th>Expected</th><th>Counted</th><th>Variance</th><th>Condition</th></tr>
+              </thead>
+              <tbody>
+                {lines.map((line) => (
+                  <tr key={line.id} className="border-t border-line">
+                    <td className="py-1"><span className="block max-w-48 break-words">{productName(line.product)}</span></td>
+                    <td>{line.expected_quantity}</td>
+                    <td>{line.counted_quantity}</td>
+                    <td className={line.variance_quantity === 0 ? "text-muted" : "text-danger"}>{line.variance_quantity}</td>
+                    <td>{line.condition}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : <p className="text-xs text-muted">No counts recorded yet.</p>}
       </div>
     </div>

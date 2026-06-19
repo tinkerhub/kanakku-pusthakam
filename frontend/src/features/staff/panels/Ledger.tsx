@@ -95,14 +95,14 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
         />
 
         {ledger.isLoading ? <p className="text-sm text-muted">Loading ledger...</p> : null}
-        {ledger.error ? <p className="text-sm text-red-600">{ledger.error.message}</p> : null}
+        {ledger.error ? <p className="text-sm text-danger">{ledger.error.message}</p> : null}
         {!ledger.isLoading && !ledger.error && !visibleRows.length ? (
           <p className="rounded-md border border-line bg-surface p-3 text-sm text-muted">No items are currently out.</p>
         ) : null}
 
         {visibleRows.length ? (
           <div className="overflow-x-auto rounded-md border border-line">
-            <table className="min-w-full divide-y divide-line text-left text-sm">
+            <table className="min-w-[760px] divide-y divide-line text-left text-sm">
               <thead className="bg-bg text-xs font-semibold uppercase text-muted">
                 <tr>
                   <SortableHeader label="Item" sortKey="item_name" sort={sort} onSort={setSortKey} />
@@ -118,16 +118,19 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
                 {visibleRows.map((row) => {
                   const overdue = isOverdue(row.due, now);
                   return (
-                    <tr key={`${row.source}-${row.reference_id}-${row.makerspace_id}-${row.item_name}`} className={overdue ? "bg-red-50/80" : ""}>
-                      <td className="whitespace-nowrap px-3 py-2">
-                        <div className="font-medium text-ink">{row.item_name}</div>
+                    <tr key={`${row.source}-${row.reference_id}-${row.makerspace_id}-${row.item_name}`} className={overdue ? "bg-danger/10" : ""}>
+                      <td className="px-3 py-2 align-top">
+                        <div className="max-w-56 break-words font-medium text-ink">{row.item_name}</div>
                         <UnitLines row={row} />
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-ink">{row.holder}</td>
+                      <td className="px-3 py-2 align-top text-ink"><span className="block max-w-48 break-words">{row.holder}</span></td>
                       <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-ink">{row.quantity}</td>
                       <td className="whitespace-nowrap px-3 py-2 text-muted">{formatDate(row.since)}</td>
-                      <td className={`whitespace-nowrap px-3 py-2 ${overdue ? "font-semibold text-red-700" : "text-muted"}`}>
-                        {formatDate(row.due)}
+                      <td className={`whitespace-nowrap px-3 py-2 ${overdue ? "font-semibold text-danger" : "text-muted"}`}>
+                        <span className="inline-flex items-center gap-2">
+                          {formatDate(row.due)}
+                          {overdue ? <span className="status-box status-box-danger">Overdue</span> : null}
+                        </span>
                       </td>
                       <td className="whitespace-nowrap px-3 py-2">
                         <span className="rounded-md border border-line bg-bg px-2 py-0.5 text-xs font-medium text-muted">
@@ -152,7 +155,7 @@ function UnitLines({ row }: { row: LedgerRow }) {
     return (
       <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted">
         {row.units.map((unit) => (
-          <span key={`${unit.asset_tag}-${unit.serial_number || "no-serial"}`}>
+          <span className="break-words" key={`${unit.asset_tag}-${unit.serial_number || "no-serial"}`}>
             #{unit.asset_tag}
             {unit.serial_number ? ` · ${unit.serial_number}` : ""}
           </span>
@@ -161,7 +164,7 @@ function UnitLines({ row }: { row: LedgerRow }) {
     );
   }
 
-  return row.target_label ? <div className="mt-0.5 text-xs text-muted">{row.target_label}</div> : null;
+  return row.target_label ? <div className="mt-0.5 break-words text-xs text-muted">{row.target_label}</div> : null;
 }
 
 function SortableHeader({
