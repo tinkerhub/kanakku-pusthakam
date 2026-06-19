@@ -1,9 +1,17 @@
+import re
+
 from django.db import transaction
 from rest_framework import serializers
 
 from apps.accounts.models import User
 from apps.integrations.email import platform_email_configured
-from apps.makerspaces.models import Makerspace
+from apps.makerspaces.models import Makerspace, normalize_frontend_domain
+
+# Bare hostname (DNS labels); allows "localhost" and "alpha-lab.example.com",
+# rejects schemes, paths, ports, spaces, and empty labels.
+_HOSTNAME_RE = re.compile(
+    r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
+)
 
 
 class MakerspaceSerializer(serializers.ModelSerializer):
@@ -83,13 +91,21 @@ class MakerspaceSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if "frontend_domain" in attrs:
-            normalized_domain = (
-                (attrs.get("frontend_domain") or "").strip().lower()
-            ) or None
+            raw_domain = attrs.get("frontend_domain")
+            normalized_domain = normalize_frontend_domain(raw_domain)
             attrs["frontend_domain"] = normalized_domain
             if normalized_domain is None:
+                # A non-empty input that normalized to nothing was malformed.
+                if (raw_domain or "").strip():
+                    raise serializers.ValidationError(
+                        {"frontend_domain": "Enter a valid domain, e.g. alphamakerspace.com."}
+                    )
                 attrs["hidden_from_central_directory"] = False
                 return attrs
+            if not _HOSTNAME_RE.match(normalized_domain):
+                raise serializers.ValidationError(
+                    {"frontend_domain": "Enter a valid domain, e.g. alphamakerspace.com."}
+                )
 
             queryset = Makerspace.objects.filter(frontend_domain__iexact=normalized_domain)
             if self.instance is not None:

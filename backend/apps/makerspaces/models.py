@@ -1,3 +1,5 @@
+from urllib.parse import urlsplit
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
@@ -15,6 +17,20 @@ def generate_publishable_key():
 
 def generate_public_code():
     return get_random_string(4, allowed_chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
+
+
+def normalize_frontend_domain(value):
+    """Reduce a pasted domain/URL/origin to a bare lowercase host (or None).
+
+    A staff member may paste `https://alpha.example/admin`; storing that raw would
+    make the origin helpers build `https://https://alpha.example`. Extract just the
+    host so `frontend_domain` is always a bare hostname.
+    """
+    raw = (value or "").strip().lower()
+    if not raw:
+        return None
+    parsed = urlsplit(raw if "://" in raw else f"//{raw}")
+    return (parsed.hostname or "") or None
 
 
 DEFAULT_ENABLED_MODULES = [
@@ -152,7 +168,7 @@ class Makerspace(models.Model):
 
     def save(self, *args, **kwargs):
         self.public_code = (self.public_code or "").upper()
-        self.frontend_domain = ((self.frontend_domain or "").strip().lower()) or None
+        self.frontend_domain = normalize_frontend_domain(self.frontend_domain)
         super().save(*args, **kwargs)
 
     def clean(self):

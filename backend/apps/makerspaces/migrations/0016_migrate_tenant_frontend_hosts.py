@@ -64,9 +64,14 @@ def migrate_tenant_frontend_hosts(apps, schema_editor):
     Makerspace = apps.get_model("makerspaces", "Makerspace")
     TenantFrontend = apps.get_model("makerspaces", "TenantFrontend")
 
+    # Only ACTIVE frontends define a live domain. An inactive row (e.g. a space the
+    # old UI switched back to central mode) must not resurrect a disabled domain or
+    # block the upgrade with a stale ambiguous host.
     rows = [
         (frontend.makerspace_id, frontend.hostname, frontend.allowed_origins)
-        for frontend in TenantFrontend.objects.all().order_by("makerspace_id", "id")
+        for frontend in TenantFrontend.objects.filter(is_active=True).order_by(
+            "makerspace_id", "id"
+        )
     ]
     resolved = resolve_frontend_domains(rows)
 

@@ -170,3 +170,36 @@ def test_migration_raises_on_invalid_origin():
 
 def test_migration_skips_makerspace_without_hosts():
     assert _host_migration.resolve_frontend_domains([(1, None, [])]) == {}
+
+
+def test_save_normalizes_pasted_url_to_bare_host():
+    makerspace = Makerspace.objects.create(
+        name="Pasted",
+        slug="frontend-pasted-url",
+        frontend_domain="https://Alpha.Example/admin",
+    )
+
+    assert makerspace.frontend_domain == "alpha.example"
+
+
+def test_serializer_normalizes_pasted_url_and_rejects_garbage():
+    makerspace = make_space("frontend-api-normalize")
+    manager = make_member("frontend-api-normalize-manager", makerspace)
+    client = authenticated_client(manager)
+
+    ok = client.patch(
+        makerspace_detail_url(makerspace),
+        {"frontend_domain": "https://Branded.Example/admin"},
+        format="json",
+    )
+    assert ok.status_code == 200
+    makerspace.refresh_from_db()
+    assert makerspace.frontend_domain == "branded.example"
+
+    bad = client.patch(
+        makerspace_detail_url(makerspace),
+        {"frontend_domain": "not a domain"},
+        format="json",
+    )
+    assert bad.status_code == 400
+    assert "frontend_domain" in bad.data
