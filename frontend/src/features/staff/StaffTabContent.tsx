@@ -19,7 +19,6 @@ import {
   ScannerPanel,
   StocktakePanel,
   StockTransferPanel,
-  TenantFrontendsPanel,
   Users,
   type Makerspace,
 } from "./StaffPanels";
@@ -120,7 +119,6 @@ export function StaffTabContent({
           makerspaces={makerspaces}
         />
       ) : null}
-      {activeTab === "frontends" ? <TenantFrontendsPanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "api" ? (
         <ApiClientsPanel
           key={makerspaceKey}

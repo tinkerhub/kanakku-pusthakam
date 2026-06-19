@@ -23,7 +23,7 @@ import { useTenant } from "../../lib/tenant";
 
 const ALL_TABS = [
   "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
-  "stocktake", "containers", "ledger", "reports", "bulk", "qr", "scanner", "frontends", "api", "settings", "users", "platform", "audit",
+  "stocktake", "containers", "ledger", "reports", "bulk", "qr", "scanner", "api", "settings", "users", "platform", "audit",
 ] as const;
 // Membership roles that get the full staff console. Anything else (print_manager,
 // or an unknown role) is failed closed to the 3D-printing surfaces only.
@@ -235,7 +235,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   // EDIT_INVENTORY roles only (guest admins can't repair/scrap stock).
   const canEditInventory = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
   const canViewAudit = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
-  // MANAGE_MAKERSPACE holders (Space Manager + superadmin) manage frontend origins,
+  // MANAGE_MAKERSPACE holders (Space Manager + superadmin) manage custom domains,
   // API clients, and makerspace settings.
   // Declared before allowedTabs because the filter callback below reads it immediately.
   const canManageMakerspace = isSuperadmin || activeRole === "space_manager";
@@ -243,7 +243,6 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     if (tabName === "tobuy") return canUseToBuy;
     if (tabName === "needsfix") return canEditInventory;
     if (tabName === "containers") return canEditInventory; // MANAGE_QR roles (space/inventory mgr + superadmin)
-    if (tabName === "frontends") return canManageMakerspace;
     if (tabName === "settings") return canManageMakerspace;
     if (tabName === "platform") return isSuperadmin && !singleTenantLocked;
     if (tabName === "printing") return canSeePrinting; // hide printer/spool mgmt from inventory managers
@@ -302,7 +301,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
                 }`}
                 onClick={() => setTab(item)}
               >
-                  {item === "qr" ? "QR Tools" : item === "direct" ? "Direct handout" : item === "api" ? "API access" : item === "stocktake" ? "Stocktake" : item === "printing" ? "3D Printing" : item === "tobuy" ? "To Buy" : item === "needsfix" ? "To-be-fixed" : item === "containers" ? "Containers" : item === "frontends" ? "Frontends" : item === "platform" ? "Platform email" : item === "settings" ? "Settings" : item[0].toUpperCase() + item.slice(1)}
+                  {item === "qr" ? "QR Tools" : item === "direct" ? "Direct handout" : item === "api" ? "API access" : item === "stocktake" ? "Stocktake" : item === "printing" ? "3D Printing" : item === "tobuy" ? "To Buy" : item === "needsfix" ? "To-be-fixed" : item === "containers" ? "Containers" : item === "platform" ? "Platform email" : item === "settings" ? "Settings" : item[0].toUpperCase() + item.slice(1)}
               </button>
             ))}
           </nav>

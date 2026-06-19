@@ -9,6 +9,8 @@ export type Makerspace = {
   public_code: string;
   slug: string;
   telegram_group_chat_id: string;
+  frontend_domain: string | null;
+  hidden_from_central_directory: boolean;
   superadmin_access_enabled?: boolean;
 };
 

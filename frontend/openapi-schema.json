@@ -1058,95 +1058,6 @@
                 }
             }
         },
-        "/api/v1/admin/frontends/{id}": {
-            "get": {
-                "operationId": "api_v1_admin_frontends_retrieve",
-                "summary": "Retrieve or update registered tenant frontend",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "id",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Tenant bootstrap"
-                ],
-                "security": [
-                    {
-                        "jwtAuth": []
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantFrontend"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            },
-            "patch": {
-                "operationId": "api_v1_admin_frontends_partial_update",
-                "summary": "Retrieve or update registered tenant frontend",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "id",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Tenant bootstrap"
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PatchedTenantFrontend"
-                            }
-                        },
-                        "application/x-www-form-urlencoded": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PatchedTenantFrontend"
-                            }
-                        },
-                        "multipart/form-data": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PatchedTenantFrontend"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "jwtAuth": []
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantFrontend"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        },
         "/api/v1/admin/inventory/{id}": {
             "get": {
                 "operationId": "api_v1_admin_inventory_retrieve",
@@ -2614,104 +2525,6 @@
                             }
                         },
                         "description": "Workflow conflict."
-                    }
-                }
-            }
-        },
-        "/api/v1/admin/makerspace/{makerspace_id}/frontends": {
-            "get": {
-                "operationId": "api_v1_admin_makerspace_frontends_list",
-                "summary": "List or create registered tenant frontends",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "makerspace_id",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "required": true
-                    },
-                    {
-                        "name": "page",
-                        "required": false,
-                        "in": "query",
-                        "description": "A page number within the paginated result set.",
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "tags": [
-                    "Tenant bootstrap"
-                ],
-                "security": [
-                    {
-                        "jwtAuth": []
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/PaginatedTenantFrontendList"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            },
-            "post": {
-                "operationId": "api_v1_admin_makerspace_frontends_create",
-                "summary": "List or create registered tenant frontends",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "makerspace_id",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Tenant bootstrap"
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/TenantFrontend"
-                            }
-                        },
-                        "application/x-www-form-urlencoded": {
-                            "schema": {
-                                "$ref": "#/components/schemas/TenantFrontend"
-                            }
-                        },
-                        "multipart/form-data": {
-                            "schema": {
-                                "$ref": "#/components/schemas/TenantFrontend"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "jwtAuth": []
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantFrontend"
-                                }
-                            }
-                        },
-                        "description": ""
                     }
                 }
             }
@@ -9835,6 +9648,24 @@
                         "readOnly": true,
                         "nullable": true
                     },
+                    "accepted_by": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AdminRequestActor"
+                            }
+                        ],
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "issued_by": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AdminRequestActor"
+                            }
+                        ],
+                        "readOnly": true,
+                        "nullable": true
+                    },
                     "accepted_at": {
                         "type": "string",
                         "format": "date-time",
@@ -9890,12 +9721,14 @@
                 },
                 "required": [
                     "accepted_at",
+                    "accepted_by",
                     "assigned_box_label",
                     "closed_at",
                     "created_at",
                     "id",
                     "issue_evidence_id",
                     "issued_at",
+                    "issued_by",
                     "items",
                     "makerspace_id",
                     "rejection_reason",
@@ -9908,6 +9741,23 @@
                     "return_reminder_sent_at",
                     "status",
                     "updated_at"
+                ]
+            },
+            "AdminRequestActor": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "role": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "role",
+                    "username"
                 ]
             },
             "AdminRequestItem": {
@@ -10794,6 +10644,15 @@
                     "source": {
                         "type": "string",
                         "readOnly": true
+                    },
+                    "issued_by": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DirectLoanUserAttribution"
+                            }
+                        ],
+                        "nullable": true,
+                        "readOnly": true
                     }
                 },
                 "required": [
@@ -10801,6 +10660,7 @@
                     "container_label",
                     "due_at",
                     "id",
+                    "issued_by",
                     "items",
                     "public_token",
                     "source",
@@ -10859,6 +10719,21 @@
                         "type": "string"
                     }
                 }
+            },
+            "DirectLoanUserAttribution": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "role",
+                    "username"
+                ]
             },
             "DispositionEnum": {
                 "enum": [
@@ -10952,11 +10827,11 @@
                     "percent_complete": {
                         "type": "integer",
                         "maximum": 100,
-                        "minimum": 0,
-                        "default": 0
+                        "minimum": 0
                     }
                 },
                 "required": [
+                    "percent_complete",
                     "reason"
                 ]
             },
@@ -11108,19 +10983,6 @@
                 "required": [
                     "email"
                 ]
-            },
-            "FrontendTypeEnum": {
-                "enum": [
-                    "public_portal",
-                    "staff_admin",
-                    "guest_handover",
-                    "scanner",
-                    "kiosk",
-                    "superadmin_console",
-                    "third_party"
-                ],
-                "type": "string",
-                "description": "* `public_portal` - Public Portal\n* `staff_admin` - Staff Admin\n* `guest_handover` - Guest Handover\n* `scanner` - Scanner\n* `kiosk` - Kiosk\n* `superadmin_console` - Superadmin Console\n* `third_party` - Third Party"
             },
             "HardwareRequestError": {
                 "type": "object",
@@ -11389,9 +11251,27 @@
                     "status"
                 ]
             },
+            "LendingHistoryActor": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "role",
+                    "username"
+                ]
+            },
             "LendingHistoryEntry": {
                 "type": "object",
                 "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
                     "username": {
                         "type": "string"
                     },
@@ -11401,10 +11281,29 @@
                     },
                     "quantity": {
                         "type": "integer"
+                    },
+                    "issued_by": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LendingHistoryActor"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "accepted_by": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LendingHistoryActor"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
+                    "accepted_by",
+                    "id",
                     "issued_at",
+                    "issued_by",
                     "quantity",
                     "username"
                 ]
@@ -11507,6 +11406,14 @@
                         "type": "boolean"
                     },
                     "superadmin_access_enabled": {
+                        "type": "boolean"
+                    },
+                    "frontend_domain": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 255
+                    },
+                    "hidden_from_central_directory": {
                         "type": "boolean"
                     },
                     "public_api_key": {
@@ -11741,6 +11648,12 @@
                         "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$",
                         "readOnly": true
                     },
+                    "filament_grams_reserved": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
                     "reprint_of": {
                         "type": "integer",
                         "readOnly": true
@@ -11818,6 +11731,7 @@
                     "estimate_screenshot",
                     "estimated_filament_grams",
                     "estimated_minutes",
+                    "filament_grams_reserved",
                     "filament_grams_used",
                     "filament_spool",
                     "files",
@@ -12485,37 +12399,6 @@
                     }
                 }
             },
-            "PaginatedTenantFrontendList": {
-                "type": "object",
-                "required": [
-                    "count",
-                    "results"
-                ],
-                "properties": {
-                    "count": {
-                        "type": "integer",
-                        "example": 123
-                    },
-                    "next": {
-                        "type": "string",
-                        "nullable": true,
-                        "format": "uri",
-                        "example": "http://api.example.org/accounts/?page=4"
-                    },
-                    "previous": {
-                        "type": "string",
-                        "nullable": true,
-                        "format": "uri",
-                        "example": "http://api.example.org/accounts/?page=2"
-                    },
-                    "results": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/TenantFrontend"
-                        }
-                    }
-                }
-            },
             "PatchedApiClient": {
                 "type": "object",
                 "properties": {
@@ -12927,6 +12810,14 @@
                     "superadmin_access_enabled": {
                         "type": "boolean"
                     },
+                    "frontend_domain": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 255
+                    },
+                    "hidden_from_central_directory": {
+                        "type": "boolean"
+                    },
                     "public_api_key": {
                         "type": "string",
                         "readOnly": true
@@ -13117,51 +13008,6 @@
                         "type": "integer",
                         "maximum": 2147483647,
                         "minimum": 0
-                    }
-                }
-            },
-            "PatchedTenantFrontend": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "integer",
-                        "readOnly": true
-                    },
-                    "makerspace": {
-                        "type": "integer",
-                        "readOnly": true
-                    },
-                    "token": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "hostname": {
-                        "type": "string",
-                        "nullable": true,
-                        "maxLength": 255
-                    },
-                    "frontend_type": {
-                        "$ref": "#/components/schemas/FrontendTypeEnum"
-                    },
-                    "allowed_origins": {},
-                    "enabled_modules": {},
-                    "theme_config": {},
-                    "branding_config": {},
-                    "is_primary": {
-                        "type": "boolean"
-                    },
-                    "is_active": {
-                        "type": "boolean"
-                    },
-                    "created_at": {
-                        "type": "string",
-                        "format": "date-time",
-                        "readOnly": true
-                    },
-                    "updated_at": {
-                        "type": "string",
-                        "format": "date-time",
-                        "readOnly": true
                     }
                 }
             },
@@ -13651,6 +13497,12 @@
                         "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$",
                         "readOnly": true
                     },
+                    "filament_grams_reserved": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
                     "reprint_of": {
                         "type": "integer",
                         "readOnly": true
@@ -13696,6 +13548,7 @@
                     "estimate_screenshot",
                     "estimated_filament_grams",
                     "estimated_minutes",
+                    "filament_grams_reserved",
                     "filament_grams_used",
                     "filament_spool",
                     "files",
@@ -14896,7 +14749,8 @@
                         "type": "integer"
                     },
                     "new_name": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 100
                     }
                 },
                 "required": [
@@ -15711,58 +15565,6 @@
                         "additionalProperties": {}
                     }
                 }
-            },
-            "TenantFrontend": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "integer",
-                        "readOnly": true
-                    },
-                    "makerspace": {
-                        "type": "integer",
-                        "readOnly": true
-                    },
-                    "token": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "hostname": {
-                        "type": "string",
-                        "nullable": true,
-                        "maxLength": 255
-                    },
-                    "frontend_type": {
-                        "$ref": "#/components/schemas/FrontendTypeEnum"
-                    },
-                    "allowed_origins": {},
-                    "enabled_modules": {},
-                    "theme_config": {},
-                    "branding_config": {},
-                    "is_primary": {
-                        "type": "boolean"
-                    },
-                    "is_active": {
-                        "type": "boolean"
-                    },
-                    "created_at": {
-                        "type": "string",
-                        "format": "date-time",
-                        "readOnly": true
-                    },
-                    "updated_at": {
-                        "type": "string",
-                        "format": "date-time",
-                        "readOnly": true
-                    }
-                },
-                "required": [
-                    "created_at",
-                    "id",
-                    "makerspace",
-                    "token",
-                    "updated_at"
-                ]
             },
             "ToBuyItem": {
                 "type": "object",
