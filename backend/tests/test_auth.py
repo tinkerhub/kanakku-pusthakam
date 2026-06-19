@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.makerspaces.models import Makerspace, MakerspaceMembership, TenantFrontend
+from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
 pytestmark = pytest.mark.django_db
 LOGIN = "/api/v1/auth/login"
@@ -92,12 +92,10 @@ def test_refresh_rejected_on_origin_prefix_bypass():
 
 def test_refresh_allows_registered_staff_frontend_origin():
     registered_origin = "https://staff.example"
-    makerspace = Makerspace.objects.create(name="Registered", slug="registered")
-    TenantFrontend.objects.create(
-        makerspace=makerspace,
-        allowed_origins=[registered_origin],
-        frontend_type=TenantFrontend.FrontendType.STAFF_ADMIN,
-        is_active=True,
+    Makerspace.objects.create(
+        name="Registered",
+        slug="registered",
+        frontend_domain="staff.example",
     )
     client = APIClient()
     _login(client)
@@ -114,12 +112,10 @@ def test_refresh_allows_registered_staff_frontend_origin():
 
 
 def test_refresh_rejects_non_localhost_http_staff_frontend_origin():
-    makerspace = Makerspace.objects.create(name="HTTP Staff", slug="http-staff")
-    TenantFrontend.objects.create(
-        makerspace=makerspace,
-        hostname="staff.example",
-        frontend_type=TenantFrontend.FrontendType.STAFF_ADMIN,
-        is_active=True,
+    Makerspace.objects.create(
+        name="HTTP Staff",
+        slug="http-staff",
+        frontend_domain="staff.example",
     )
     client = APIClient()
     _login(client)
@@ -139,27 +135,18 @@ def test_refresh_rejects_non_localhost_http_staff_frontend_origin():
     assert accepted.status_code == 200
 
 
-def test_refresh_rejects_public_and_integration_origins():
-    """A public-portal frontend origin and a makerspace public/API-client origin must NOT
-    pass the refresh CSRF check, even though both are 'registered' for CORS — otherwise a
-    page on a public/integration origin could read a staff access token."""
-    public_origin = "https://public.example"
+def test_refresh_rejects_origin_only_in_cors_allowed_origins():
+    """A public/API-client origin must not pass the refresh CSRF check."""
     api_origin = "https://api-client.example"
-    makerspace = Makerspace.objects.create(
+    Makerspace.objects.create(
         name="Public", slug="public-origins", cors_allowed_origins=[api_origin]
-    )
-    TenantFrontend.objects.create(
-        makerspace=makerspace,
-        allowed_origins=[public_origin],
-        frontend_type=TenantFrontend.FrontendType.PUBLIC_PORTAL,
-        is_active=True,
     )
     client = APIClient()
     _login(client)
 
-    for origin in (public_origin, api_origin):
-        resp = client.post(REFRESH, HTTP_X_REFRESH_CSRF="1", HTTP_ORIGIN=origin)
-        assert resp.status_code == 403, origin
+    resp = client.post(REFRESH, HTTP_X_REFRESH_CSRF="1", HTTP_ORIGIN=api_origin)
+
+    assert resp.status_code == 403
 
 
 def test_refresh_rejects_unregistered_origin_with_csrf_header():

@@ -1,6 +1,6 @@
 from urllib.parse import urlparse
 
-from apps.makerspaces.models import Makerspace, TenantFrontend, default_branding_config, default_theme_config
+from apps.makerspaces.models import Makerspace, default_branding_config, default_theme_config
 
 
 MODULE_WORKFLOWS = {
@@ -33,83 +33,46 @@ def origin_to_hostname(origin):
     return (parsed.hostname or "").lower()
 
 
-def frontend_allowed_origins(frontend):
-    origins = list(frontend.allowed_origins or [])
-    if frontend.hostname:
-        origins.extend([f"https://{frontend.hostname}", f"http://{frontend.hostname}"])
-    return sorted(set(origins))
+def makerspace_staff_origins(makerspace):
+    if not makerspace.frontend_domain:
+        return set()
+    return {f"https://{makerspace.frontend_domain}"}
+
+
+def makerspace_public_origins(makerspace):
+    return makerspace_staff_origins(makerspace) | set(makerspace.cors_allowed_origins or [])
 
 
 def resolve_frontend(*, tenant=None, slug=None, origin=None, host=None):
-    queryset = TenantFrontend.objects.select_related("makerspace").filter(
-        is_active=True,
-        makerspace__archived_at__isnull=True,
-    )
     if tenant:
-        frontend = queryset.filter(token=tenant).first()
-        if frontend:
-            return frontend
-        makerspace = Makerspace.objects.filter(
+        return Makerspace.objects.filter(
             public_code__iexact=tenant,
             archived_at__isnull=True,
         ).first()
-        if makerspace:
-            return primary_or_synthetic_frontend(makerspace)
     if slug:
-        makerspace = Makerspace.objects.filter(
+        return Makerspace.objects.filter(
             slug=slug,
             archived_at__isnull=True,
         ).first()
-        if makerspace:
-            return primary_or_synthetic_frontend(makerspace)
     hostname = origin_to_hostname(origin) or origin_to_hostname(host)
     if hostname:
-        frontend = queryset.filter(hostname=hostname).first()
-        if frontend:
-            return frontend
-        for candidate in queryset:
-            if origin and origin in frontend_allowed_origins(candidate):
-                return candidate
+        return Makerspace.objects.filter(
+            frontend_domain__iexact=hostname,
+            archived_at__isnull=True,
+        ).first()
     return None
-
-
-def primary_or_synthetic_frontend(makerspace):
-    frontend = makerspace.frontends.filter(is_active=True, is_primary=True).first()
-    if frontend:
-        return frontend
-    frontend = makerspace.frontends.filter(is_active=True).order_by("id").first()
-    if frontend:
-        return frontend
-    return TenantFrontend(
-        makerspace=makerspace,
-        frontend_type=TenantFrontend.FrontendType.PUBLIC_PORTAL,
-        allowed_origins=makerspace.cors_allowed_origins,
-        enabled_modules=[],
-        theme_config={},
-        branding_config={},
-        is_active=True,
-    )
-
-
-def modules_for_frontend(frontend):
-    base = frontend.makerspace.enabled_modules or []
-    overrides = frontend.enabled_modules or []
-    return sorted(set(overrides or base))
 
 
 def module_enabled(makerspace, module_key):
     return module_key in set(makerspace.enabled_modules or [])
 
 
-def bootstrap_payload(frontend):
-    makerspace = frontend.makerspace
-    modules = modules_for_frontend(frontend)
+def bootstrap_payload(makerspace):
+    modules = sorted(set(makerspace.enabled_modules or []))
     theme = default_theme_config()
     theme.update(makerspace.theme_config or {})
-    theme.update(frontend.theme_config or {})
     branding = default_branding_config()
     branding.update(makerspace.branding_config or {})
-    branding.update(frontend.branding_config or {})
     if not branding.get("display_name"):
         branding["display_name"] = makerspace.name
     workflows = sorted(
@@ -128,9 +91,9 @@ def bootstrap_payload(frontend):
             "location": makerspace.location,
         },
         "frontend": {
-            "type": frontend.frontend_type,
-            "hostname": frontend.hostname or "",
-            "allowed_origins": frontend_allowed_origins(frontend),
+            "type": "makerspace",
+            "hostname": makerspace.frontend_domain or "",
+            "allowed_origins": sorted(makerspace_public_origins(makerspace)),
         },
         "modules": modules,
         "workflows": workflows,

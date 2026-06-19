@@ -1,51 +1,73 @@
 import pytest
 from django.test import override_settings
-from rest_framework.test import APIClient
+from rest_framework.test import APIClient, APIRequestFactory
 
 from apps.admin_api.serializers_makerspaces import TenantFrontendSerializer
 from apps.accounts.models import User
+from apps.makerspaces.cors import origin_is_registered, staff_origin_is_registered
 from apps.makerspaces.models import MakerspaceMembership, TenantFrontend
+from apps.makerspaces.origin_scope import NO_STAFF_ORIGIN_SCOPE, staff_origin_scope
 from tests.return_helpers import make_member, make_product, make_space, make_user
 
 pytestmark = pytest.mark.django_db
 
 
-def test_bootstrap_resolves_active_tenant_frontend_without_private_fields():
+def test_bootstrap_resolves_public_code_without_private_fields():
     makerspace = make_space("platform-a")
     makerspace.enabled_modules = ["public_inventory", "request_workflow"]
     makerspace.theme_config = {"primary_color": "#111111"}
     makerspace.branding_config = {"display_name": "Platform A"}
+    makerspace.frontend_domain = "platform-a.example"
+    makerspace.cors_allowed_origins = ["https://api-client.example"]
     makerspace.save()
-    frontend = TenantFrontend.objects.create(
-        makerspace=makerspace,
-        token="tenant-token-a",
-        frontend_type=TenantFrontend.FrontendType.KIOSK,
-        allowed_origins=["https://kiosk.example"],
-        is_primary=True,
-    )
 
-    response = APIClient().get(f"/api/v1/bootstrap?tenant={frontend.token}")
+    response = APIClient().get(f"/api/v1/bootstrap?tenant={makerspace.public_code}")
 
     assert response.status_code == 200
     assert response.data["makerspace"]["slug"] == makerspace.slug
-    assert response.data["frontend"]["type"] == "kiosk"
+    assert response.data["frontend"]["type"] == "makerspace"
+    assert response.data["frontend"]["hostname"] == "platform-a.example"
+    assert response.data["frontend"]["allowed_origins"] == [
+        "https://api-client.example",
+        "https://platform-a.example",
+    ]
     assert response.data["branding"]["display_name"] == "Platform A"
     assert response.data["public_api"]["publishable_key"] == makerspace.public_api_key
     assert "telegram_bot_token" not in response.data
     assert "request_submit" in response.data["workflows"]
 
 
-def test_bootstrap_denies_inactive_frontend_token():
-    makerspace = make_space("platform-inactive")
+def test_bootstrap_ignores_tenant_frontend_token():
+    makerspace = make_space("platform-token-ignored")
     TenantFrontend.objects.create(
         makerspace=makerspace,
-        token="inactive-token",
-        is_active=False,
+        token="legacy-token",
+        is_active=True,
     )
 
-    response = APIClient().get("/api/v1/bootstrap?tenant=inactive-token")
+    response = APIClient().get("/api/v1/bootstrap?tenant=legacy-token")
 
     assert response.status_code == 404
+
+
+def test_bootstrap_resolves_by_frontend_domain_origin():
+    makerspace = make_space("platform-origin")
+    makerspace.frontend_domain = "origin.example"
+    makerspace.save(update_fields=["frontend_domain"])
+
+    response = APIClient().get("/api/v1/bootstrap", HTTP_ORIGIN="https://origin.example")
+
+    assert response.status_code == 200
+    assert response.data["makerspace"]["slug"] == makerspace.slug
+
+
+def test_bootstrap_resolves_by_slug():
+    makerspace = make_space("platform-slug")
+
+    response = APIClient().get(f"/api/v1/bootstrap?slug={makerspace.slug}")
+
+    assert response.status_code == 200
+    assert response.data["makerspace"]["public_code"] == makerspace.public_code
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=True)
@@ -65,6 +87,27 @@ def test_publishable_key_cannot_cross_makerspace_slug():
     )
 
     assert response.status_code == 401
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=True)
+def test_public_only_cors_origin_allows_public_api_but_not_staff_scope():
+    public_origin = "https://public-api.example"
+    makerspace = make_space("platform-public-origin")
+    makerspace.cors_allowed_origins = [public_origin]
+    makerspace.save(update_fields=["cors_allowed_origins"])
+    make_product(makerspace)
+
+    response = APIClient().get(
+        f"/api/v1/public/{makerspace.slug}/inventory/",
+        HTTP_ORIGIN=public_origin,
+        HTTP_X_PUBLISHABLE_KEY=makerspace.public_api_key,
+    )
+    request = APIRequestFactory().get("/api/v1/admin/makerspaces", HTTP_ORIGIN=public_origin)
+
+    assert response.status_code == 200
+    assert origin_is_registered(public_origin) is True
+    assert staff_origin_is_registered(public_origin) is False
+    assert staff_origin_scope(request) is NO_STAFF_ORIGIN_SCOPE
 
 
 def test_disabled_request_module_blocks_public_submit():
@@ -198,6 +241,8 @@ def test_staff_origin_scope_filters_makerspace_list_and_blocks_cross_tenant_targ
     origin = "https://space-a.example"
     space_a = make_space("platform-origin-scope-a")
     space_b = make_space("platform-origin-scope-b")
+    space_a.frontend_domain = "space-a.example"
+    space_a.save(update_fields=["frontend_domain"])
     product_a = make_product(space_a, name="Scope A")
     product_b = make_product(space_b, name="Scope B")
     staff = make_user(
@@ -214,12 +259,6 @@ def test_staff_origin_scope_filters_makerspace_list_and_blocks_cross_tenant_targ
         user=staff,
         makerspace=space_b,
         role=MakerspaceMembership.Role.SPACE_MANAGER,
-    )
-    TenantFrontend.objects.create(
-        makerspace=space_a,
-        frontend_type=TenantFrontend.FrontendType.STAFF_ADMIN,
-        allowed_origins=[origin],
-        is_active=True,
     )
     client = APIClient()
     client.force_authenticate(staff)

@@ -35,7 +35,7 @@ class PublicMakerspaceListView(ListAPIView):
         return Makerspace.objects.filter(
             public_inventory_enabled=True,
             archived_at__isnull=True,
-        ).order_by("name")
+        ).exclude(hidden_from_central_directory=True).order_by("name")
 
 
 @extend_schema(

@@ -106,7 +106,9 @@ class FrontendHMACMiddleware:
             return False
 
     def _publishable_origin_ok(self, request, makerspace):
-        origins = set(makerspace.cors_allowed_origins or [])
+        from apps.makerspaces.platform import makerspace_public_origins
+
+        origins = makerspace_public_origins(makerspace)
         if not origins:
             return False
         raw = request.headers.get("Origin") or request.headers.get("Referer", "")

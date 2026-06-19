@@ -1,14 +1,9 @@
 from urllib.parse import urlsplit
 
-from apps.makerspaces.models import TenantFrontend
-from apps.makerspaces.platform import frontend_allowed_origins
+from apps.makerspaces.models import Makerspace
+from apps.makerspaces.platform import makerspace_staff_origins
 
 
-STAFF_FRONTEND_TYPES = {
-    TenantFrontend.FrontendType.STAFF_ADMIN,
-    TenantFrontend.FrontendType.GUEST_HANDOVER,
-    TenantFrontend.FrontendType.SUPERADMIN_CONSOLE,
-}
 NO_STAFF_ORIGIN_SCOPE = object()
 AMBIGUOUS_STAFF_ORIGIN_SCOPE = object()
 
@@ -27,12 +22,12 @@ def staff_origin_scope(request):
         return NO_STAFF_ORIGIN_SCOPE
 
     matches = {
-        frontend.makerspace_id
-        for frontend in TenantFrontend.objects.filter(
-            is_active=True,
-            frontend_type__in=STAFF_FRONTEND_TYPES,
+        makerspace.id
+        for makerspace in Makerspace.objects.filter(
+            frontend_domain__isnull=False,
+            archived_at__isnull=True,
         )
-        if origin in frontend_allowed_origins(frontend)
+        if origin in makerspace_staff_origins(makerspace)
     }
     if not matches:
         return NO_STAFF_ORIGIN_SCOPE

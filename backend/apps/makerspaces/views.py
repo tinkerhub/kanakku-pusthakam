@@ -23,15 +23,15 @@ class BootstrapView(APIView):
         },
     )
     def get(self, request, *args, **kwargs):
-        frontend = resolve_frontend(
+        makerspace = resolve_frontend(
             tenant=request.query_params.get("tenant"),
             slug=request.query_params.get("slug"),
             origin=request.headers.get("Origin"),
             host=request.get_host(),
         )
-        if frontend is None:
+        if makerspace is None:
             return Response(
                 {"detail": "No active tenant frontend matched."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(bootstrap_payload(frontend))
+        return Response(bootstrap_payload(makerspace))
