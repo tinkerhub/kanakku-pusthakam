@@ -28,14 +28,17 @@ def return_items(actor, request, evidence_id, remark, box_code, resolutions):
         raise ReturnValidationError("Return remark is required.")
 
     evidence = _return_evidence(request, evidence_id)
-    if not storage.object_exists(evidence.object_key):
-        raise EvidenceNotUploaded("Return evidence has not been uploaded.")
+    # PUT mode promotes staging->final + validates size; POST mode unchanged (existence only).
     if settings.STORAGE_PRESIGN_METHOD == "put":
-        size = storage.object_size(evidence.object_key)
-        if size is None or not (1 <= size <= settings.EVIDENCE_MAX_BYTES):
+        size = storage.finalize_upload(evidence.object_key, settings.EVIDENCE_MAX_BYTES)
+        if size is None:
+            raise EvidenceNotUploaded("Return evidence has not been uploaded.")
+        if not (1 <= size <= settings.EVIDENCE_MAX_BYTES):
             raise ReturnValidationError(
                 "Return evidence is invalid or exceeds the size limit."
             )
+    elif not storage.object_exists(evidence.object_key):
+        raise EvidenceNotUploaded("Return evidence has not been uploaded.")
 
     with transaction.atomic():
         locked = locked_request(request)
