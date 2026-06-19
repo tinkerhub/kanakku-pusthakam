@@ -70,8 +70,26 @@ def accept_request(actor, request):
                 f"Cannot accept hardware request with status {locked.status}."
             )
 
-        for item in locked.items.order_by("product_id"):
+        items = list(locked.items.select_related("product").order_by("product_id"))
+        asset_requirements = {}
+        for item in items:
             item.accepted_quantity = item.requested_quantity
+            product, quantity = asset_requirements.get(
+                item.product_id,
+                (item.product, 0),
+            )
+            asset_requirements[item.product_id] = (
+                product,
+                quantity + item.accepted_quantity,
+            )
+
+        for product, quantity in asset_requirements.values():
+            availability.assert_individual_assets_available(
+                product,
+                quantity,
+            )
+
+        for item in items:
             item.save(update_fields=["accepted_quantity"])
 
         availability.reserve_for_request(locked)

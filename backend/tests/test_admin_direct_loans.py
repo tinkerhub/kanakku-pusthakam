@@ -358,6 +358,22 @@ def test_every_qr_in_multi_qr_direct_loan_is_tracked():
     assert reissue.status_code == 409
     assert PublicToolLoan.objects.count() == 1
 
+    returned = client.post(
+        f"/api/v1/admin/direct-loans/{loan.id}/return",
+        {},
+        format="json",
+    )
+
+    assert returned.status_code == 200
+    loan.refresh_from_db()
+    product_a.refresh_from_db()
+    product_b.refresh_from_db()
+    assert loan.status == PublicToolLoan.Status.RETURNED
+    assert product_a.available_quantity == 3
+    assert product_a.issued_quantity == 0
+    assert product_b.available_quantity == 3
+    assert product_b.issued_quantity == 0
+
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_direct_loan_rejects_duplicate_qr_payload():

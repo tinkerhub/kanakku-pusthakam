@@ -1,6 +1,6 @@
 from django.db import connection, transaction
 
-from apps.inventory.models import InventoryProduct
+from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 
 
 class InsufficientStock(Exception):
@@ -144,6 +144,23 @@ def reserve_for_request(request):
         )
 
 
+def assert_individual_assets_available(product, required_qty):
+    """Fail fast when quantity buckets outpace serialized asset rows."""
+    required_qty = int(required_qty)
+    if product.tracking_mode != TrackingMode.INDIVIDUAL or required_qty <= 0:
+        return
+
+    available_assets = InventoryAsset.objects.filter(
+        product_id=product.pk,
+        status=InventoryAsset.Status.AVAILABLE,
+    ).count()
+    if available_assets < required_qty:
+        raise InsufficientStock(
+            f"Insufficient available assets for product {product.pk}: "
+            f"requested {required_qty}, available {available_assets}."
+        )
+
+
 # Dispositions for units rejected as broken at handover.
 REJECT_NEEDS_FIX = "needs_fix"  # park on the to-be-fixed shelf (stays in total)
 REJECT_REMOVE = "remove"  # scrap it out of inventory entirely (total drops)
@@ -202,7 +219,7 @@ def issue_items(request, rejects_by_item=None):
         product.save(update_fields=update_fields)
 
         item.issued_quantity = issued
-        item.needs_fix_quantity = broken
+        item.needs_fix_quantity = 0 if disposition == REJECT_REMOVE else broken
         item.save(update_fields=["issued_quantity", "needs_fix_quantity"])
 
 
