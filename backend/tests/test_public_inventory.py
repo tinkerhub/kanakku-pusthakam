@@ -21,6 +21,7 @@ PUBLIC_PRODUCT_FIELDS = {
     "category_name",
     "category_slug",
     "availability",
+    "image_url",
 }
 
 
@@ -337,12 +338,16 @@ def test_lists_public_makerspaces(api_client, public_makerspace):
             "public_code": response.data[0]["public_code"],
             "slug": "fab-lab",
             "location": "Building A",
+            "logo_url": None,
+            "cover_image_url": None,
         },
         {
             "name": "Public Lab",
             "public_code": public_makerspace.public_code,
             "slug": "public-lab",
             "location": "",
+            "logo_url": None,
+            "cover_image_url": None,
         },
     ]
 

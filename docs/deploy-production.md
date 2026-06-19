@@ -48,6 +48,20 @@ In the R2 bucket CORS settings, allow the frontend origin for `PUT`, `GET`, and
 prefix. Presigned PUT finalize is write-once, but abandoned uploads can leave
 staging objects behind.
 
+Create a second R2 bucket for public catalog images and enable public access on it
+with an `r2.dev` or custom public domain:
+
+```env
+PUBLIC_IMAGE_BUCKET=<public-image-bucket>
+PUBLIC_IMAGE_BASE_URL=https://<public-image-domain>
+PUBLIC_IMAGE_MAX_BYTES=5242880
+PUBLIC_IMAGE_URL_TTL_SECONDS=300
+```
+
+This bucket is intentionally anonymous-readable. Store only inventory item photos
+and makerspace logo/cover images there; evidence and print files stay in the
+private `AWS_STORAGE_BUCKET_NAME`.
+
 ## 3. Configure Brevo SMTP, optional
 
 If email is enabled, create a Brevo SMTP key and verify the sender address:

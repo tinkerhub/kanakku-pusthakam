@@ -7,6 +7,7 @@ from apps.admin_api.views_categories import CategoryDetailView, CategoryListCrea
 from apps.admin_api.views_inventory import (
     InventoryDetailView,
     InventoryListCreateView,
+    InventoryProductImageView,
     InventoryQuantityAdjustmentView,
     _assert_box_in_makerspace,
     _assert_category_in_makerspace,
@@ -17,8 +18,10 @@ from apps.admin_api.views_needs_fix import (
     NeedsFixShelfListView,
 )
 from apps.admin_api.views_makerspaces import (
+    MakerspaceCoverImageView,
     MakerspaceDetailView,
     MakerspaceListCreateView,
+    MakerspaceLogoImageView,
     ReturnPolicyView,
 )
 from apps.admin_api.views_user_access import (
@@ -44,11 +47,14 @@ __all__ = [
     "InventoryDetailView",
     "InventoryLendingHistoryView",
     "InventoryListCreateView",
+    "InventoryProductImageView",
     "InventoryQuantityAdjustmentView",
+    "MakerspaceCoverImageView",
     "NeedsFixShelfListView",
     "NeedsFixActionView",
     "MakerspaceDetailView",
     "MakerspaceListCreateView",
+    "MakerspaceLogoImageView",
     "ResetUserPasswordView",
     "RestoreUserAccessView",
     "RestrictUserView",

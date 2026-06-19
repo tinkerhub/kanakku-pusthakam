@@ -1,5 +1,6 @@
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import environ
 from corsheaders.defaults import default_headers
@@ -161,6 +162,15 @@ STORAGES = {
 EVIDENCE_URL_TTL_SECONDS = env.int("EVIDENCE_URL_TTL_SECONDS", default=300)
 EVIDENCE_MAX_BYTES = env.int("EVIDENCE_MAX_BYTES", default=10485760)
 EVIDENCE_ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"]
+PUBLIC_IMAGE_BUCKET = env("PUBLIC_IMAGE_BUCKET", default="public-images")
+PUBLIC_IMAGE_BASE_URL = env("PUBLIC_IMAGE_BASE_URL", default="")
+PUBLIC_IMAGE_MAX_BYTES = env.int("PUBLIC_IMAGE_MAX_BYTES", default=5242880)
+PUBLIC_IMAGE_URL_TTL_SECONDS = env.int("PUBLIC_IMAGE_URL_TTL_SECONDS", default=300)
+PUBLIC_IMAGE_ALLOWED_MIME = {
+    "image/jpeg": [".jpg", ".jpeg"],
+    "image/png": [".png"],
+    "image/webp": [".webp"],
+}
 PRINT_UPLOAD_MAX_BYTES = env.int("PRINT_UPLOAD_MAX_BYTES", default=104857600)  # 100 MB
 PRINT_URL_TTL_SECONDS = env.int("PRINT_URL_TTL_SECONDS", default=300)
 PRINT_ALLOWED_MODEL_EXT = ["stl", "3mf", "step", "stp", "obj"]
@@ -315,12 +325,19 @@ SECURE_REFERRER_POLICY = "same-origin"
 # CDN is allowed for script/style/img/font; drop it (or adopt drf-spectacular-sidecar to
 # serve the assets from 'self') once the docs UI is locally hosted.
 _SWAGGER_CDN = "https://cdn.jsdelivr.net"
+_PUBLIC_IMAGE_CSP_ORIGINS = []
+if PUBLIC_IMAGE_BASE_URL:
+    _public_image_parts = urlsplit(PUBLIC_IMAGE_BASE_URL)
+    if _public_image_parts.scheme and _public_image_parts.netloc:
+        _PUBLIC_IMAGE_CSP_ORIGINS.append(
+            f"{_public_image_parts.scheme}://{_public_image_parts.netloc}"
+        )
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
         "default-src": ["'self'"],
         "script-src": ["'self'", "'unsafe-inline'", _SWAGGER_CDN],
         "style-src": ["'self'", "'unsafe-inline'", _SWAGGER_CDN],
-        "img-src": ["'self'", "data:", _SWAGGER_CDN],
+        "img-src": ["'self'", "data:", _SWAGGER_CDN, *_PUBLIC_IMAGE_CSP_ORIGINS],
         "font-src": ["'self'", "data:", _SWAGGER_CDN],
         "worker-src": ["'self'", "blob:"],
     }

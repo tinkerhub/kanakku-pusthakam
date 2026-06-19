@@ -58,6 +58,18 @@ expiry" risk (documented for POST in `CLAUDE.md`). Mitigations: keep the TTLs sh
 fix (upload to a staging key, then server-side copy to an immutable final key after validation)
 is deliberately **not** implemented — it's only relevant in this optional demo/pilot mode.
 
+Create a second **public** Storage bucket for catalog imagery and set:
+
+```env
+PUBLIC_IMAGE_BUCKET=public-images
+PUBLIC_IMAGE_BASE_URL=https://<project>.supabase.co/storage/v1/object/public/public-images
+PUBLIC_IMAGE_MAX_BYTES=5242880
+PUBLIC_IMAGE_URL_TTL_SECONDS=300
+```
+
+Only inventory item photos and makerspace logo/cover images belong in this public bucket. Evidence
+photos and print files must remain in the private `AWS_STORAGE_BUCKET_NAME`.
+
 ## 3. Scheduled return reminders
 
 `pg_cron` can only run SQL, so it can't call `manage.py send_return_reminders`. Instead:

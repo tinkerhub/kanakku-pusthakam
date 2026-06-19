@@ -51,6 +51,7 @@ def purge(makerspace, actor):
         raise ValidationError("Only a superuser can purge a makerspace.")
 
     storage_keys = _collect_storage_keys(makerspace)
+    public_image_keys = _collect_public_image_keys(makerspace)
     meta = _audit_meta(makerspace)
 
     audit.record(actor, "makerspace.purge_started", makerspace=None, target=None, meta=meta)
@@ -65,6 +66,7 @@ def purge(makerspace, actor):
 
     audit.record(actor, "makerspace.purged", makerspace=None, target=None, meta=meta)
     _delete_storage_keys(storage_keys)
+    _delete_public_image_keys(public_image_keys)
 
 
 def _audit_meta(makerspace):
@@ -99,6 +101,28 @@ def _collect_storage_keys(makerspace):
         add(request.model_file.name)
         add(request.estimate_screenshot.name)
         add(request.preview_screenshot.name)
+
+    return keys
+
+
+def _collect_public_image_keys(makerspace):
+    from apps.inventory.models import InventoryProduct
+
+    keys = []
+    seen = set()
+
+    def add(key):
+        if key and key not in seen:
+            seen.add(key)
+            keys.append(key)
+
+    add(makerspace.logo_key)
+    add(makerspace.cover_image_key)
+    for key in InventoryProduct.objects.filter(makerspace=makerspace).values_list(
+        "image_key",
+        flat=True,
+    ):
+        add(key)
 
     return keys
 
@@ -197,3 +221,13 @@ def _delete_storage_keys(storage_keys):
             client.delete_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=key)
         except Exception:
             logger.exception("Failed to delete makerspace purge storage key: %s", key)
+
+
+def _delete_public_image_keys(storage_keys):
+    if not storage_keys:
+        return
+
+    from apps.inventory import public_image_storage
+
+    for key in storage_keys:
+        public_image_storage.delete_object(key)

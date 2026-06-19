@@ -18,11 +18,26 @@ urlpatterns = [
         name="admin-return-policy",
     ),
     path(
+        "makerspace/<int:makerspace_id>/logo",
+        views.MakerspaceLogoImageView.as_view(),
+        name="admin-makerspace-logo",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/cover",
+        views.MakerspaceCoverImageView.as_view(),
+        name="admin-makerspace-cover",
+    ),
+    path(
         "makerspace/<int:makerspace_id>/inventory",
         views.InventoryListCreateView.as_view(),
         name="admin-inventory",
     ),
     path("inventory/<int:pk>", views.InventoryDetailView.as_view(), name="admin-inventory-detail"),
+    path(
+        "inventory/<int:pk>/image",
+        views.InventoryProductImageView.as_view(),
+        name="admin-inventory-image",
+    ),
     path(
         "inventory/needs-fix",
         views.NeedsFixShelfListView.as_view(),

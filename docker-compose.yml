@@ -57,6 +57,9 @@ services:
       ]
       EOF
       mc cors set local/evidence /tmp/cors.json;
+      mc mb --ignore-existing local/public-images;
+      mc anonymous set download local/public-images;
+      mc cors set local/public-images /tmp/cors.json;
       '
 
   # Backend is wired to MinIO for dev: it SIGNS presigned upload/view URLs with the
@@ -87,6 +90,8 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
       AWS_STORAGE_BUCKET_NAME: ${AWS_STORAGE_BUCKET_NAME:-evidence}
+      PUBLIC_IMAGE_BUCKET: ${PUBLIC_IMAGE_BUCKET:-public-images}
+      PUBLIC_IMAGE_BASE_URL: ${PUBLIC_IMAGE_BASE_URL:-http://localhost:9000/public-images}
       AWS_S3_ENDPOINT_URL: ${AWS_S3_ENDPOINT_URL:-http://minio:9000}
       AWS_S3_PUBLIC_ENDPOINT_URL: ${AWS_S3_PUBLIC_ENDPOINT_URL:-http://localhost:9000}
       STORAGE_PRESIGN_METHOD: ${STORAGE_PRESIGN_METHOD:-post}

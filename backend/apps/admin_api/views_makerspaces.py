@@ -1,18 +1,28 @@
+from django.conf import settings
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics
-from rest_framework.exceptions import PermissionDenied
+from rest_framework import status
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.admin_api.permissions import IsActiveStaff, require_action
+from apps.admin_api.serializers_inventory import (
+    PublicImageAttachRequestSerializer,
+    PublicImageUploadRequestSerializer,
+    PublicImageUploadResponseSerializer,
+)
 from apps.admin_api.serializers_makerspaces import (
     MakerspaceSerializer,
     MakerspaceSwitcherSerializer,
     ReturnPolicySerializer,
 )
 from apps.audit import services as audit
+from apps.evidence.storage import StorageUnavailable
+from apps.inventory import public_image_storage
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.origin_scope import origin_scoped_makerspace_id
 
@@ -147,3 +157,122 @@ class ReturnPolicyView(generics.RetrieveUpdateAPIView):
             target=instance,
             meta={"default_loan_days": instance.default_loan_days},
         )
+
+
+class MakerspaceImageView(APIView):
+    permission_classes = [IsActiveStaff]
+    image_field = ""
+    attach_action = ""
+    clear_action = ""
+
+    def _makerspace(self, request, makerspace_id):
+        makerspace = get_object_or_404(
+            rbac.scope_by_action(
+                request.user,
+                rbac.Action.MANAGE_MAKERSPACE,
+                Makerspace.objects.filter(archived_at__isnull=True),
+                field="id",
+            ),
+            pk=makerspace_id,
+        )
+        require_action(request.user, rbac.Action.MANAGE_MAKERSPACE, makerspace.id)
+        return makerspace
+
+    @extend_schema(
+        tags=["Admin makerspaces"],
+        summary="Create a makerspace public image upload URL",
+        request=PublicImageUploadRequestSerializer,
+        responses={
+            201: PublicImageUploadResponseSerializer,
+            400: OpenApiResponse(description="Invalid image upload request."),
+            503: OpenApiResponse(description="Public image storage is unavailable."),
+        },
+    )
+    def post(self, request, makerspace_id, *args, **kwargs):
+        makerspace = self._makerspace(request, makerspace_id)
+        serializer = PublicImageUploadRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        content_type = serializer.validated_data["content_type"]
+        ext = public_image_storage.ext_for(
+            content_type,
+            serializer.validated_data["filename"],
+        )
+        object_key = public_image_storage.build_object_key("makerspace", makerspace.id, ext)
+        try:
+            upload = public_image_storage.presigned_upload(object_key, content_type)
+        except StorageUnavailable:
+            return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response(
+            PublicImageUploadResponseSerializer({"object_key": object_key, **upload}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @extend_schema(
+        tags=["Admin makerspaces"],
+        summary="Attach an uploaded public image to a makerspace",
+        request=PublicImageAttachRequestSerializer,
+        responses={
+            200: MakerspaceSerializer,
+            400: OpenApiResponse(description="Invalid image object key or size."),
+            503: OpenApiResponse(description="Public image storage is unavailable."),
+        },
+    )
+    def put(self, request, makerspace_id, *args, **kwargs):
+        makerspace = self._makerspace(request, makerspace_id)
+        serializer = PublicImageAttachRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        object_key = serializer.validated_data["object_key"]
+        expected_prefix = f"makerspace/{makerspace.id}/"
+        if not object_key.startswith(expected_prefix):
+            raise ValidationError({"object_key": "Image object key is outside this makerspace."})
+        try:
+            size = public_image_storage.finalize_upload(object_key)
+        except StorageUnavailable:
+            return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        if size is None or not (1 <= size <= settings.PUBLIC_IMAGE_MAX_BYTES):
+            raise ValidationError({"object_key": "Uploaded image is missing or invalid."})
+
+        old_key = getattr(makerspace, self.image_field)
+        if old_key and old_key != object_key:
+            public_image_storage.delete_object(old_key)
+        setattr(makerspace, self.image_field, object_key)
+        makerspace.save(update_fields=[self.image_field, "updated_at"])
+        audit.record(
+            request.user,
+            self.attach_action,
+            makerspace=makerspace,
+            target=makerspace,
+        )
+        return Response(MakerspaceSerializer(makerspace, context={"request": request}).data)
+
+    @extend_schema(
+        tags=["Admin makerspaces"],
+        summary="Clear a makerspace public image",
+        responses={200: MakerspaceSerializer},
+    )
+    def delete(self, request, makerspace_id, *args, **kwargs):
+        makerspace = self._makerspace(request, makerspace_id)
+        old_key = getattr(makerspace, self.image_field)
+        if old_key:
+            public_image_storage.delete_object(old_key)
+        setattr(makerspace, self.image_field, "")
+        makerspace.save(update_fields=[self.image_field, "updated_at"])
+        audit.record(
+            request.user,
+            self.clear_action,
+            makerspace=makerspace,
+            target=makerspace,
+        )
+        return Response(MakerspaceSerializer(makerspace, context={"request": request}).data)
+
+
+class MakerspaceLogoImageView(MakerspaceImageView):
+    image_field = "logo_key"
+    attach_action = "makerspace.logo_attached"
+    clear_action = "makerspace.logo_cleared"
+
+
+class MakerspaceCoverImageView(MakerspaceImageView):
+    image_field = "cover_image_key"
+    attach_action = "makerspace.cover_attached"
+    clear_action = "makerspace.cover_cleared"

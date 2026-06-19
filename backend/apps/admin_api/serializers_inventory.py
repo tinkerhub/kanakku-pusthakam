@@ -1,6 +1,8 @@
 from django.utils.text import slugify
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.inventory import public_image_storage
 from apps.inventory.models import (
     Category,
     InventoryProduct,
@@ -15,6 +17,7 @@ class InventoryProductAdminSerializer(serializers.ModelSerializer):
         allow_null=True,
         required=False,
     )
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = InventoryProduct
@@ -25,6 +28,8 @@ class InventoryProductAdminSerializer(serializers.ModelSerializer):
             "category",
             "name",
             "description",
+            "image_key",
+            "image_url",
             "tracking_mode",
             "total_quantity",
             "available_quantity",
@@ -47,7 +52,19 @@ class InventoryProductAdminSerializer(serializers.ModelSerializer):
         # product into another. Box scope is enforced in the view (it knows the
         # authoritative makerspace).
         # needs_fix_quantity is owned by the handover/shelf workflow (never set directly).
-        read_only_fields = ["id", "makerspace", "needs_fix_quantity", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "makerspace",
+            "image_key",
+            "image_url",
+            "needs_fix_quantity",
+            "created_at",
+            "updated_at",
+        ]
+
+    @extend_schema_field({"type": "string", "format": "uri", "nullable": True})
+    def get_image_url(self, obj):
+        return public_image_storage.public_url(obj.image_key) or None
 
     def validate_tracking_mode(self, value):
         if value not in TrackingMode.values:
@@ -133,3 +150,20 @@ class InventoryQuantityAdjustmentSerializer(serializers.Serializer):
         if not any(deltas):
             raise serializers.ValidationError("At least one quantity delta is required.")
         return attrs
+
+
+class PublicImageUploadRequestSerializer(serializers.Serializer):
+    content_type = serializers.CharField(allow_blank=False)
+    filename = serializers.CharField(allow_blank=False, max_length=255)
+
+
+class PublicImageAttachRequestSerializer(serializers.Serializer):
+    object_key = serializers.CharField(allow_blank=False, max_length=300)
+
+
+class PublicImageUploadResponseSerializer(serializers.Serializer):
+    object_key = serializers.CharField()
+    url = serializers.URLField()
+    fields = serializers.DictField(required=False)
+    method = serializers.CharField(required=False)
+    headers = serializers.DictField(required=False)

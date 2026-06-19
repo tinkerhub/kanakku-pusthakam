@@ -1,5 +1,6 @@
 from urllib.parse import urlparse
 
+from apps.inventory import public_image_storage
 from apps.integrations.email import email_enabled
 from apps.makerspaces.models import Makerspace, default_branding_config, default_theme_config
 
@@ -72,6 +73,8 @@ def bootstrap_payload(makerspace):
     modules = sorted(set(makerspace.enabled_modules or []))
     theme = default_theme_config()
     theme.update(makerspace.theme_config or {})
+    logo_url = public_image_storage.public_url(makerspace.logo_key) or theme.get("logo_url") or ""
+    cover_image_url = public_image_storage.public_url(makerspace.cover_image_key) or ""
     branding = default_branding_config()
     branding.update(makerspace.branding_config or {})
     if not branding.get("display_name"):
@@ -90,6 +93,8 @@ def bootstrap_payload(makerspace):
             "slug": makerspace.slug,
             "public_code": makerspace.public_code,
             "location": makerspace.location,
+            "logo_url": logo_url,
+            "cover_image_url": cover_image_url,
         },
         "frontend": {
             "type": "makerspace",

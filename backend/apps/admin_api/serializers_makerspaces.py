@@ -1,9 +1,11 @@
 import re
 
 from django.db import transaction
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.accounts.models import User
+from apps.inventory import public_image_storage
 from apps.integrations.email import platform_email_configured
 from apps.makerspaces.models import Makerspace, normalize_frontend_domain
 
@@ -33,6 +35,8 @@ class MakerspaceSerializer(serializers.ModelSerializer):
     )
     telegram_bot_token_set = serializers.SerializerMethodField()
     smtp_password_set = serializers.SerializerMethodField()
+    logo_url = serializers.SerializerMethodField()
+    cover_image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Makerspace
@@ -44,6 +48,10 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "location",
             "public_inventory_enabled",
             "superadmin_access_enabled",
+            "logo_key",
+            "logo_url",
+            "cover_image_key",
+            "cover_image_url",
             "frontend_domain",
             "hidden_from_central_directory",
             "public_api_key",
@@ -69,6 +77,10 @@ class MakerspaceSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "public_api_key",
+            "logo_key",
+            "logo_url",
+            "cover_image_key",
+            "cover_image_url",
             "telegram_bot_token_set",
             "smtp_password_set",
             "created_at",
@@ -80,6 +92,14 @@ class MakerspaceSerializer(serializers.ModelSerializer):
 
     def get_smtp_password_set(self, obj) -> bool:
         return bool(obj.smtp_password)
+
+    @extend_schema_field({"type": "string", "format": "uri", "nullable": True})
+    def get_logo_url(self, obj):
+        return public_image_storage.public_url(obj.logo_key) or None
+
+    @extend_schema_field({"type": "string", "format": "uri", "nullable": True})
+    def get_cover_image_url(self, obj):
+        return public_image_storage.public_url(obj.cover_image_key) or None
 
     def validate_public_code(self, value):
         return value.upper()

@@ -64,6 +64,7 @@ class InventoryProduct(models.Model):
     )
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
+    image_key = models.CharField(max_length=300, blank=True, default="")
     # Individual-mode availability still derives from the quantity buckets until the
     # Unit service layer (Phase 6); tracking_mode is just a classification flag for now.
     tracking_mode = models.CharField(

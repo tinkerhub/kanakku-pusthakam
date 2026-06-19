@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
+from apps.inventory import public_image_storage
 from apps.inventory.public_availability import get_public_availability
 
 
@@ -42,10 +43,15 @@ class PublicProductSerializer(serializers.Serializer):
         allow_null=True,
     )
     availability = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
 
     @extend_schema_field(AVAILABILITY_SCHEMA)
     def get_availability(self, product):
         return get_public_availability(product)
+
+    @extend_schema_field({"type": "string", "format": "uri", "nullable": True})
+    def get_image_url(self, product):
+        return public_image_storage.public_url(product.image_key) or None
 
 
 class PublicCategorySerializer(serializers.Serializer):
@@ -62,3 +68,13 @@ class PublicMakerspaceSerializer(serializers.Serializer):
     public_code = serializers.CharField(read_only=True)
     slug = serializers.SlugField(read_only=True)
     location = serializers.CharField(read_only=True)
+    logo_url = serializers.SerializerMethodField()
+    cover_image_url = serializers.SerializerMethodField()
+
+    @extend_schema_field({"type": "string", "format": "uri", "nullable": True})
+    def get_logo_url(self, makerspace):
+        return public_image_storage.public_url(makerspace.logo_key) or None
+
+    @extend_schema_field({"type": "string", "format": "uri", "nullable": True})
+    def get_cover_image_url(self, makerspace):
+        return public_image_storage.public_url(makerspace.cover_image_key) or None

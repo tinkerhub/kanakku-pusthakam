@@ -154,6 +154,10 @@ previously stored tokens/passwords can no longer be decrypted.
 | `MINIO_ROOT_USER` | yes | MinIO/S3 access key used by the backend |
 | `MINIO_ROOT_PASSWORD` | yes | MinIO/S3 secret key used by the backend |
 | `AWS_STORAGE_BUCKET_NAME` | no (default `evidence`) | Private object-storage bucket for evidence and print files |
+| `PUBLIC_IMAGE_BUCKET` | no (default `public-images`) | Anonymous-read bucket for public item photos and makerspace logo/cover images |
+| `PUBLIC_IMAGE_BASE_URL` | yes for public images | Browser public base URL for `PUBLIC_IMAGE_BUCKET` (for example `https://files.inventory.example.org/public-images`) |
+| `PUBLIC_IMAGE_MAX_BYTES` | no (default `5242880`) | Maximum public image upload size |
+| `PUBLIC_IMAGE_URL_TTL_SECONDS` | no (default `300`) | Presigned upload URL lifetime for public images |
 | `AWS_S3_ENDPOINT_URL` | no (default `http://minio:9000`) | Backend-to-MinIO endpoint inside Compose |
 | `AWS_S3_PUBLIC_ENDPOINT_URL` | yes for uploads | Browser-reachable MinIO/S3 endpoint used in presigned URLs |
 | `MINIO_CORS_ALLOWED_ORIGINS_JSON` | yes for uploads | JSON array of frontend origins allowed to POST/GET objects |
@@ -179,6 +183,11 @@ Production Compose includes MinIO because the backend stores evidence photos and
 S3-compatible object storage by default. The backend talks to MinIO at `http://minio:9000`; browsers
 use `AWS_S3_PUBLIC_ENDPOINT_URL` in presigned upload/download URLs, so that value must be reachable
 from staff/requester browsers.
+
+Public catalog images use a separate `PUBLIC_IMAGE_BUCKET` that is anonymous-readable by design.
+The bundled Compose bootstrap creates it, sets `download` policy, and applies the same upload CORS
+policy. Keep evidence and print files in the private `AWS_STORAGE_BUCKET_NAME`; only item photos and
+makerspace logo/cover images belong in the public bucket.
 
 For HTTPS deployments, put MinIO behind the same TLS proxy as the frontend, for example:
 

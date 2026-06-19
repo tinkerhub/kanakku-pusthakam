@@ -1204,6 +1204,162 @@
                 }
             }
         },
+        "/api/v1/admin/inventory/{id}/image": {
+            "post": {
+                "operationId": "api_v1_admin_inventory_image_create",
+                "summary": "Create an inventory product image upload URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageUploadRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageUploadRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageUploadRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicImageUploadResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid image upload request."
+                    },
+                    "503": {
+                        "description": "Public image storage is unavailable."
+                    }
+                }
+            },
+            "put": {
+                "operationId": "api_v1_admin_inventory_image_update",
+                "summary": "Attach an uploaded image to an inventory product",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageAttachRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageAttachRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageAttachRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InventoryProductAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid image object key or size."
+                    },
+                    "503": {
+                        "description": "Public image storage is unavailable."
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "api_v1_admin_inventory_image_destroy",
+                "summary": "Clear an inventory product image",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InventoryProductAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/inventory/{id}/lending-history": {
             "get": {
                 "operationId": "api_v1_admin_inventory_lending_history_retrieve",
@@ -2351,6 +2507,162 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/cover": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_cover_create",
+                "summary": "Create a makerspace public image upload URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin makerspaces"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageUploadRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageUploadRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageUploadRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicImageUploadResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid image upload request."
+                    },
+                    "503": {
+                        "description": "Public image storage is unavailable."
+                    }
+                }
+            },
+            "put": {
+                "operationId": "api_v1_admin_makerspace_cover_update",
+                "summary": "Attach an uploaded public image to a makerspace",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin makerspaces"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageAttachRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageAttachRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageAttachRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Makerspace"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid image object key or size."
+                    },
+                    "503": {
+                        "description": "Public image storage is unavailable."
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "api_v1_admin_makerspace_cover_destroy",
+                "summary": "Clear a makerspace public image",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin makerspaces"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Makerspace"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/direct-loans": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_direct_loans_list",
@@ -2800,6 +3112,162 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/LedgerResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/logo": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_logo_create",
+                "summary": "Create a makerspace public image upload URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin makerspaces"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageUploadRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageUploadRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageUploadRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicImageUploadResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid image upload request."
+                    },
+                    "503": {
+                        "description": "Public image storage is unavailable."
+                    }
+                }
+            },
+            "put": {
+                "operationId": "api_v1_admin_makerspace_logo_update",
+                "summary": "Attach an uploaded public image to a makerspace",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin makerspaces"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageAttachRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageAttachRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageAttachRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Makerspace"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid image object key or size."
+                    },
+                    "503": {
+                        "description": "Public image storage is unavailable."
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "api_v1_admin_makerspace_logo_destroy",
+                "summary": "Clear a makerspace public image",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin makerspaces"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Makerspace"
                                 }
                             }
                         },
@@ -11116,6 +11584,16 @@
                     "description": {
                         "type": "string"
                     },
+                    "image_key": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "readOnly": true
+                    },
                     "tracking_mode": {
                         "$ref": "#/components/schemas/TrackingModeEnum"
                     },
@@ -11186,6 +11664,8 @@
                 "required": [
                     "created_at",
                     "id",
+                    "image_key",
+                    "image_url",
                     "makerspace",
                     "name",
                     "needs_fix_quantity",
@@ -11514,6 +11994,26 @@
                     "superadmin_access_enabled": {
                         "type": "boolean"
                     },
+                    "logo_key": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "logo_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "cover_image_key": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "cover_image_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "readOnly": true
+                    },
                     "frontend_domain": {
                         "type": "string",
                         "nullable": true,
@@ -11591,8 +12091,12 @@
                     }
                 },
                 "required": [
+                    "cover_image_key",
+                    "cover_image_url",
                     "created_at",
                     "id",
+                    "logo_key",
+                    "logo_url",
                     "name",
                     "public_api_key",
                     "slug",
@@ -12817,6 +13321,16 @@
                     "description": {
                         "type": "string"
                     },
+                    "image_key": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "readOnly": true
+                    },
                     "tracking_mode": {
                         "$ref": "#/components/schemas/TrackingModeEnum"
                     },
@@ -12915,6 +13429,26 @@
                     },
                     "superadmin_access_enabled": {
                         "type": "boolean"
+                    },
+                    "logo_key": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "logo_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "cover_image_key": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "cover_image_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "readOnly": true
                     },
                     "frontend_domain": {
                         "type": "string",
@@ -14250,6 +14784,61 @@
                     "remaining_weight_grams"
                 ]
             },
+            "PublicImageAttachRequest": {
+                "type": "object",
+                "properties": {
+                    "object_key": {
+                        "type": "string",
+                        "maxLength": 300
+                    }
+                },
+                "required": [
+                    "object_key"
+                ]
+            },
+            "PublicImageUploadRequest": {
+                "type": "object",
+                "properties": {
+                    "content_type": {
+                        "type": "string"
+                    },
+                    "filename": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "content_type",
+                    "filename"
+                ]
+            },
+            "PublicImageUploadResponse": {
+                "type": "object",
+                "properties": {
+                    "object_key": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "fields": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    },
+                    "method": {
+                        "type": "string"
+                    },
+                    "headers": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                },
+                "required": [
+                    "object_key",
+                    "url"
+                ]
+            },
             "PublicMakerspace": {
                 "type": "object",
                 "properties": {
@@ -14269,10 +14858,24 @@
                     "location": {
                         "type": "string",
                         "readOnly": true
+                    },
+                    "logo_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "cover_image_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "readOnly": true
                     }
                 },
                 "required": [
+                    "cover_image_url",
                     "location",
+                    "logo_url",
                     "name",
                     "public_code",
                     "slug"
@@ -14428,6 +15031,12 @@
                             "mode"
                         ],
                         "readOnly": true
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "readOnly": true
                     }
                 },
                 "required": [
@@ -14437,6 +15046,7 @@
                     "category_slug",
                     "description",
                     "id",
+                    "image_url",
                     "name"
                 ]
             },
