@@ -313,7 +313,8 @@ type InvalidationScope = {
 
 function actionInvalidationScope(path: string): InvalidationScope {
   const inventory = path.endsWith("/accept") || path.endsWith("/issue") || path.endsWith("/return");
-  const ledger = path.endsWith("/issue") || path.endsWith("/return");
+  // Ledger rows show return_due_at, so a due-date change must refresh the ledger too.
+  const ledger = path.endsWith("/issue") || path.endsWith("/return") || path.endsWith("/return-due");
   const needsFix = path.endsWith("/issue") || path.endsWith("/return");
   return { inventory, ledger, needsFix };
 }
