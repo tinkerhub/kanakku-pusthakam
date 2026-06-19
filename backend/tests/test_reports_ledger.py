@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem, PublicToolLoan
+from apps.inventory.models import InventoryAsset
 from tests.return_helpers import authenticated_client, make_member, make_product, make_space, make_user
 
 pytestmark = pytest.mark.django_db
@@ -358,6 +359,10 @@ def test_reports_exclude_archived_products_from_active_product_surfaces():
         lost_quantity=7,
         is_archived=True,
     )
+    # One asset on each product: the archived product's asset must NOT inflate the
+    # summary asset total once archived inventory is excluded.
+    InventoryAsset.objects.create(makerspace=makerspace, product=active, asset_tag="ACT-1")
+    InventoryAsset.objects.create(makerspace=makerspace, product=archived, asset_tag="ARC-1")
     _request_loan(makerspace, active, "reports-active-holder", quantity=2)
     _request_loan(makerspace, archived, "reports-archived-holder", quantity=9)
     client = authenticated_client(manager)
@@ -370,6 +375,7 @@ def test_reports_exclude_archived_products_from_active_product_surfaces():
 
     assert summary.status_code == 200
     assert summary.data["products"] == 1
+    assert summary.data["assets"] == 1
     assert summary.data["available_quantity"] == 4
     assert summary.data["issued_quantity"] == 2
     assert summary.data["damaged_quantity"] == 1

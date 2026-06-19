@@ -204,7 +204,9 @@ def _products(makerspace_id):
 
 
 def _assets(makerspace_id):
-    qs = InventoryAsset.objects.all()
+    # Exclude assets of archived products so the summary's asset total stays
+    # consistent with the archived-excluded product/quantity figures.
+    qs = InventoryAsset.objects.exclude(product__is_archived=True)
     if makerspace_id is None:
         excluded = (
             rbac.superadmin_hidden_makerspace_ids()
