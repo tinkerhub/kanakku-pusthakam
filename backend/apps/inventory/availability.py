@@ -121,12 +121,25 @@ def reserve_for_request(request):
         .order_by("pk")
     }
 
+    # Aggregate accepted quantity per product (a product may span multiple items).
+    required_by_product = {}
     for item in items:
-        quantity = item.accepted_quantity
-        if quantity <= 0:
-            continue
+        if item.accepted_quantity > 0:
+            required_by_product[item.product_id] = (
+                required_by_product.get(item.product_id, 0) + item.accepted_quantity
+            )
 
-        product = products[item.product_id]
+    for product_id in sorted(required_by_product):
+        quantity = required_by_product[product_id]
+        product = products[product_id]
+
+        # Individual-asset guard runs UNDER the same row lock as the reservation
+        # update, reading the freshly-locked reserved_quantity as the committed
+        # baseline. A concurrent accept for the same product blocks on this lock
+        # until we commit, then re-reads the incremented baseline and is rejected —
+        # closing the check-then-reserve race a standalone pre-check would leave open.
+        assert_individual_assets_available(product, quantity)
+
         if product.available_quantity < quantity:
             raise InsufficientStock(
                 f"Insufficient stock for product {product.pk}: "
