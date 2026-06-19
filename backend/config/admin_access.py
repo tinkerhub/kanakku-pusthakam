@@ -145,6 +145,28 @@ class SuperuserOnlyModelAdmin:
             queryset = queryset.exclude(**{f"{lookup}__in": hidden})
         return queryset
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # A plain (non-autocomplete) FK ModelChoiceField builds its options from the
+        # target model's default manager, NOT the target admin's get_queryset — so a
+        # makerspace FK widget (e.g. ApiClient/ToBuyItem add/change forms) would still
+        # list and let a superadmin target a hard-hidden makerspace. Scope every
+        # makerspace FK widget to visible makerspaces to close that hard-hide bypass.
+        from apps.makerspaces.models import Makerspace
+
+        if (
+            getattr(db_field, "remote_field", None) is not None
+            and db_field.remote_field.model is Makerspace
+            and "queryset" not in kwargs
+        ):
+            from apps.accounts import rbac
+
+            queryset = Makerspace.objects.all()
+            hidden = rbac.superadmin_hidden_makerspace_ids()
+            if hidden:
+                queryset = queryset.exclude(id__in=hidden)
+            kwargs["queryset"] = queryset
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
     def _obj_in_hidden(self, obj):
         """True if `obj` belongs to a hard-hidden makerspace. Complements
         get_queryset (which only hides changelists) by blocking the object-level
