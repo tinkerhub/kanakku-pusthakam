@@ -62,6 +62,12 @@ This bucket is intentionally anonymous-readable. Store only inventory item photo
 and makerspace logo/cover images there; evidence and print files stay in the
 private `AWS_STORAGE_BUCKET_NAME`.
 
+With `STORAGE_PRESIGN_METHOD=put`, browsers upload images directly to this bucket,
+so it needs its **own CORS rule** (separate from the evidence bucket): allow the
+staff-console origin for `PUT`, `GET`, and `HEAD`. Add a `staging/`-prefix
+lifecycle expiry rule here too — without CORS on the public bucket, item/logo/cover
+image uploads fail in the browser even though evidence uploads work.
+
 ## 3. Configure Brevo SMTP, optional
 
 If email is enabled, create a Brevo SMTP key and verify the sender address:
