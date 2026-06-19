@@ -30,31 +30,21 @@ def run_return_reminders(*, now=None, limit=200) -> dict:
     sent_count = 0
     skipped_count = 0
     for hardware_request in queryset:
+        # Send FIRST, mark sent only after a successful delivery. A pre-send claim
+        # (timestamp set before the email goes out) is unsafe: if the process is
+        # killed or times out mid-send, the row stays flagged-as-sent and the
+        # borrower is never reminded again. Send-then-mark is fail-safe — the worst
+        # case under concurrent runs is a duplicate reminder, never a silent skip.
+        if not notifications.notify_return_due(hardware_request):
+            skipped_count += 1
+            continue
         with transaction.atomic():
-            claimed = HardwareRequest.objects.filter(
+            # Conditional update is the concurrency guard: only the first runner to
+            # win the still-null row counts the send, so two concurrent runs can't
+            # double-count even if both managed to send the email.
+            sent_count += HardwareRequest.objects.filter(
                 pk=hardware_request.pk,
                 return_reminder_sent_at__isnull=True,
             ).update(return_reminder_sent_at=now)
-        if not claimed:
-            continue
-
-        try:
-            sent = notifications.notify_return_due(hardware_request)
-        except Exception:
-            _reset_reminder_claim(hardware_request.pk, now)
-            raise
-
-        if sent:
-            sent_count += 1
-        else:
-            _reset_reminder_claim(hardware_request.pk, now)
-            skipped_count += 1
 
     return {"sent": sent_count, "skipped": skipped_count}
-
-
-def _reset_reminder_claim(hardware_request_id, claimed_at):
-    HardwareRequest.objects.filter(
-        pk=hardware_request_id,
-        return_reminder_sent_at=claimed_at,
-    ).update(return_reminder_sent_at=None)
