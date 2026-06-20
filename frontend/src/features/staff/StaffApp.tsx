@@ -15,6 +15,7 @@ import { ChangePasswordGate } from "./ChangePasswordGate";
 import { LoginPanel } from "./LoginPanel";
 import { MakerspacePicker } from "./MakerspacePicker";
 import { StaffTabContent } from "./StaffTabContent";
+import { MakerspaceBrand } from "../../components/MakerspaceBrand";
 import {
   type Makerspace,
   useStaffGet,
@@ -22,7 +23,7 @@ import {
 import { useTenant } from "../../lib/tenant";
 
 const ALL_TABS = [
-  "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
+  "dashboard", "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
   "stocktake", "containers", "ledger", "reports", "bulk", "qr", "scanner", "api", "settings", "users", "platform", "audit",
 ] as const;
 // Membership roles that get the full staff console. Anything else (print_manager,
@@ -34,6 +35,7 @@ const PRINTING_TABS = ["requests", "printing", "tobuy", "reports", "api"];
 
 // Human labels for every tab key (single source — was an inline ternary in the nav).
 const TAB_LABELS: Record<string, string> = {
+  dashboard: "Command Center",
   requests: "Requests",
   direct: "Direct handout",
   ledger: "Ledger",
@@ -60,7 +62,7 @@ const TAB_LABELS: Record<string, string> = {
 // each section only renders the tabs the active role is allowed; empty sections
 // are hidden). Reduces scan cost without changing what a role can reach.
 const TAB_GROUPS: { label: string; tabs: string[] }[] = [
-  { label: "Operate", tabs: ["requests", "direct", "ledger", "transfers", "stocktake", "tobuy"] },
+  { label: "Operate", tabs: ["dashboard", "requests", "direct", "ledger", "transfers", "stocktake", "tobuy"] },
   {
     label: "Inventory",
     tabs: ["inventory", "categories", "needsfix", "containers", "bulk", "qr", "scanner"],
@@ -281,6 +283,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   // Inventory Manager has no MANAGE_PRINTING, so it must NOT see the printing tab/section.
   const canSeeHardware = isSuperadmin || ["space_manager", "inventory_manager", "guest_admin"].includes(activeRole ?? "");
   const canSeePrinting = isSuperadmin || ["space_manager", "print_manager"].includes(activeRole ?? "");
+  const canReviewHardware = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
   // To-Buy access mirrors the backend matrix: superadmin + space/inventory/print
   // managers. Guest admins (and unknown roles) have none, so hide the tab for them
   // rather than render an empty list whose actions 403.
@@ -322,7 +325,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   // Derived (no useEffect): switching makerspace recomputes synchronously, and a
   // tab that isn't allowed for the current role falls back to the role-appropriate
   // default landing tab (then the first allowed tab).
-  const defaultTab = printingOnly ? "printing" : "requests";
+  const defaultTab = printingOnly ? "printing" : "dashboard";
   const activeTab = allowedTabs.includes(tab)
     ? tab
     : allowedTabs.includes(defaultTab)
@@ -340,26 +343,26 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     });
 
   return (
-    <main className="desk-shell grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)]">
-      <aside className="min-w-0 border-b-2 border-ink bg-panel lg:min-h-screen lg:border-b-0 lg:border-r-2">
-        <div className="flex min-w-0 items-center gap-3 border-b-2 border-ink px-5 py-4">
+    <main className="desk-shell grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <aside className="min-w-0 border-b border-ink bg-bg lg:min-h-screen lg:border-b-0 lg:border-r">
+        <div className="flex min-w-0 items-center justify-between gap-3 border-b border-ink px-5 py-4">
           <div className="min-w-0">
             <p className="truncate font-display text-xl font-bold text-ink">
               TinkerSpace
             </p>
-            <p className="truncate font-mono text-xs uppercase text-muted">
-              {guestOnly ? "Guest admin" : isSuperadmin ? "Super Admin" : printingOnly ? "Print Manager" : "Space Manager"}
-            </p>
           </div>
+          <span className="chip bg-surface text-ink">
+            {guestOnly ? "Guest" : isSuperadmin ? "Super" : printingOnly ? "Print" : "Staff"}
+          </span>
         </div>
         <div className="p-4">
           {singleTenantLocked ? (
-            <div className="break-words rounded-sm border-2 border-ink bg-surface px-3 py-2 text-sm font-semibold text-ink">
+            <div className="pill break-words border border-ink bg-surface px-3 py-2 text-sm font-semibold text-ink">
               {activeMakerspace?.name ?? "Configured makerspace"}
             </div>
           ) : (
             <select
-              className="desk-input w-full"
+              className="desk-input pill w-full"
               value={selected ?? ""}
               onChange={(event) => setSelected(Number(event.target.value))}
             >
@@ -382,7 +385,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
               return (
                 <div key={group.label}>
                   <button
-                    className="flex w-full items-center justify-between border-b-2 border-ink px-1 pb-1 font-display text-sm font-bold uppercase tracking-tight text-ink transition hover:text-accent"
+                    className="flex w-full items-center justify-between border-b border-ink px-1 pb-1 font-display text-sm font-bold uppercase tracking-tight text-ink transition hover:text-accent"
                     type="button"
                     onClick={() => toggleGroup(group.label)}
                   >
@@ -410,18 +413,27 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       </aside>
 
       <section className="min-w-0">
-        <header className="border-b-2 border-ink bg-surface px-5 py-4">
+        <header className="border-b border-ink bg-surface px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate font-mono text-xs font-semibold uppercase tracking-tight text-accent">
                 {activeMakerspace?.public_code ?? activeMakerspace?.slug ?? "No workspace"}
               </p>
-              <h1 className="break-words font-display text-2xl font-bold uppercase tracking-tight text-ink">
-                {activeMakerspace?.name ?? "Inventory Control"}
-              </h1>
+              {activeMakerspace ? (
+                <MakerspaceBrand
+                  name={activeMakerspace.name}
+                  logoUrl={activeMakerspace.logo_url}
+                  size="md"
+                  className="mt-1"
+                />
+              ) : (
+                <h1 className="break-words font-display text-2xl font-bold uppercase tracking-tight text-ink">
+                  Inventory Control
+                </h1>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="max-w-full truncate rounded-sm border-2 border-ink bg-panel px-3 py-2 font-mono text-xs uppercase text-muted sm:max-w-56">
+              <span className="pill max-w-full truncate border border-ink bg-panel px-3 py-2 font-mono text-xs uppercase text-muted sm:max-w-56">
                 {user.username}
               </span>
               {isSuperadmin && !singleTenantLocked ? (
@@ -450,7 +462,9 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
             canManageMakerspace={canManageMakerspace}
             canSeeHardware={canSeeHardware}
             canSeePrinting={canSeePrinting}
+            canReviewHardware={canReviewHardware}
             canViewAudit={canViewAudit}
+            allowedTabs={allowedTabs}
           />
         </div>
       </section>

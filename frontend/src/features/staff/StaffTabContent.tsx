@@ -2,6 +2,7 @@ import { ApiClientsPanel } from "./ApiClientsPanel";
 import { DirectLoans } from "./DirectLoans";
 import { MakerspaceSettingsPanel } from "./MakerspaceSettingsPanel";
 import { PlatformEmailPanel } from "./PlatformEmailPanel";
+import { CommandCenter } from "./panels/CommandCenter";
 import {
   AuditLog,
   BulkImport,
@@ -36,7 +37,9 @@ export function StaffTabContent({
   canManageMakerspace,
   canSeeHardware,
   canSeePrinting,
+  canReviewHardware,
   canViewAudit,
+  allowedTabs,
 }: {
   activeMakerspace?: Makerspace;
   activeTab: string;
@@ -50,7 +53,9 @@ export function StaffTabContent({
   canManageMakerspace: boolean;
   canSeeHardware: boolean;
   canSeePrinting: boolean;
+  canReviewHardware: boolean;
   canViewAudit: boolean;
+  allowedTabs: readonly string[];
 }) {
   if (!activeMakerspace) {
     return <Panel title="No makerspace">Assign a makerspace to this account.</Panel>;
@@ -58,6 +63,18 @@ export function StaffTabContent({
   const makerspaceKey = activeMakerspace.id;
   return (
     <>
+      {activeTab === "dashboard" ? (
+        <CommandCenter
+          key={makerspaceKey}
+          makerspace={activeMakerspace}
+          canReviewHardware={canReviewHardware}
+          canSeePrinting={canSeePrinting}
+          canViewAudit={canViewAudit}
+          canViewInventory={allowedTabs.includes("inventory")}
+          canViewLedger={allowedTabs.includes("ledger")}
+          canViewNeedsFix={allowedTabs.includes("needsfix")}
+        />
+      ) : null}
       {activeTab === "requests" ? (
         <RequestsPanel
           key={makerspaceKey}

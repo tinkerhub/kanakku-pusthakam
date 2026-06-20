@@ -23,10 +23,11 @@ export function MakerspacePicker({
   return (
     <main className="desk-shell min-h-screen px-5 py-10">
       <div className="mx-auto w-full max-w-3xl">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="desk-panel mb-6 flex flex-wrap items-center justify-between gap-3 p-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">Super Admin</p>
-            <h1 className="text-2xl font-bold text-ink">Choose a makerspace to operate</h1>
+            <p className="font-display text-2xl font-bold text-ink">TinkerSpace</p>
+            <p className="mt-1 font-mono text-xs font-semibold uppercase text-accent">Super Admin</p>
+            <h1 className="mt-2 text-2xl font-bold text-ink">Choose a makerspace to operate</h1>
             <p className="mt-1 text-sm text-muted">Signed in as {username}. Pick a makerspace to manage its operations.</p>
           </div>
           <div className="flex items-center gap-2">
@@ -37,7 +38,7 @@ export function MakerspacePicker({
         </div>
 
         {loading ? (
-          <p className="text-sm text-muted">Loading makerspaces…</p>
+          <p className="text-sm text-muted">Loading makerspaces...</p>
         ) : !makerspaces.length ? (
           <div className="desk-panel p-6">
             <p className="text-sm text-muted">No makerspaces exist yet. Create one from the Django control plane.</p>
@@ -49,9 +50,9 @@ export function MakerspacePicker({
                 key={makerspace.id}
                 type="button"
                 onClick={() => onSelect(makerspace.id)}
-                className="desk-panel flex flex-col items-start gap-1 p-4 text-left transition hover:border-accent"
+                className="desk-panel flex flex-col items-start gap-1 bg-panel p-4 text-left transition-all hover:-translate-y-0.5 hover:scale-[1.02] hover:border-accent hover:shadow-brutal-lg"
               >
-                <span className="text-xs font-semibold uppercase tracking-wide text-accent">
+                <span className="pill border border-ink bg-surface px-2 py-1 font-mono text-xs font-semibold uppercase text-accent">
                   {makerspace.public_code ?? makerspace.slug}
                 </span>
                 <span className="text-lg font-semibold text-ink">{makerspace.name}</span>
@@ -60,7 +61,7 @@ export function MakerspacePicker({
                     <Badge tone="warn">Superadmin access: Off</Badge>
                   </span>
                 ) : null}
-                <span className="mt-2 text-xs text-muted">Operate this makerspace →</span>
+                <span className="mt-2 text-xs text-muted">Operate this makerspace -&gt;</span>
               </button>
             ))}
           </div>
