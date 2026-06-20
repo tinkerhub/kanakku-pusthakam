@@ -44,9 +44,9 @@ export function LoginPanel({
 
   if (mode === "forgot") {
     return (
-      <main className="desk-shell grid place-items-center px-5">
+      <main className="desk-shell blueprint-bg grid place-items-center px-5 py-10">
         <form
-          className="desk-panel w-full max-w-md p-6"
+          className="desk-panel w-full max-w-md bg-bg p-6"
           onSubmit={async (event) => {
             event.preventDefault();
             setForgotPending(true);
@@ -65,7 +65,8 @@ export function LoginPanel({
             }
           }}
         >
-          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+          <p className="font-display text-3xl font-bold text-ink">TinkerSpace</p>
+          <p className="mt-3 font-mono text-xs font-semibold uppercase tracking-wide text-accent">
             Account access
           </p>
           <h1 className="mt-2 text-2xl font-bold text-ink">Reset password</h1>
@@ -74,7 +75,7 @@ export function LoginPanel({
           </p>
           <label className="mt-5 block text-sm font-semibold">Email</label>
           <input
-            className="desk-input mt-1 w-full"
+            className="desk-input pill mt-1 w-full bg-panel"
             name="email"
             autoComplete="email"
             type="email"
@@ -105,16 +106,17 @@ export function LoginPanel({
   }
 
   return (
-    <main className="desk-shell grid place-items-center px-5">
+    <main className="desk-shell blueprint-bg grid place-items-center px-5 py-10">
       <form
-        className="desk-panel w-full max-w-md p-6"
+        className="desk-panel w-full max-w-md bg-bg p-6"
         onSubmit={(event) => {
           event.preventDefault();
           if (isPending) return;
           onSubmit({ username, password });
         }}
       >
-        <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+        <p className="font-display text-3xl font-bold text-ink">TinkerSpace</p>
+        <p className="mt-3 font-mono text-xs font-semibold uppercase tracking-wide text-accent">
           {guestOnly ? "Guest admin desk" : "Space Manager desk"}
         </p>
         <h1 className="mt-2 text-2xl font-bold text-ink">Sign in</h1>
@@ -123,7 +125,7 @@ export function LoginPanel({
         </p>
         <label className="mt-5 block text-sm font-semibold">Username</label>
         <input
-          className="desk-input mt-1 w-full"
+          className="desk-input pill mt-1 w-full bg-panel"
           name="username"
           autoComplete="username"
           value={username}
@@ -131,7 +133,7 @@ export function LoginPanel({
         />
         <label className="mt-3 block text-sm font-semibold">Password</label>
         <input
-          className="desk-input mt-1 w-full"
+          className="desk-input pill mt-1 w-full bg-panel"
           name="password"
           autoComplete="current-password"
           type="password"

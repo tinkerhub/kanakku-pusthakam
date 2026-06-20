@@ -17,16 +17,17 @@ export function ResetPasswordPage() {
   const canSubmit = passwordsMatch && passwordLongEnough && !pending && !updated;
 
   return (
-    <main className="desk-shell grid place-items-center px-5">
-      <section className="desk-panel w-full max-w-md p-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+    <main className="desk-shell blueprint-bg grid place-items-center px-5 py-10">
+      <section className="desk-panel w-full max-w-md bg-bg p-6">
+        <p className="font-display text-3xl font-bold text-ink">TinkerSpace</p>
+        <p className="mt-3 font-mono text-xs font-semibold uppercase tracking-wide text-accent">
           Account access
         </p>
         <h1 className="mt-2 text-2xl font-bold text-ink">Set a new password</h1>
 
         {!uid || !token ? (
           <>
-            <p className="mt-4 text-sm text-danger">
+            <p className="status-box status-box-danger mt-4 w-full justify-start px-3 py-2 text-sm normal-case">
               This reset link is invalid or incomplete.
             </p>
             <Link className="desk-button mt-5 w-full" to="/admin">
@@ -35,7 +36,7 @@ export function ResetPasswordPage() {
           </>
         ) : updated ? (
           <>
-            <p className="mt-4 text-sm text-muted">
+            <p className="status-box status-box-done mt-4 w-full justify-start px-3 py-2 text-sm normal-case">
               Your password has been updated. You can now sign in.
             </p>
             <Link className="desk-button-primary mt-5 w-full" to="/admin">
@@ -64,7 +65,7 @@ export function ResetPasswordPage() {
           >
             <label className="mt-5 block text-sm font-semibold">New password</label>
             <input
-              className="desk-input mt-1 w-full"
+              className="desk-input pill mt-1 w-full bg-panel"
               type="password"
               autoComplete="new-password"
               value={newPassword}
@@ -72,7 +73,7 @@ export function ResetPasswordPage() {
             />
             <label className="mt-3 block text-sm font-semibold">Confirm password</label>
             <input
-              className="desk-input mt-1 w-full"
+              className="desk-input pill mt-1 w-full bg-panel"
               type="password"
               autoComplete="new-password"
               value={confirmPassword}

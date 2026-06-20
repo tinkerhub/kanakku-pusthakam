@@ -116,19 +116,29 @@ export default function QrScanner({ onScan, onClose }: QrScannerProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-lg rounded-lg border border-line bg-panel p-4 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 p-4">
+      <div className="desk-panel w-full max-w-lg bg-bg p-4">
         {error ? (
           <div className="grid gap-3">
-            <p className="text-sm text-danger">{error}</p>
+            <p className="status-box status-box-danger w-full justify-start px-3 py-2 text-sm normal-case">
+              {error}
+            </p>
             <button className="desk-button" type="button" onClick={close}>
               Close
             </button>
           </div>
         ) : (
           <div className="grid gap-3">
-            <video ref={videoRef} className="aspect-video w-full rounded-md bg-black object-cover" autoPlay muted playsInline />
-            <p className="text-sm text-muted">Point the camera at a QR code</p>
+            <video
+              ref={videoRef}
+              className="aspect-video w-full rounded-lg border border-ink bg-ink object-cover"
+              autoPlay
+              muted
+              playsInline
+            />
+            <p className="panel-yellow rounded-lg border border-ink px-3 py-2 text-sm">
+              Point the camera at a QR code
+            </p>
             <button className="desk-button-primary" type="button" onClick={close}>
               Done
             </button>

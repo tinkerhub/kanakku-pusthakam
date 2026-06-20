@@ -1,4 +1,4 @@
-import type { Dispatch, FormEvent, SetStateAction } from "react";
+import type { Dispatch, FormEvent, ReactNode, SetStateAction } from "react";
 import type { UseQueryResult } from "@tanstack/react-query";
 
 import { Card } from "../../components/ui/Card";
@@ -88,7 +88,7 @@ export function PrintDetailsForm({
 }: PrintDetailsFormProps) {
   return (
     <Card>
-      <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+      <p className="font-mono text-xs font-semibold uppercase tracking-wide text-accent">
         Print Details
       </p>
       <form className="mt-4 space-y-4" onSubmit={onSubmit}>
@@ -103,103 +103,126 @@ export function PrintDetailsForm({
           onChange={(event) => onWebsiteChange(event.target.value)}
         />
         <fieldset className="space-y-4" disabled={!verified || submitPending}>
-          <div className="grid gap-4 md:grid-cols-2">
-            <TextInput
-              label="Title"
-              required
-              value={form.title}
-              onChange={(value) => updateField("title", value)}
-            />
-            <TextInput
-              label="Your name"
-              value={form.requesterName}
-              onChange={(value) => updateField("requesterName", value)}
-            />
-          </div>
-          <TextArea
-            label="Project brief"
-            value={form.projectBrief}
-            onChange={(value) => updateField("projectBrief", value)}
-          />
-          <TextArea
-            label="Slicer settings / personal preferences"
-            value={form.preferredSettings}
-            onChange={(value) => updateField("preferredSettings", value)}
-          />
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
-                Filament / material
-              </span>
-              <select
-                className="desk-input w-full"
-                value={form.filamentSpoolId}
-                onChange={(event) =>
-                  updateField("filamentSpoolId", event.target.value)
-                }
-              >
-                <option value="">No preference</option>
-                {groupSpoolsByMaterial(spoolsQuery.data ?? []).map(([material, spools]) => (
-                  <optgroup key={material} label={material}>
-                    {spools.map((spool) => (
-                      <option key={spool.id} value={spool.id}>
-                        {`${spool.color || "Default color"} — ${spool.remaining_weight_grams}g left`}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-              {spoolsQuery.isLoading ? (
-                <p className="mt-1 text-xs text-muted">Loading filament...</p>
-              ) : null}
-              {spoolsQuery.isError ? (
-                <p className="mt-1 text-xs text-danger">
-                  {spoolsQuery.error.message}
-                </p>
-              ) : null}
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
-                Quantity
-              </span>
-              <input
-                className="desk-input w-full"
-                min={1}
-                type="number"
-                value={form.quantity}
-                onChange={(event) =>
-                  updateField("quantity", Math.max(1, Number(event.target.value) || 1))
-                }
+          <FormSection icon="01" panelClass="panel-blue" title="Project Details">
+            <div className="grid gap-4 md:grid-cols-2">
+              <TextInput
+                label="Title"
+                required
+                value={form.title}
+                onChange={(value) => updateField("title", value)}
               />
-            </label>
-            <TextInput label="Source link (optional)" value={form.sourceLink} onChange={(value) => updateField("sourceLink", value)} />
-            <TextInput label="Contact email" type="email" value={form.contactEmail} onChange={(value) => updateField("contactEmail", value)} />
-            <TextInput label="Contact phone" value={form.contactPhone} onChange={(value) => updateField("contactPhone", value)} />
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <FilePicker
-              accept=".stl,.3mf,.step,.stp,.obj"
-              files={modelFiles}
-              label="STL/model files"
-              setFiles={setModelFiles}
+              <TextInput
+                label="Source link (optional)"
+                value={form.sourceLink}
+                onChange={(value) => updateField("sourceLink", value)}
+              />
+            </div>
+            <TextArea
+              label="Project brief"
+              value={form.projectBrief}
+              onChange={(value) => updateField("projectBrief", value)}
             />
-            <FilePicker
-              accept="image/*,application/pdf"
-              files={screenshotFiles}
-              label="Estimated print-time screenshots (Bambu Lab)"
-              setFiles={setScreenshotFiles}
+            <TextArea
+              label="Slicer settings / personal preferences"
+              value={form.preferredSettings}
+              onChange={(value) => updateField("preferredSettings", value)}
             />
-          </div>
+          </FormSection>
+
+          <FormSection icon="02" panelClass="panel-yellow" title="Material Specs">
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+                  Filament / material
+                </span>
+                <select
+                  className="desk-input w-full bg-panel"
+                  value={form.filamentSpoolId}
+                  onChange={(event) =>
+                    updateField("filamentSpoolId", event.target.value)
+                  }
+                >
+                  <option value="">No preference</option>
+                  {groupSpoolsByMaterial(spoolsQuery.data ?? []).map(([material, spools]) => (
+                    <optgroup key={material} label={material}>
+                      {spools.map((spool) => (
+                        <option key={spool.id} value={spool.id}>
+                          {`${spool.color || "Default color"} - ${spool.remaining_weight_grams}g left`}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                {spoolsQuery.isLoading ? (
+                  <p className="mt-1 text-xs text-muted">Loading filament...</p>
+                ) : null}
+                {spoolsQuery.isError ? (
+                  <p className="mt-1 text-xs text-danger">
+                    {spoolsQuery.error.message}
+                  </p>
+                ) : null}
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+                  Quantity
+                </span>
+                <input
+                  className="desk-input w-full bg-panel"
+                  min={1}
+                  type="number"
+                  value={form.quantity}
+                  onChange={(event) =>
+                    updateField("quantity", Math.max(1, Number(event.target.value) || 1))
+                  }
+                />
+              </label>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FilePicker
+                accept=".stl,.3mf,.step,.stp,.obj"
+                files={modelFiles}
+                label="STL/model files"
+                setFiles={setModelFiles}
+              />
+              <FilePicker
+                accept="image/*,application/pdf"
+                files={screenshotFiles}
+                label="Estimated print-time screenshots (Bambu Lab)"
+                setFiles={setScreenshotFiles}
+              />
+            </div>
+          </FormSection>
+
+          <FormSection icon="03" panelClass="panel-coral" title="Contact">
+            <div className="grid gap-4 md:grid-cols-2">
+              <TextInput
+                label="Your name"
+                value={form.requesterName}
+                onChange={(value) => updateField("requesterName", value)}
+              />
+              <TextInput
+                label="Contact email"
+                type="email"
+                value={form.contactEmail}
+                onChange={(value) => updateField("contactEmail", value)}
+              />
+              <TextInput
+                label="Contact phone"
+                value={form.contactPhone}
+                onChange={(value) => updateField("contactPhone", value)}
+              />
+            </div>
+          </FormSection>
         </fieldset>
 
         {!verified ? (
-          <p className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">
+          <p className="panel-yellow card-tilt-1 rounded-lg border border-ink px-3 py-2 text-sm shadow-brutal-sm">
             Verify your Check-In before submitting a print request.
           </p>
         ) : null}
         {uploadProgress ? <p className="text-sm text-muted">{uploadProgress}</p> : null}
         {submitError ? (
-          <p className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+          <p className="status-box status-box-danger w-full justify-start px-3 py-2 text-sm">
             {submitError.message}
           </p>
         ) : null}
@@ -212,5 +235,31 @@ export function PrintDetailsForm({
         </button>
       </form>
     </Card>
+  );
+}
+
+function FormSection({
+  icon,
+  panelClass,
+  title,
+  children,
+}: {
+  icon: string;
+  panelClass: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-lg border border-ink bg-bg shadow-brutal-sm">
+      <div
+        className={`${panelClass} flex items-center gap-2 border-b border-ink px-3 py-2 font-mono text-xs font-semibold uppercase tracking-wide`}
+      >
+        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-ink bg-panel text-ink">
+          {icon}
+        </span>
+        <span>{title}</span>
+      </div>
+      <div className="space-y-4 p-4">{children}</div>
+    </section>
   );
 }

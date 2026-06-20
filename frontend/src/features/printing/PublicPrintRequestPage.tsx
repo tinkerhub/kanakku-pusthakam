@@ -234,23 +234,23 @@ export function PublicPrintRequestPage() {
       {!bootstrapQuery.isLoading && enabled ? (
         <section className="mx-auto grid max-w-screen-xl grid-cols-1 gap-5 px-5 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-4">
-          <Card>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+          <Card className="card-tilt-1 panel-yellow">
+            <p className="font-mono text-xs font-semibold uppercase tracking-wide">
               Check-In
             </p>
             <label className="mt-3 block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide">
                 Check-In email or phone
               </span>
               <input
-                className="desk-input w-full"
+                className="desk-input pill w-full bg-panel"
                 placeholder="Email or phone used at Check-In"
                 value={identifier}
                 onChange={(event) => setIdentifier(event.target.value)}
               />
             </label>
             <button
-              className="desk-button mt-3"
+              className="desk-button mt-3 bg-panel"
               disabled={!identifier.trim() || verifyMutation.isPending}
               type="button"
               onClick={() => verifyMutation.mutate(identifier.trim())}
@@ -258,12 +258,12 @@ export function PublicPrintRequestPage() {
               {verifyMutation.isPending ? "Verifying..." : "Verify Check-In"}
             </button>
             {verified ? (
-              <p className="mt-3 rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
+              <p className="status-box status-box-done mt-3 w-full justify-start px-3 py-2 text-sm normal-case">
                 Check-In verified{verifiedName ? ` for ${verifiedName}` : ""}
               </p>
             ) : null}
             {verifyMutation.error ? (
-              <p className="mt-3 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+              <p className="status-box status-box-danger mt-3 w-full justify-start px-3 py-2 text-sm normal-case">
                 {verifyMutation.error.message}
               </p>
             ) : null}
@@ -289,24 +289,24 @@ export function PublicPrintRequestPage() {
 
         <aside className="min-w-0 space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:overflow-y-auto">
           {submittedToken ? <SubmittedTokenCard token={submittedToken} /> : null}
-          <Card>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+          <Card className="card-tilt-1 panel-yellow">
+            <p className="font-mono text-xs font-semibold uppercase tracking-wide">
               Status Tracker
             </p>
             <form className="mt-3 space-y-3" onSubmit={checkStatusByEmail}>
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide">
                   Request email
                 </span>
                 <input
-                  className="desk-input w-full"
+                  className="desk-input pill w-full bg-panel"
                   type="email"
                   value={statusEmail}
                   onChange={(event) => setStatusEmail(event.target.value)}
                 />
               </label>
               <button
-                className="desk-button"
+                className="desk-button bg-panel"
                 disabled={!statusEmail.trim() || statusByEmailMutation.isPending}
                 type="submit"
               >
@@ -322,7 +322,7 @@ export function PublicPrintRequestPage() {
             </div>
             <div className="mt-4 space-y-4">
               {statusByEmailMutation.error ? (
-                <p className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+                <p className="status-box status-box-danger w-full justify-start px-3 py-2 text-sm normal-case">
                   {statusByEmailMutation.error.message}
                 </p>
               ) : null}
@@ -335,7 +335,7 @@ export function PublicPrintRequestPage() {
                 />
               ))}
               {statusByEmailMutation.data?.results.length === 0 ? (
-                <p className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">
+                <p className="rounded-lg border border-ink bg-panel px-3 py-2 text-sm">
                   No requests found for that email.
                 </p>
               ) : null}

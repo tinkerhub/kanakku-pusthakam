@@ -178,7 +178,7 @@ export function PublicInventoryPage() {
               onSubmit={submitSearch}
             >
               <input
-                className="desk-input min-w-0 flex-1"
+                className="desk-input pill min-w-0 flex-1"
                 placeholder="Search tools, machines, kits, or materials"
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
@@ -215,10 +215,11 @@ export function PublicInventoryPage() {
           {products.length > 0 ? (
             <>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {products.map((product) => (
+                {products.map((product, index) => (
                   <ProductCard
                     key={product.id}
                     product={product}
+                    index={index}
                     quantity={cart[product.id]?.quantity ?? 0}
                     detailPath={tenantPath(`items/${product.id}`)}
                     onDecrement={() => decrementItem(product)}

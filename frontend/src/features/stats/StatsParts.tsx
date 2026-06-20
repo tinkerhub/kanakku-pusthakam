@@ -1,22 +1,31 @@
 import type React from "react";
 
+import { cyclePalette, PANEL_CLASS, SHADOW_CLASS } from "../../lib/palette";
+
 type ChartRow = { label: string; value: number };
 
 export function StatTile({
+  index = 0,
   label,
   value,
-  tone = "default",
 }: {
+  index?: number;
   label: string;
   value: number | string;
   tone?: "default" | "accent";
 }) {
-  const valueClass = tone === "accent" ? "text-accent" : "text-ink";
+  const palette = cyclePalette(index);
 
   return (
-    <div className="rounded-md border border-line bg-surface p-3">
-      <p className={`text-2xl font-bold ${valueClass}`}>{value}</p>
-      <p className="mt-1 text-xs text-muted">{label}</p>
+    <div
+      className={`rounded-lg border border-ink p-3 ${PANEL_CLASS[palette]} ${SHADOW_CLASS[palette]}`}
+    >
+      <p className="break-words font-display text-4xl font-bold leading-none text-ink">
+        {value}
+      </p>
+      <p className="mt-2 font-mono text-xs font-semibold uppercase tracking-wide">
+        {label}
+      </p>
     </div>
   );
 }
@@ -29,9 +38,9 @@ export function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="desk-panel overflow-hidden">
-      <div className="border-b border-line bg-surface px-4 py-3">
-        <h2 className="text-lg font-semibold text-ink">{title}</h2>
+    <section className="desk-panel overflow-hidden bg-bg">
+      <div className="border-b border-ink bg-panel px-4 py-3">
+        <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>
       </div>
       <div className="space-y-4 p-4">{children}</div>
     </section>
@@ -50,9 +59,12 @@ export function CompactList({
   }
 
   return (
-    <ul className="mt-3 space-y-2 text-sm">
+    <ul className="mt-3 divide-y divide-ink border-y border-ink text-sm">
       {rows.map((row) => (
-        <li className="flex min-w-0 items-start gap-3" key={`${row.label}-${row.value}`}>
+        <li
+          className="flex min-w-0 items-start gap-3 py-2"
+          key={`${row.label}-${row.value}`}
+        >
           <span className="min-w-0 flex-1 truncate text-ink" title={row.label}>
             {row.label}
           </span>
@@ -87,8 +99,8 @@ export function BarChart({
             <span className="truncate text-ink" title={row.label}>
               {row.label}
             </span>
-            <div className="h-3 overflow-hidden rounded bg-bg">
-              <div className="h-full rounded bg-accent" style={{ width }} />
+            <div className="h-3 overflow-hidden rounded-full border border-ink bg-panel">
+              <div className="h-full rounded-full bg-accent" style={{ width }} />
             </div>
             <span className="min-w-14 text-right text-xs text-muted">
               {formatNumber(row.value)} {valueLabel}

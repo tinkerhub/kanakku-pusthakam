@@ -13,8 +13,8 @@ type PublicToolScanPanelProps = {
 
 function LoanResult({ loan }: { loan: PublicToolLoan }) {
   return (
-    <div className="rounded-md border border-success/40 bg-success/10 px-3 py-2">
-      <p className="text-sm font-semibold capitalize text-success">
+    <div className="status-box status-box-done block w-full px-3 py-2 text-left normal-case">
+      <p className="text-sm font-semibold capitalize text-ink">
         {loan.status.replace(/_/g, " ")}: {loan.target_label}
       </p>
       <p className="mt-1 break-all text-xs text-ink">{loan.public_token}</p>
@@ -72,7 +72,7 @@ export function PublicToolScanPanel({
         Scan QR with camera
       </button>
       <input
-        className="desk-input mt-2 w-full"
+        className="desk-input pill mt-2 w-full bg-panel"
         placeholder="…or paste a tool, asset, or box QR payload"
         value={payload}
         onChange={(event) => setPayload(event.target.value)}
@@ -96,7 +96,7 @@ export function PublicToolScanPanel({
         </button>
       </div>
       {error ? (
-        <p className="mt-3 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p className="status-box status-box-danger mt-3 w-full justify-start px-3 py-2 text-sm normal-case">
           {error}
         </p>
       ) : null}

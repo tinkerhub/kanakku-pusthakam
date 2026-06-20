@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
 
+import { cyclePalette, PANEL_CLASS, SHADOW_CLASS } from "../../lib/palette";
 import type { Availability, Product } from "../../types/inventory";
 
 type ProductCardProps = {
   product: Product;
+  index: number;
   detailPath: string;
   quantity: number;
   onDecrement: () => void;
@@ -25,10 +27,13 @@ function statusChip(availability: Availability): { text: string; cls: string } |
       : null;
 
   if (label === "Unavailable") {
-    return { text: "Unavailable", cls: "chip" };
+    return { text: "Unavailable", cls: "chip bg-[#ffdad6] text-[#93000a]" };
   }
   if (label === "Limited") {
-    return { text: count != null ? `Limited (${count})` : "Limited", cls: "chip chip-active" };
+    return {
+      text: count != null ? `Limited (${count})` : "Limited",
+      cls: "chip bg-[#fcdf46] text-[#3d3400]",
+    };
   }
   return {
     text: count != null ? `Available (${count})` : "Available",
@@ -38,6 +43,7 @@ function statusChip(availability: Availability): { text: string; cls: string } |
 
 export function ProductCard({
   product,
+  index,
   detailPath,
   quantity,
   onDecrement,
@@ -46,11 +52,14 @@ export function ProductCard({
   const disabled = isUnavailable(product);
   const chip = statusChip(product.availability);
   const idLabel = `ID: ${String(product.id).padStart(4, "0")}`;
+  const palette = cyclePalette(index);
 
   return (
-    <article className="group flex h-full flex-col border-2 border-ink bg-panel transition-transform duration-150 hover:-translate-y-1">
-      {/* Image header — blueprint placeholder when no photo on file. */}
-      <div className="relative h-44 overflow-hidden border-b-2 border-secondary bg-surface">
+    <article className={`group flex h-full flex-col overflow-hidden rounded-lg border border-ink bg-panel transition-all duration-150 hover:-translate-y-1 hover:scale-[1.02] ${SHADOW_CLASS[palette]}`}>
+      <div className={`border-b border-ink px-3 py-2 font-mono text-xs font-semibold uppercase tracking-wide ${PANEL_CLASS[palette]}`}>
+        Catalog item
+      </div>
+      <div className="relative h-44 overflow-hidden border-b border-ink bg-surface">
         {product.image_url ? (
           <img
             src={product.image_url}
@@ -70,12 +79,13 @@ export function ProductCard({
         ) : null}
       </div>
 
-      {/* Body */}
       <div className="flex flex-1 flex-col p-4">
         <h2 className="break-words font-display text-lg font-semibold uppercase leading-tight text-ink">
           {product.name}
         </h2>
-        <p className="mt-1 font-mono text-xs uppercase text-muted">{idLabel}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <span className="chip">{idLabel}</span>
+        </div>
         <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted">
           {product.description || "No description provided."}
         </p>
@@ -86,22 +96,22 @@ export function ProductCard({
         ) : null}
 
         <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
-          <div className="flex items-center border-2 border-ink bg-bg">
+          <div className="flex items-center rounded-full border border-ink bg-bg">
             <button
               aria-label={`Remove ${product.name}`}
-                className="h-9 w-9 font-mono text-lg font-semibold text-ink transition hover:bg-surface hover:text-ink disabled:cursor-not-allowed disabled:text-muted"
+              className="h-9 w-9 rounded-l-full font-mono text-lg font-semibold text-ink transition hover:bg-surface hover:text-ink disabled:cursor-not-allowed disabled:text-muted"
               disabled={quantity === 0}
               type="button"
               onClick={onDecrement}
             >
               -
             </button>
-            <span className="grid h-9 min-w-10 place-items-center border-x-2 border-ink px-2 font-mono text-sm font-semibold text-ink">
+            <span className="grid h-9 min-w-10 place-items-center border-x border-ink px-2 font-mono text-sm font-semibold text-ink">
               {quantity}
             </span>
             <button
               aria-label={`Add ${product.name}`}
-                className="h-9 w-9 font-mono text-lg font-semibold text-ink transition hover:bg-surface hover:text-ink disabled:cursor-not-allowed disabled:text-muted"
+              className="h-9 w-9 rounded-r-full font-mono text-lg font-semibold text-ink transition hover:bg-surface hover:text-ink disabled:cursor-not-allowed disabled:text-muted"
               disabled={disabled}
               type="button"
               onClick={onIncrement}

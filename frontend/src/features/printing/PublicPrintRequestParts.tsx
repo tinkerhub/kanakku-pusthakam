@@ -34,7 +34,7 @@ export function TextInput({
         {label}
       </span>
       <input
-        className="desk-input w-full"
+        className="desk-input w-full bg-panel"
         required={required}
         type={type}
         value={value}
@@ -55,7 +55,7 @@ export function TextArea({
         {label}
       </span>
       <textarea
-        className="desk-input min-h-24 w-full"
+        className="desk-input min-h-24 w-full bg-panel"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
@@ -88,7 +88,7 @@ export function FilePicker({
         </span>
         <input
           accept={accept}
-          className="desk-input w-full"
+          className="desk-input w-full bg-panel"
           multiple
           type="file"
           onChange={addFiles}
@@ -100,7 +100,7 @@ export function FilePicker({
         <ul className="mt-2 space-y-2">
           {files.map((file, index) => (
             <li
-              className="flex min-w-0 items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2 text-sm"
+              className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-ink bg-panel px-3 py-2 text-sm"
               key={`${file.name}-${file.lastModified}-${index}`}
             >
               <span className="min-w-0 truncate text-ink">{file.name}</span>
@@ -225,12 +225,12 @@ export function StatusStepper({ status }: { status: PrintStatus }) {
 
 export function SubmittedTokenCard({ token }: { token: string }) {
   return (
-    <Card>
-      <p className="text-xs font-semibold uppercase tracking-wide text-success">
+    <Card className="panel-mint">
+      <p className="font-mono text-xs font-semibold uppercase tracking-wide">
         Request submitted
       </p>
       <h2 className="mt-2 text-xl font-semibold text-ink">Save this token</h2>
-      <p className="mt-2 break-all rounded-md border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink">
+      <p className="mt-2 break-all rounded-lg border border-ink bg-panel px-3 py-2 text-sm font-semibold text-ink">
         {token}
       </p>
       <p className="mt-2 text-sm text-muted">
@@ -259,7 +259,7 @@ export function StatusResult({
 
   if (error) {
     return (
-      <p className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+      <p className="status-box status-box-danger w-full justify-start px-3 py-2 text-sm normal-case">
         {error.message}
       </p>
     );

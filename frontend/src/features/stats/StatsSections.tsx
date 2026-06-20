@@ -22,24 +22,29 @@ export function PrintingSection({ printing }: { printing: PublicStatsPrinting })
     <Section title="Printing">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
+          index={0}
           label="Print hours all time"
           value={formatNumber(printing.hours_all_time)}
         />
         <StatTile
+          index={1}
           label="Print hours this month"
           value={formatNumber(printing.hours_this_month)}
           tone="accent"
         />
         <StatTile
+          index={2}
           label="Filament used"
           value={`${formatNumber(printing.grams_all_time)} g`}
         />
-        <StatTile label="Completed jobs" value={printing.jobs.completed} />
+        <StatTile index={3} label="Completed jobs" value={printing.jobs.completed} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-md border border-line bg-panel p-3">
-          <h3 className="text-sm font-semibold text-ink">Busiest printer</h3>
+        <div className="rounded-lg border border-ink bg-panel p-3">
+          <h3 className="font-mono text-sm font-semibold uppercase tracking-wide text-ink">
+            Busiest printer
+          </h3>
           {printing.busiest_printer ? (
             <div className="mt-3 space-y-2 text-sm">
               <p className="text-xl font-bold text-ink">
@@ -55,8 +60,10 @@ export function PrintingSection({ printing }: { printing: PublicStatsPrinting })
           )}
         </div>
 
-        <div className="rounded-md border border-line bg-panel p-3">
-          <h3 className="text-sm font-semibold text-ink">Queue</h3>
+        <div className="rounded-lg border border-ink bg-panel p-3">
+          <h3 className="font-mono text-sm font-semibold uppercase tracking-wide text-ink">
+            Queue
+          </h3>
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="status-box status-box-active">
               {printing.jobs.queue.pending} pending
@@ -71,8 +78,10 @@ export function PrintingSection({ printing }: { printing: PublicStatsPrinting })
           </div>
         </div>
 
-        <div className="rounded-md border border-line bg-panel p-3">
-          <h3 className="text-sm font-semibold text-ink">By brand</h3>
+        <div className="rounded-lg border border-ink bg-panel p-3">
+          <h3 className="font-mono text-sm font-semibold uppercase tracking-wide text-ink">
+            By brand
+          </h3>
           <CompactList
             empty="No filament records."
             rows={printing.by_brand.map((row) => ({
@@ -83,8 +92,10 @@ export function PrintingSection({ printing }: { printing: PublicStatsPrinting })
         </div>
       </div>
 
-      <div className="rounded-md border border-line bg-panel p-3">
-        <h3 className="mb-3 text-sm font-semibold text-ink">Filament trend</h3>
+      <div className="rounded-lg border border-ink bg-panel p-3">
+        <h3 className="mb-3 font-mono text-sm font-semibold uppercase tracking-wide text-ink">
+          Filament trend
+        </h3>
         <BarChart
           rows={printing.filament_trend.map((row) => ({
             label: row.period,
@@ -101,21 +112,25 @@ export function HardwareSection({ hardware }: { hardware: PublicStatsHardware })
   return (
     <Section title="Hardware">
       <div className="grid gap-3 sm:grid-cols-3">
-        <StatTile label="Public library" value={hardware.library.library_size} />
+        <StatTile index={0} label="Public library" value={hardware.library.library_size} />
         <StatTile
+          index={1}
           label="Available now"
           value={hardware.library.available_count}
           tone="accent"
         />
         <StatTile
+          index={2}
           label="Currently out"
           value={hardware.library.currently_out_count}
         />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-md border border-line bg-panel p-3">
-          <h3 className="text-sm font-semibold text-ink">Most popular</h3>
+        <div className="rounded-lg border border-ink bg-panel p-3">
+          <h3 className="font-mono text-sm font-semibold uppercase tracking-wide text-ink">
+            Most popular
+          </h3>
           <CompactList
             empty="No lending history yet."
             rows={hardware.most_popular.map((row) => ({
@@ -124,8 +139,10 @@ export function HardwareSection({ hardware }: { hardware: PublicStatsHardware })
             }))}
           />
         </div>
-        <div className="rounded-md border border-line bg-panel p-3">
-          <h3 className="text-sm font-semibold text-ink">Tools out</h3>
+        <div className="rounded-lg border border-ink bg-panel p-3">
+          <h3 className="font-mono text-sm font-semibold uppercase tracking-wide text-ink">
+            Tools out
+          </h3>
           <CompactList
             empty="No tools are out."
             rows={hardware.tools_out.map((row) => ({
@@ -134,8 +151,10 @@ export function HardwareSection({ hardware }: { hardware: PublicStatsHardware })
             }))}
           />
         </div>
-        <div className="rounded-md border border-line bg-panel p-3">
-          <h3 className="text-sm font-semibold text-ink">Recently added</h3>
+        <div className="rounded-lg border border-ink bg-panel p-3">
+          <h3 className="font-mono text-sm font-semibold uppercase tracking-wide text-ink">
+            Recently added
+          </h3>
           <CompactList
             empty="No new public gear this month."
             rows={hardware.recently_added.map((row) => ({
@@ -160,7 +179,7 @@ export function CurrentLoansSection({
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {loans.map((loan, index) => (
             <article
-              className="rounded-md border border-line bg-panel p-3"
+              className="rounded-lg border border-ink bg-panel p-3 shadow-brutal-sm"
               key={`${loan.item_name}-${loan.holder_name}-${index}`}
             >
               <h3 className="truncate text-base font-semibold text-ink">

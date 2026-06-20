@@ -12,6 +12,7 @@ import { KioskPage, ScannerPage, SuperadminPage } from "./features/staff/Platfor
 import { ResetPasswordPage } from "./features/staff/ResetPasswordPage";
 import { StaffApp } from "./features/staff/StaffApp";
 import { PublicStatsPage } from "./features/stats/PublicStatsPage";
+import { cyclePalette, PANEL_CLASS, SHADOW_CLASS } from "./lib/palette";
 import { useTenant } from "./lib/tenant";
 
 function LandingPage() {
@@ -28,8 +29,8 @@ function LandingPage() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
             <div className="min-w-0">
-              <p className="font-display text-xl font-bold text-ink">TinkerSpace</p>
-              <p className="text-xs text-muted">Shared equipment portal</p>
+              <p className="font-display text-2xl font-bold text-ink">TinkerSpace</p>
+              <p className="font-mono text-xs uppercase text-muted">Shared equipment portal</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -41,24 +42,28 @@ function LandingPage() {
       </header>
 
       <section className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="desk-panel h-fit p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
-            Inventory Directory
+        <aside className="desk-panel h-fit bg-bg p-5">
+          <p className="font-mono text-xs font-semibold uppercase tracking-wide text-accent">
+            LIVE ACTIVITY
           </p>
           <h1 className="mt-3 text-3xl font-bold text-ink">Makerspaces</h1>
           <p className="mt-3 text-sm leading-6 text-muted">
             Browse public catalogs across connected workshops, labs, and community spaces.
           </p>
           <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-md border border-line bg-surface p-3">
+            <div className="rounded-lg border border-ink bg-panel p-3">
+              <p className="font-mono text-[0.65rem] font-semibold uppercase tracking-wide text-muted">
+                PUBLIC SPACES
+              </p>
               <p className="text-2xl font-bold text-ink">
                 {makerspacesQuery.data?.length ?? "-"}
               </p>
-              <p className="text-xs text-muted">Public spaces</p>
             </div>
-            <div className="rounded-md border border-line bg-surface p-3">
+            <div className="rounded-lg border border-ink bg-panel p-3">
+              <p className="font-mono text-[0.65rem] font-semibold uppercase tracking-wide text-muted">
+                STATUS ACCESS
+              </p>
               <p className="text-2xl font-bold text-accent">Live</p>
-              <p className="text-xs text-muted">Status access</p>
             </div>
           </div>
         </aside>
@@ -69,7 +74,7 @@ function LandingPage() {
               <h2 className="text-lg font-semibold text-ink">Available public catalogs</h2>
               <p className="text-sm text-muted">Select a makerspace to view shared equipment.</p>
             </div>
-            <span className="rounded-md border border-line bg-surface px-3 py-1 text-xs font-medium text-muted">
+            <span className="chip">
               Standard public portal
             </span>
           </div>
@@ -104,63 +109,82 @@ function LandingPage() {
 
         {makerspacesQuery.data && makerspacesQuery.data.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {makerspacesQuery.data.map((makerspace) => (
-              <Link
-                key={makerspace.slug}
-                className="group flex flex-col border-2 border-ink bg-panel transition-transform duration-150 hover:-translate-y-1 hover:shadow-brutal focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-                to={`/m/${makerspace.slug}`}
-              >
-                <div className="relative h-40 overflow-hidden border-b-2 border-secondary bg-surface">
-                  {makerspace.cover_image_url ? (
-                    <img
-                      src={makerspace.cover_image_url}
-                      alt={`${makerspace.name} cover`}
-                      loading="lazy"
-                      className="h-full w-full object-cover grayscale transition-all duration-500 group-hover:grayscale-0"
-                    />
-                  ) : (
-                    <div className="blueprint-bg h-full w-full" />
-                  )}
-                  <span className="absolute left-3 top-3 chip chip-available">
-                    <span className="h-2 w-2 rounded-full bg-bg" /> Public
-                  </span>
+            {makerspacesQuery.data.map((makerspace, index) => {
+              const palette = cyclePalette(index);
+              const tiltClass = index % 2 === 0 ? "card-tilt-1" : "card-tilt-2";
+
+              return (
+                <div className={tiltClass} key={makerspace.slug}>
+                  <Link
+                    className={`group flex h-full flex-col overflow-hidden rounded-lg border border-ink bg-panel transition-all duration-150 hover:-translate-y-1 hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 ${SHADOW_CLASS[palette]}`}
+                    to={`/m/${makerspace.slug}`}
+                  >
+                    <div className={`border-b border-ink px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wide ${PANEL_CLASS[palette]}`}>
+                      Zone blueprint
+                    </div>
+                    <div className="relative h-40 overflow-hidden border-b border-ink bg-surface">
+                      {makerspace.cover_image_url ? (
+                        <img
+                          src={makerspace.cover_image_url}
+                          alt={`${makerspace.name} cover`}
+                          loading="lazy"
+                          className="h-full w-full object-cover grayscale transition-all duration-500 group-hover:grayscale-0"
+                        />
+                      ) : (
+                        <div className="blueprint-bg h-full w-full" />
+                      )}
+                      <span className="absolute left-3 top-3 chip chip-available">
+                        <span className="h-2 w-2 rounded-full bg-[#00321b]" /> Public
+                      </span>
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col p-card-padding p-5">
+                      <MakerspaceBrand
+                        name={makerspace.name}
+                        logoUrl={makerspace.logo_url}
+                        size="md"
+                      />
+                      <p className="mt-2 break-words font-mono text-xs uppercase text-muted">
+                        {makerspace.location || makerspace.slug}
+                      </p>
+                      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-5">
+                        <span className="chip min-w-0 truncate">
+                          {makerspace.public_code}
+                        </span>
+                        <span className="inline-flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-tight text-secondary">
+                          Open catalog &rarr;
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
                 </div>
-                <div className="flex min-w-0 flex-1 flex-col p-card-padding p-5">
-                  <MakerspaceBrand
-                    name={makerspace.name}
-                    logoUrl={makerspace.logo_url}
-                    size="md"
-                  />
-                  <p className="mt-2 break-words font-mono text-xs uppercase text-muted">
-                    {makerspace.location || makerspace.slug}
-                  </p>
-                  <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-5">
-                    <span className="min-w-0 truncate font-mono text-xs uppercase text-muted">
-                      {makerspace.public_code}
-                    </span>
-                    <span className="inline-flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-tight text-secondary">
-                      Open catalog &rarr;
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         ) : null}
         </div>
       </section>
+      <footer className="border-t border-line bg-panel">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-5 py-4 font-mono text-xs uppercase text-muted">
+          <span>TinkerSpace public catalog</span>
+          <span>Built for community hardware lending</span>
+        </div>
+      </footer>
     </main>
   );
 }
 
 function NotFoundPage() {
   return (
-    <main className="grid min-h-screen place-items-center bg-bg px-6">
-      <div className="text-center">
-        <p className="text-sm font-semibold uppercase tracking-wide text-muted">
+    <main className="desk-shell blueprint-bg grid place-items-center px-6 py-10">
+      <div className="desk-panel w-full max-w-md bg-bg p-6 text-center">
+        <p className="font-display text-3xl font-bold text-ink">TinkerSpace</p>
+        <p className="mt-3 font-mono text-sm font-semibold uppercase tracking-wide text-muted">
           404
         </p>
         <h1 className="mt-2 text-3xl font-bold text-ink">Page not found</h1>
+        <Link className="desk-button-primary mt-5 w-full" to="/">
+          Back home
+        </Link>
       </div>
     </main>
   );

@@ -25,8 +25,8 @@ function formatStatus(status: string) {
 
 function ResultCard({ result }: { result: PublicToolLoanResult }) {
   return (
-    <div className="rounded-md border border-success/40 bg-success/10 px-3 py-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-success">
+    <div className="status-box status-box-done block w-full px-3 py-3 text-left normal-case">
+      <p className="font-mono text-xs font-semibold uppercase tracking-wide">
         {formatStatus(result.status)}
       </p>
       <h2 className="mt-1 text-lg font-semibold text-ink">
@@ -35,7 +35,7 @@ function ResultCard({ result }: { result: PublicToolLoanResult }) {
       <div className="mt-3 space-y-2">
         {result.items.map((item) => (
           <div
-            className="flex items-center justify-between gap-3 rounded-md border border-success/20 bg-panel px-3 py-2 text-sm text-ink"
+            className="flex items-center justify-between gap-3 rounded-lg border border-ink bg-panel px-3 py-2 text-sm text-ink"
             key={item.product_name}
           >
             <span>{item.product_name}</span>
@@ -135,13 +135,15 @@ export function PublicSelfCheckoutPage() {
           <Card>
             <div
               aria-label="Checkout mode"
-              className="desk-panel mt-4 flex gap-1 p-1"
+              className="pill flex gap-1 border border-ink bg-bg p-1 shadow-brutal-sm"
               role="tablist"
             >
               <button
                 aria-selected={mode === "checkout"}
                 className={
-                  mode === "checkout" ? "desk-tab desk-tab-active" : "desk-tab"
+                  mode === "checkout"
+                    ? "pill flex-1 bg-accent px-4 py-2 font-mono text-sm font-semibold uppercase tracking-tight text-on-accent"
+                    : "pill flex-1 px-4 py-2 font-mono text-sm font-semibold uppercase tracking-tight text-ink hover:bg-surface"
                 }
                 role="tab"
                 type="button"
@@ -152,7 +154,9 @@ export function PublicSelfCheckoutPage() {
               <button
                 aria-selected={mode === "return"}
                 className={
-                  mode === "return" ? "desk-tab desk-tab-active" : "desk-tab"
+                  mode === "return"
+                    ? "pill flex-1 bg-accent px-4 py-2 font-mono text-sm font-semibold uppercase tracking-tight text-on-accent"
+                    : "pill flex-1 px-4 py-2 font-mono text-sm font-semibold uppercase tracking-tight text-ink hover:bg-surface"
                 }
                 role="tab"
                 type="button"
@@ -167,7 +171,7 @@ export function PublicSelfCheckoutPage() {
                 Check-In ID
               </span>
               <input
-                className="desk-input w-full"
+                className="desk-input pill w-full bg-panel"
                 required
                 value={identifier}
                 onChange={(event) => setIdentifier(event.target.value)}
@@ -184,7 +188,7 @@ export function PublicSelfCheckoutPage() {
             </button>
 
             {loanMutation.isError ? (
-              <p className="mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+              <p className="status-box status-box-danger mt-4 w-full justify-start px-3 py-2 text-sm normal-case">
                 {loanMutation.error.message}
               </p>
             ) : null}
