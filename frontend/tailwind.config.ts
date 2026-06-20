@@ -2,7 +2,6 @@ import type { Config } from "tailwindcss";
 
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
-  darkMode: "class",
   theme: {
     extend: {
       colors: {
@@ -32,19 +31,21 @@ export default {
         mono: ['"JetBrains Mono"', "ui-monospace", "SFMono-Regular", "monospace"],
       },
       boxShadow: {
-        // The "sticker" effect — a hard, solid offset block (no blur). The block colour
-        // is theme-driven (--shadow-color): near-black on light, light outline on dark.
         brutal: "4px 4px 0 0 rgb(var(--shadow-color))",
         "brutal-sm": "2px 2px 0 0 rgb(var(--shadow-color))",
         "brutal-lg": "6px 6px 0 0 rgb(var(--shadow-color))",
+        "hardsoft-blue": "4px 4px 0 0 rgb(var(--shadow-color)), 0 0 12px 0 rgba(125,211,252,0.55)",
+        "hardsoft-yellow": "4px 4px 0 0 rgb(var(--shadow-color)), 0 0 12px 0 rgba(252,223,70,0.55)",
+        "hardsoft-mint": "4px 4px 0 0 rgb(var(--shadow-color)), 0 0 12px 0 rgba(116,221,156,0.55)",
+        "hardsoft-coral": "4px 4px 0 0 rgb(var(--shadow-color)), 0 0 12px 0 rgba(255,138,128,0.55)",
       },
       borderRadius: {
-        // Soft (0.25rem default) — friendly but blocky, per the design system.
-        sm: "0.125rem",
-        DEFAULT: "0.25rem",
-        md: "0.375rem",
-        lg: "0.5rem",
-        xl: "0.75rem",
+        sm: "0.25rem",
+        DEFAULT: "0.5rem",
+        md: "0.75rem",
+        lg: "1rem",
+        xl: "1.5rem",
+        full: "9999px",
       },
       backgroundSize: {
         blueprint: "32px 32px",

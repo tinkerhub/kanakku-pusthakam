@@ -1,22 +1,24 @@
 import type { PropsWithChildren } from "react";
 
-type BadgeTone = "success" | "warn" | "danger" | "neutral";
+type BadgeTone = "success" | "warn" | "danger" | "neutral" | "info" | "active";
 
 type BadgeProps = PropsWithChildren<{
   tone: BadgeTone;
 }>;
 
 const toneClasses: Record<BadgeTone, string> = {
-  success: "border-success bg-success/10 text-success",
-  warn: "border-warn bg-warn/10 text-warn",
-  danger: "border-danger bg-danger/10 text-danger",
-  neutral: "border-outline bg-surface text-muted",
+  success: "border-ink bg-[#74dd9c] text-[#00321b]",
+  warn: "border-ink bg-[#fcdf46] text-[#3d3400]",
+  danger: "border-ink bg-[#ffdad6] text-[#93000a]",
+  neutral: "border-ink bg-surface text-muted",
+  info: "border-ink bg-[#7dd3fc] text-[#00374a]",
+  active: "border-ink bg-[#7dd3fc] text-[#00374a]",
 };
 
 export function Badge({ tone, children }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center rounded-sm border px-2 py-0.5 font-mono text-xs font-medium uppercase tracking-tight ${toneClasses[tone]}`}
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 font-mono text-xs font-semibold uppercase tracking-tight ${toneClasses[tone]}`}
     >
       {children}
     </span>

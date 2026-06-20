@@ -9,9 +9,6 @@ import { cleanupLegacyAccessToken } from "./lib/api";
 import { queryClient } from "./lib/queryClient";
 import { TenantProvider } from "./lib/tenant";
 
-if (localStorage.getItem("makerspace.theme") === "dark") {
-  document.documentElement.classList.add("dark");
-}
 cleanupLegacyAccessToken();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

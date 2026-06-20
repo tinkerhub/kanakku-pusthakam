@@ -1,7 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
-import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
 import { Spinner } from "../../components/ui/Spinner";
 import { useTenant, useTenantPath } from "../../lib/tenant";
@@ -53,7 +52,6 @@ export function PublicStatsPage() {
               <Link className="desk-button" to={tenantPath()}>
                 Catalog
               </Link>
-              <ThemeToggle />
               <Link className="desk-button" to="/admin">
                 Staff login
               </Link>

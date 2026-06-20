@@ -3,7 +3,6 @@ import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
-import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
 import { useTenant, useTenantPath } from "../../lib/tenant";
 import type {
@@ -157,7 +156,6 @@ export function PublicInventoryPage() {
                   Request a 3D print
                 </Link>
               ) : null}
-              <ThemeToggle />
               <Link className="desk-button" to="/admin">
                 Staff login
               </Link>

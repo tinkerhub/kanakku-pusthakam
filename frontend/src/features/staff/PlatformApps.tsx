@@ -2,7 +2,6 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
 import { staffRequest } from "../../lib/api";
 import { PublicInventoryPage } from "../inventory/PublicInventoryPage";
@@ -26,7 +25,6 @@ export function KioskPage() {
             <h1 className="text-xl font-bold text-ink">Public desk</h1>
           </div>
           <div className="flex gap-2">
-            <ThemeToggle />
             <Link className="desk-button" to={`/m/${slug ?? ""}`}>
               Catalog
             </Link>
@@ -57,7 +55,6 @@ export function ScannerPage() {
             </p>
             <h1 className="text-2xl font-bold text-ink">QR resolution</h1>
           </div>
-          <ThemeToggle />
         </div>
         <Card>
           <div className="flex flex-col gap-3 sm:flex-row">

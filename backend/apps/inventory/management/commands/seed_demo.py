@@ -17,27 +17,33 @@ from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
 DEMO_SPACES = [
     {
-        "slug": "alpha-lab",
-        "name": "Alpha Robotics Lab",
+        "slug": "calicut",
+        "name": "TinkerSpace Calicut",
         "location": "Main Campus - Room A12",
         "manager": "alpha_manager",
         "superadmin_access_enabled": True,
     },
     {
-        "slug": "beta-workshop",
-        "name": "Beta Woodshop",
+        "slug": "kochi",
+        "name": "TinkerSpace Kochi",
         "location": "North Wing - Woodshop",
         "manager": "beta_manager",
         "superadmin_access_enabled": False,
     },
     {
-        "slug": "gamma-fab",
-        "name": "Gamma Fabrication Studio",
+        "slug": "trivandrum",
+        "name": "TinkerSpace Trivandrum",
         "location": "Downtown Fab Studio",
         "manager": "gamma_manager",
         "superadmin_access_enabled": True,
     },
 ]
+
+LEGACY_SLUG_RENAMES = {
+    "alpha-lab": "calicut",
+    "beta-workshop": "kochi",
+    "gamma-fab": "trivandrum",
+}
 
 DEMO_PRODUCTS = [
     ("Arduino Uno R4", "microcontrollers", 18, "Electronics Bay"),
@@ -58,6 +64,25 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        # Idempotent legacy-slug rename so re-running on a pre-rename demo DB renames
+        # in place instead of inserting a second set of rows. Asset tags are derived
+        # from the slug (`{SLUG}-OSC-NN`), so they must be remapped together — otherwise
+        # `_assets()` keyed by the new-slug tag wouldn't match the old rows and would
+        # create duplicate assets (Codex Stage-4 P2).
+        for old, new in LEGACY_SLUG_RENAMES.items():
+            space = Makerspace.objects.filter(slug=old).first()
+            if not space:
+                continue
+            old_prefix = f"{old.upper()}-OSC-"
+            new_prefix = f"{new.upper()}-OSC-"
+            for asset in InventoryAsset.objects.filter(
+                makerspace=space, asset_tag__startswith=old_prefix
+            ):
+                asset.asset_tag = f"{new_prefix}{asset.asset_tag[len(old_prefix):]}"
+                asset.save(update_fields=["asset_tag"])
+            space.slug = new
+            space.save(update_fields=["slug"])
+
         password = options["password"]
         superadmin = self._user(
             "superadmin",

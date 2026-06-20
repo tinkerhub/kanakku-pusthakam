@@ -35,9 +35,9 @@ export function DetailDrawer({ open, title, onClose, children }: DetailDrawerPro
         aria-modal="true"
         role="dialog"
         aria-labelledby="detail-drawer-title"
-        className={`absolute right-0 top-0 flex h-full w-full max-w-xl flex-col border-l border-line bg-panel shadow-xl transition-transform duration-200 ${open ? "translate-x-0" : "translate-x-full"}`}
+        className={`absolute bottom-3 right-3 top-3 flex w-[calc(100%-1.5rem)] max-w-xl flex-col rounded-lg border border-ink bg-panel shadow-brutal transition-transform duration-200 ${open ? "translate-x-0" : "translate-x-full"}`}
       >
-        <header className="flex items-center gap-3 border-b border-line px-4 py-3">
+        <header className="flex items-center gap-3 border-b border-ink px-4 py-3">
           <h2 id="detail-drawer-title" className="text-sm font-semibold uppercase tracking-wide text-muted">
             {title}
           </h2>

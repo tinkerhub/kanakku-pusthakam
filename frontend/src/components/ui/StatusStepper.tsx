@@ -40,7 +40,7 @@ function StepBox({
       ? "status-box status-box-done"
       : state === "current"
         ? "status-box status-box-active"
-        : "status-box";
+        : "status-box status-box-pending";
 
   return (
     <span

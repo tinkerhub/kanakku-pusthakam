@@ -1,7 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
-import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
 import { Spinner } from "../../components/ui/Spinner";
 import { useTenant, useTenantPath } from "../../lib/tenant";
@@ -35,7 +34,6 @@ export function PublicItemDetailPage() {
             <h1 className="mt-1 text-2xl font-bold text-ink">Item detail</h1>
           </div>
           <div className="flex gap-2">
-            <ThemeToggle />
             <Link className="desk-button" to={tenantPath()}>
               Catalog
             </Link>

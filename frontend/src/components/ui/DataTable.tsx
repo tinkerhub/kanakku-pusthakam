@@ -64,10 +64,10 @@ export function DataTable<T>({
   if (!loading && !data.length) return <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} />;
 
   return (
-    <div className="overflow-x-auto rounded-md border border-line bg-panel">
+    <div className="overflow-x-auto rounded-lg border border-ink bg-panel shadow-brutal-sm">
       <table className="w-full min-w-[640px] text-left text-sm" aria-busy={loading}>
         <thead className="bg-surface text-xs uppercase text-muted">
-          <tr className="border-b border-line">
+          <tr className="border-b border-ink">
             {selectionEnabled ? (
               <th className="w-10 px-3 py-2">
                 <input ref={selectAllRef} type="checkbox" aria-label="Select all rows" checked={allSelected} onChange={(event) => changeAll(event.target.checked)} />
@@ -100,7 +100,7 @@ export function DataTable<T>({
             sortedData.map((row) => {
               const id = getRowId(row);
               return (
-                <tr key={id} className="border-b border-line last:border-b-0">
+                <tr key={id} className="border-b border-ink last:border-b-0">
                   {selectionEnabled ? (
                     <td className="px-3 py-2">
                       <input type="checkbox" aria-label={`Select row ${String(id)}`} checked={selectedSet.has(id)} onChange={(event) => changeRow(id, event.target.checked)} />

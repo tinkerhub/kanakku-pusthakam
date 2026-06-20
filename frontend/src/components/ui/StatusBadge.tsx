@@ -1,10 +1,10 @@
 import { Badge } from "./Badge";
 
-export type StatusBadgeTone = "success" | "warn" | "danger" | "neutral";
+export type StatusBadgeTone = "success" | "warn" | "danger" | "neutral" | "info" | "active";
 
 export const statusToneMap: Record<string, StatusBadgeTone> = {
   accepted: "success",
-  active: "success",
+  active: "active",
   available: "success",
   returned: "success",
   limited: "warn",

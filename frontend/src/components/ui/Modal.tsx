@@ -44,15 +44,15 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="desk-panel flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden outline-none sm:max-h-[calc(100dvh-2rem)]"
+        className="desk-panel flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-ink bg-panel shadow-brutal outline-none sm:max-h-[calc(100dvh-2rem)]"
       >
-        <div className="shrink-0 border-b border-line px-4 py-3">
+        <div className="shrink-0 border-b border-ink px-4 py-3">
           <h2 id={titleId} className="text-sm font-semibold uppercase tracking-wide text-muted">
             {title}
           </h2>
         </div>
         <div className="desk-panel-body overflow-y-auto p-4">{children}</div>
-        {footer ? <div className="shrink-0 border-t border-line px-4 py-3">{footer}</div> : null}
+        {footer ? <div className="shrink-0 border-t border-ink px-4 py-3">{footer}</div> : null}
       </div>
     </div>
   );

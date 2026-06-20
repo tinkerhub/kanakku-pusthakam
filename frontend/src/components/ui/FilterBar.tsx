@@ -21,13 +21,13 @@ export function FilterBar({
   const searchId = useId();
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-line bg-panel p-3 sm:flex-row sm:items-center">
+    <div className="flex flex-col gap-3 rounded-lg border border-ink bg-panel p-3 shadow-brutal-sm sm:flex-row sm:items-center">
       <label className="sr-only" htmlFor={searchId}>
         {searchLabel}
       </label>
       <input
         id={searchId}
-        className="desk-input min-w-0 flex-1"
+        className="desk-input pill min-w-0 flex-1"
         type="search"
         value={value}
         placeholder={placeholder}

@@ -11,7 +11,6 @@ import {
   staffRequest,
   type StaffAuthUser,
 } from "../../lib/api";
-import { ThemeToggle } from "../../components/ThemeToggle";
 import { ChangePasswordGate } from "./ChangePasswordGate";
 import { LoginPanel } from "./LoginPanel";
 import { MakerspacePicker } from "./MakerspacePicker";
@@ -246,7 +245,6 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
             account that has a membership for it.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <ThemeToggle />
             <button className="desk-button" type="button" onClick={signOut}>
               Sign out
             </button>
@@ -345,12 +343,9 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     <main className="desk-shell grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)]">
       <aside className="min-w-0 border-b-2 border-ink bg-panel lg:min-h-screen lg:border-b-0 lg:border-r-2">
         <div className="flex min-w-0 items-center gap-3 border-b-2 border-ink px-5 py-4">
-          <span className="grid h-9 w-9 place-items-center border-2 border-ink bg-accent font-display text-sm font-bold text-on-accent">
-            MM
-          </span>
           <div className="min-w-0">
-            <p className="truncate font-display text-sm font-bold uppercase tracking-tight text-ink">
-              Makerspace Mgr
+            <p className="truncate font-display text-xl font-bold text-ink">
+              TinkerSpace
             </p>
             <p className="truncate font-mono text-xs uppercase text-muted">
               {guestOnly ? "Guest admin" : isSuperadmin ? "Super Admin" : printingOnly ? "Print Manager" : "Space Manager"}
@@ -434,7 +429,6 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
                   Switch makerspace
                 </button>
               ) : null}
-              <ThemeToggle />
               <button className="desk-button" onClick={signOut}>
                 Sign out
               </button>

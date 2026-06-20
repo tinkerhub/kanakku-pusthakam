@@ -1,4 +1,3 @@
-import { ThemeToggle } from "../../components/ThemeToggle";
 import { Badge } from "../../components/ui";
 import type { Makerspace } from "./StaffPanels";
 
@@ -31,7 +30,6 @@ export function MakerspacePicker({
             <p className="mt-1 text-sm text-muted">Signed in as {username}. Pick a makerspace to manage its operations.</p>
           </div>
           <div className="flex items-center gap-2">
-            <ThemeToggle />
             <button className="desk-button" type="button" onClick={onSignOut}>
               Sign out
             </button>
