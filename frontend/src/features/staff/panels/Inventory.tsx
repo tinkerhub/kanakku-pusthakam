@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ConfirmDialog, DataTable, FilterBar, Modal, StatusBadge } from "../../../components/ui";
 import type { DataTableColumn } from "../../../components/ui";
 import { staffRequest } from "../../../lib/api";
+import { PANEL_CLASS, SHADOW_CLASS, cyclePalette } from "../../../lib/palette";
 import { ImageUploader } from "../ImageUploader";
 import { categoryResults, Panel, type Category, type CategoryListResponse, type Makerspace, type Product, useStaffGet } from "./shared";
 
@@ -109,7 +110,7 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
   };
   const columns: DataTableColumn<AdminProduct>[] = [
     { key: "image", header: "", render: (product) => (
-      <div className="h-10 w-10 overflow-hidden border-2 border-ink bg-surface">
+      <div className="h-10 w-10 overflow-hidden rounded-xl border border-ink bg-surface shadow-brutal-sm">
         {product.image_url ? <img src={product.image_url} alt="" className="h-full w-full object-cover" /> : <div className="blueprint-bg h-full w-full" />}
       </div>
     ) },
@@ -185,7 +186,15 @@ function ItemModal({ title, open, onClose, form, setForm, categories, includeQua
 function QuantityAdjust({ product, form, setForm, pending, error, onSubmit }: { product: AdminProduct; form: AdjustmentForm; setForm: (updater: (current: AdjustmentForm) => AdjustmentForm) => void; pending: boolean; error?: string; onSubmit: () => void }) {
   return (
     <div className="grid gap-3 border-t border-line pt-3">
-      <div className="grid gap-2 sm:grid-cols-3"><InventoryMetric label="Available" value={product.available_quantity} /><InventoryMetric label="Damaged" value={product.damaged_quantity} /><InventoryMetric label="Lost" value={product.lost_quantity} /></div>
+      <div className="grid gap-2 sm:grid-cols-3">
+        {[
+          ["Available", product.available_quantity],
+          ["Damaged", product.damaged_quantity],
+          ["Lost", product.lost_quantity],
+        ].map(([label, value], index) => (
+          <InventoryMetric key={label} label={String(label)} value={Number(value)} index={index} />
+        ))}
+      </div>
       <div className="grid gap-2 sm:grid-cols-3"><input className="desk-input" type="number" value={form.delta_available} onChange={(e) => setForm((c) => ({ ...c, delta_available: e.target.value }))} /><input className="desk-input" type="number" value={form.delta_damaged} onChange={(e) => setForm((c) => ({ ...c, delta_damaged: e.target.value }))} /><input className="desk-input" type="number" value={form.delta_lost} onChange={(e) => setForm((c) => ({ ...c, delta_lost: e.target.value }))} /></div>
       <input className="desk-input" placeholder="Adjustment reason" value={form.reason} onChange={(e) => setForm((c) => ({ ...c, reason: e.target.value }))} />
       <div className="desk-actions flex justify-end"><button className="desk-button" type="button" disabled={pending || !form.reason.trim()} onClick={onSubmit}>Apply adjustment</button></div>
@@ -246,8 +255,14 @@ function InventoryAvailability({ product }: { product: AdminProduct }) {
   return <span className="inline-flex items-center gap-2"><span className="font-medium text-ink">{product.available_quantity}</span>{badge}</span>;
 }
 
-function InventoryMetric({ label, value }: { label: string; value: number }) {
-  return <div className="rounded-md border border-line bg-surface p-3"><p className="text-xs font-semibold uppercase text-muted">{label}</p><p className="mt-1 text-xl font-bold text-ink">{value}</p></div>;
+function InventoryMetric({ label, value, index }: { label: string; value: number; index: number }) {
+  const palette = cyclePalette(index);
+  return (
+    <div className={`${PANEL_CLASS[palette]} ${SHADOW_CLASS[palette]} rounded-2xl border border-ink p-4`}>
+      <p className="font-display text-4xl font-semibold leading-none">{value}</p>
+      <p className="mt-2 font-mono text-xs font-semibold uppercase">{label}</p>
+    </div>
+  );
 }
 
 function AttributionLine({ acceptedBy, issuedBy }: { acceptedBy: Actor | null; issuedBy: Actor | null }) {

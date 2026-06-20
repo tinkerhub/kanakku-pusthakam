@@ -165,7 +165,7 @@ export function ManualPrintLogSection({
       <div className="mt-4 grid gap-2">
         {logs.isLoading ? <p className="text-sm text-muted">Loading manual logs...</p> : null}
         {logRows.map((log) => (
-          <article key={log.id} className="rounded-md border border-line bg-surface px-3 py-2 text-sm">
+          <article key={log.id} className="rounded-2xl border border-ink bg-bg px-3 py-2 text-sm shadow-brutal-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <strong className="text-ink">{log.title}</strong>
               <span className="text-muted">

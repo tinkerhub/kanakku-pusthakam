@@ -25,7 +25,7 @@ export function DirectLoanList({
     <Panel title="Direct handout loans">
       <div className="grid gap-2">
         {loans.map((loan) => (
-          <article key={loan.id} className="rounded-md border border-line bg-surface p-3">
+          <article key={loan.id} className="rounded-2xl border border-ink bg-bg p-3 shadow-brutal-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="font-semibold text-ink">{loan.target_label}</h3>

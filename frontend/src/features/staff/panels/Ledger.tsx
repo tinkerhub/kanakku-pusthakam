@@ -88,7 +88,8 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
         </div>
 
         <input
-          className="desk-input"
+          className="desk-input pill"
+          type="search"
           placeholder="Filter by holder or item"
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
@@ -97,7 +98,7 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
         {ledger.isLoading ? <p className="text-sm text-muted">Loading ledger...</p> : null}
         {ledger.error ? <p className="text-sm text-danger">{ledger.error.message}</p> : null}
         {!ledger.isLoading && !ledger.error && !visibleRows.length ? (
-          <p className="rounded-md border border-line bg-surface p-3 text-sm text-muted">No items are currently out.</p>
+          <p className="rounded-2xl border border-ink bg-bg p-3 text-sm text-muted">No items are currently out.</p>
         ) : null}
 
         {visibleRows.length ? (
@@ -118,7 +119,7 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
                 {visibleRows.map((row) => {
                   const overdue = isOverdue(row.due, now);
                   return (
-                    <tr key={`${row.source}-${row.reference_id}-${row.makerspace_id}-${row.item_name}`} className={overdue ? "bg-danger/10" : ""}>
+                    <tr key={`${row.source}-${row.reference_id}-${row.makerspace_id}-${row.item_name}`} className={overdue ? "bg-[#ffdad6]" : ""}>
                       <td className="px-3 py-2 align-top">
                         <div className="max-w-56 break-words font-medium text-ink">{row.item_name}</div>
                         <UnitLines row={row} />
@@ -133,7 +134,7 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-3 py-2">
-                        <span className="rounded-md border border-line bg-bg px-2 py-0.5 text-xs font-medium text-muted">
+                        <span className="chip normal-case tracking-normal">
                           {sourceLabels[row.source]}
                         </span>
                       </td>

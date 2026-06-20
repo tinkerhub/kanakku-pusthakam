@@ -173,7 +173,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
           ))}
         </div>
         {!printers.isLoading && !printerRows.length ? <p className="text-sm text-muted">No printers yet.</p> : null}
-        <div className="mt-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <div className="mt-4 grid gap-2 rounded-2xl border border-ink bg-bg p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
           <input className="desk-input min-w-0" placeholder="Printer name" value={printerName} onChange={(event) => setPrinterName(event.target.value)} />
           <input className="desk-input min-w-0" placeholder="Model" value={printerModel} onChange={(event) => setPrinterModel(event.target.value)} />
           <button disabled={!printerName.trim() || createPrinter.isPending} onClick={() => createPrinter.mutate()}>
@@ -187,7 +187,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
 
       <Panel title="Filament spools">
         {spools.isLoading ? <p className="text-sm text-muted">Loading spools...</p> : null}
-        <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <div className="grid gap-2 rounded-2xl border border-ink bg-bg p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
           <select className="desk-input min-w-0" value={spoolPrinter} onChange={(event) => setSpoolPrinter(event.target.value)}>
             <option value="">Unassigned printer</option>
             {printerRows.map((printer) => <option key={printer.id} value={printer.id}>{printer.name}</option>)}

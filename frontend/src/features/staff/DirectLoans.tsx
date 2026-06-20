@@ -210,7 +210,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
             Verify check-in
           </button>
         </div>
-        {isVerified && verifiedUsername ? <p className="mt-2 text-sm text-success">Verified as {verifiedUsername}</p> : null}
+        {isVerified && verifiedUsername ? <p className="mt-2"><span className="status-box status-box-done">Verified as {verifiedUsername}</span></p> : null}
         {verify.error ? <p className="mt-2 text-sm text-danger">{verify.error.message}</p> : null}
         <label className="mt-4 block text-sm font-medium text-ink" htmlFor="direct-loan-container">Container (optional)</label>
         <select
@@ -255,7 +255,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
           {scanned.length ? (
             <div className="mb-3 flex flex-wrap gap-2">
               {scanned.map((item) => (
-                <span key={item.payload} className="inline-flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-1 text-sm text-ink">
+                <span key={item.payload} className="chip normal-case tracking-normal">
                   {item.label}
                   <button className="text-muted hover:text-danger" type="button" onClick={() => removeScanned(item.payload)}>Remove</button>
                 </span>

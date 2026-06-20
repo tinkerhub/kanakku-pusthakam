@@ -7,6 +7,24 @@ import {
   refreshAccessToken,
 } from "../../../lib/api";
 
+const SPOOL_SWATCHES: Record<string, string> = {
+  Black: "#1b1c19",
+  White: "#ffffff",
+  Gray: "#9ca3af",
+  Silver: "#c0c0c0",
+  Red: "#ef4444",
+  Orange: "#fb923c",
+  Yellow: "#fcdf46",
+  Green: "#74dd9c",
+  Blue: "#7dd3fc",
+  Purple: "#a855f7",
+  Pink: "#ec4899",
+  Brown: "#92400e",
+  Gold: "#d4af37",
+  Transparent: "linear-gradient(135deg, #ffffff 0 45%, #7dd3fc 45% 55%, #ffffff 55% 100%)",
+  Natural: "#f5f4ef",
+};
+
 
 export type FilamentSpool = {
   id: number;
@@ -166,14 +184,29 @@ export function SpoolColorInput({
   // palette is preserved as its own option so editing an old spool never loses data.
   const options = SPOOL_COLORS.includes(value) || !value ? SPOOL_COLORS : [value, ...SPOOL_COLORS];
   return (
-    <select className={className} value={value} onChange={(event) => onChange(event.target.value)}>
-      <option value="">Select colour</option>
-      {options.map((color) => (
-        <option key={color} value={color}>
-          {color}
-        </option>
-      ))}
-    </select>
+    <div className="grid min-w-0 gap-2">
+      <select className={className} value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="">Select colour</option>
+        {options.map((color) => (
+          <option key={color} value={color}>
+            {color}
+          </option>
+        ))}
+      </select>
+      <div className="flex flex-wrap gap-1">
+        {SPOOL_COLORS.slice(0, 12).map((color) => (
+          <button
+            key={color}
+            type="button"
+            className={`h-6 w-6 rounded-full border border-ink shadow-brutal-sm transition hover:-translate-y-0.5 ${value === color ? "ring-2 ring-accent ring-offset-1 ring-offset-bg" : ""}`}
+            style={{ background: SPOOL_SWATCHES[color] ?? color }}
+            title={color}
+            aria-label={`Use ${color} filament`}
+            onClick={() => onChange(color)}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -189,13 +222,13 @@ export function PrinterCard({
   onDelete: () => void;
 }) {
   return (
-    <div className="min-w-0 rounded-md border border-line bg-surface p-3">
+    <div className="desk-panel min-w-0 p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="break-words font-semibold text-ink">{printer.name}</h3>
           <p className="break-words text-xs text-muted">{printer.model || "No model"}</p>
         </div>
-        <span className={`rounded-md px-2 py-1 text-xs font-semibold ${printer.is_free ? "bg-success/15 text-success" : "bg-warn/15 text-warn"}`}>
+        <span className={`status-box ${printer.is_free ? "status-box-done" : "status-box-pending"}`}>
           {printer.is_free ? "Free" : "Busy"}
         </span>
       </div>
@@ -296,7 +329,7 @@ export function SpoolRow({
   );
   const usedLabel = Number.isFinite(usedGrams) ? `${usedGrams}g used` : "—";
   return (
-    <div className="min-w-0 rounded-md border border-line bg-surface px-3 py-2">
+    <div className="desk-panel min-w-0 px-3 py-2">
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <span className="min-w-0 break-words font-medium text-ink">
           {[spool.brand, spool.material, spool.color].filter(Boolean).join(" ") || spool.material}
@@ -304,8 +337,8 @@ export function SpoolRow({
         <span className="min-w-0 break-words text-muted">{spool.printer_name ?? "Unassigned"}</span>
         <span className="min-w-0 break-words text-muted">{usedLabel} · {spool.remaining_weight_grams}g left of {spool.initial_weight_grams}g</span>
         <span
-          className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
-            spool.is_active ? "bg-success/15 text-success" : "bg-warn/15 text-warn"
+          className={`status-box ${
+            spool.is_active ? "status-box-done" : "status-box-pending"
           }`}
           title={spool.is_active ? "Shown to the public request form" : "Hidden from the public request form — activate to show"}
         >
@@ -340,11 +373,11 @@ export function PrintRows({
   }
 
   return (
-    <div className="rounded-md border border-line">
-      <h3 className="border-b border-line bg-surface px-3 py-2 text-sm font-semibold text-muted">{title}</h3>
+    <div className="overflow-hidden rounded-2xl border border-ink bg-panel">
+      <h3 className="border-b border-ink bg-surface px-3 py-2 font-mono text-sm font-semibold uppercase text-muted">{title}</h3>
       <div className="grid gap-0">
         {rows.length ? rows.map((row) => (
-          <article key={row.id} className="border-b border-line p-3 last:border-b-0">
+          <article key={row.id} className="border-b border-ink bg-bg p-3 last:border-b-0">
             <div className="flex flex-wrap items-center gap-2">
               <strong className="min-w-0 break-words text-ink">#{row.id} {row.title}</strong>
               <span className={`status-box ${printStatusClassName(row.status)}`}>{printStatusLabel(row.status)}</span>

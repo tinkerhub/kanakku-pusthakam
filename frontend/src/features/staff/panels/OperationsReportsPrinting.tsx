@@ -107,24 +107,20 @@ export function PrintingReportSection({ makerspace, aggregate }: { makerspace: M
 
           <div>
             <h3 className="mb-2 text-sm font-semibold text-ink">Payments</h3>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-md border border-line bg-surface p-3">
-                <p className="text-2xl font-bold text-ink">{printing.data?.payments.paid_amount ?? "0"}</p>
-                <p className="text-xs text-muted">Collected ({printing.data?.payments.paid_count ?? 0})</p>
-              </div>
-              <div className="rounded-md border border-line bg-surface p-3">
-                <p className="text-2xl font-bold text-ink">{printing.data?.payments.outstanding_amount ?? "0"}</p>
-                <p className="text-xs text-muted">Outstanding ({printing.data?.payments.outstanding_count ?? 0})</p>
-              </div>
-            </div>
+            <StatCards
+              stats={[
+                [`Collected (${printing.data?.payments.paid_count ?? 0})`, printing.data?.payments.paid_amount ?? "0"],
+                [`Outstanding (${printing.data?.payments.outstanding_count ?? 0})`, printing.data?.payments.outstanding_amount ?? "0"],
+              ]}
+            />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
-            <div className="rounded-md border border-line bg-bg p-3">
+            <div className="rounded-2xl border border-ink bg-bg p-3">
               <h3 className="mb-3 text-sm font-semibold text-ink">Requests by status</h3>
               <PieChart rows={statusRows} valueLabel="" />
             </div>
-            <div className="rounded-md border border-line bg-bg p-3">
+            <div className="rounded-2xl border border-ink bg-bg p-3">
               <h3 className="mb-3 text-sm font-semibold text-ink">Filament share by brand</h3>
               <PieChart rows={brandRows} valueLabel="g" />
             </div>
@@ -133,12 +129,12 @@ export function PrintingReportSection({ makerspace, aggregate }: { makerspace: M
           <div>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-ink">Estimated filament</h3>
-              <div className="flex rounded-md border border-line bg-bg p-1">
+              <div className="flex rounded-full border border-ink bg-bg p-1">
                 {periods.map((item) => (
                   <button
                     key={item.key}
                     type="button"
-                    className={`rounded px-3 py-1 text-xs font-semibold ${period === item.key ? "bg-surface text-accent" : "text-muted"}`}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${period === item.key ? "bg-accent text-on-accent" : "text-muted"}`}
                     onClick={() => setPeriod(item.key)}
                   >
                     {item.label}

@@ -21,13 +21,13 @@ export function RequestsPanel({
     <div className="grid gap-8">
       {canSeeHardware ? (
         <section className="grid gap-4">
-          <h2 className="text-lg font-semibold text-ink">Hardware requests</h2>
+          <h2 className="font-display text-3xl font-semibold text-ink">Hardware requests</h2>
           <Queues makerspace={makerspace} guestOnly={guestOnly} />
         </section>
       ) : null}
       {canSeePrinting ? (
         <section className="grid gap-4">
-          <h2 className="text-lg font-semibold text-ink">3D printing requests</h2>
+          <h2 className="font-display text-3xl font-semibold text-ink">3D printing requests</h2>
           <PrintQueueSection makerspace={makerspace} />
         </section>
       ) : null}

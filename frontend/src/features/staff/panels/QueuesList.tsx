@@ -23,9 +23,9 @@ async function openEvidence(id: number) {
 export function RequestList({ rows, actions }: { rows: HardwareRequest[]; actions: (row: HardwareRequest) => React.ReactNode }) {
   if (!rows.length) return <p className="text-sm text-ink/60">No requests.</p>;
   return (
-    <div className="overflow-hidden rounded-md border border-line">
+    <div className="overflow-hidden rounded-2xl border border-ink bg-panel">
       {rows.map((row) => (
-        <article key={row.id} className="min-w-0 border-b border-line bg-surface/50 p-3 last:border-b-0">
+        <article key={row.id} className="min-w-0 border-b border-ink bg-bg p-3 last:border-b-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="min-w-0 break-words font-semibold text-ink">#{row.id} {row.requester_username}</h3>
             <span className={`status-box ${statusBadgeClassName(row.status)}`}>

@@ -107,7 +107,7 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
       {startablePrinters.length === 0 ? (
         <p className="mb-2 text-xs text-warn">No active printer — add or activate one on the 3D Printing tab.</p>
       ) : null}
-      <div className="mb-3 grid gap-2 md:grid-cols-4">
+      <div className="mb-3 grid gap-2 rounded-2xl border border-ink bg-bg p-3 md:grid-cols-4">
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Printer</span>
           <select className="desk-input w-full" value={selectedPrinter} onChange={(event) => setSelectedPrinter(event.target.value)}>

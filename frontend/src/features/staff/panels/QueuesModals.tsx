@@ -222,7 +222,7 @@ export function AssignIssueModal({ row, open, pending, error, onClose, onSubmit,
             {scanned.length ? (
               <div className="flex flex-wrap gap-2">
                 {scanned.map((item) => (
-                  <span key={item.payload} className="inline-flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-1 text-sm text-ink">
+                  <span key={item.payload} className="chip normal-case tracking-normal">
                     {item.label}
                     <button className="text-muted hover:text-danger" type="button" disabled={pending} onClick={() => removeScanned(item.payload)}>Remove</button>
                   </span>
@@ -241,14 +241,14 @@ export function AssignIssueModal({ row, open, pending, error, onClose, onSubmit,
             // return. Show them read-only here so staff aren't offered an action that 400s.
             if (item.requires_asset_qr) {
               return (
-                <div key={item.id} className="rounded-md border border-line p-2">
+                <div key={item.id} className="rounded-xl border border-ink bg-bg p-2">
                   <p className="text-sm font-medium text-ink">{item.product_name} <span className="text-muted">×{item.accepted_quantity}</span></p>
                   <p className="mt-1 text-xs text-muted">Individually tracked — issued by asset QR scan above.</p>
                 </div>
               );
             }
             return (
-              <div key={item.id} className="rounded-md border border-line p-2">
+              <div key={item.id} className="rounded-xl border border-ink bg-bg p-2">
                 <p className="text-sm font-medium text-ink">{item.product_name} <span className="text-muted">×{item.accepted_quantity}</span></p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-[auto_1fr] sm:items-end">
                   <label className="grid gap-1 text-xs text-muted">
@@ -363,7 +363,7 @@ export function ReturnRequestModal({ row, open, pending, error, onClose, onSubmi
               <img
                 src={issueUrl}
                 alt="Issue photo for comparison"
-                className="max-h-56 w-full rounded-md border border-line object-contain"
+                className="max-h-56 w-full rounded-xl border border-ink bg-bg object-contain"
               />
             </div>
           ) : null}
@@ -382,7 +382,7 @@ export function ReturnRequestModal({ row, open, pending, error, onClose, onSubmi
           {row?.items.map((item) => {
             const resolution = resolutions.find((entry) => entry.item_id === item.id);
             return (
-              <div key={item.id} className="rounded-md border border-line p-2">
+              <div key={item.id} className="rounded-xl border border-ink bg-bg p-2">
                 <p className="text-sm font-medium text-ink">{item.product_name}</p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-3">
                   {(["returned", "damaged", "missing"] as const).map((key) => (

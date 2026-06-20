@@ -104,7 +104,7 @@ export function OperationsReports({
       <Panel title="Exports">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {exportReports.map((report) => (
-            <div key={report} className="rounded-md border border-line bg-bg p-3">
+            <div key={report} className="rounded-2xl border border-ink bg-bg p-3 shadow-brutal-sm">
               <p className="text-sm font-semibold capitalize text-ink">{report.replace(/-/g, " ")}</p>
               <div className="mt-3 flex gap-2">
                 <button className="desk-button" type="button" onClick={() => exportReport(report, "csv")}>

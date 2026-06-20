@@ -39,3 +39,6 @@ docs/roadmap.md
 .DS_Store
 .idea/
 .vscode/
+
+# Stitch design mockups (reference only, not consumed by Vite; CDN refs violate CSP)
+stitch_luminous_minimalist_interface/

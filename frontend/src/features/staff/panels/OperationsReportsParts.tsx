@@ -1,5 +1,7 @@
 import type React from "react";
 
+import { PANEL_CLASS, SHADOW_CLASS, cyclePalette } from "../../../lib/palette";
+
 export type ReportCell = string | number | null;
 export type ReportRows = { rows: ReportCell[][] };
 
@@ -34,15 +36,20 @@ export function DataState(props: { loading: boolean; error: unknown; empty: bool
   return <>{props.children}</>;
 }
 
-export function StatCards({ stats }: { stats: [string, number | undefined][] }) {
+const BAR_COLORS = ["#7dd3fc", "#fcdf46", "#74dd9c", "#ffb4a8"] as const;
+
+export function StatCards({ stats }: { stats: [string, number | string | undefined][] }) {
   return (
     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {stats.map(([label, value]) => (
-        <div key={label} className="rounded-md border border-line bg-surface p-3">
-          <p className="text-2xl font-bold text-ink">{formatNumber(value ?? 0)}</p>
-          <p className="text-xs text-muted">{label}</p>
-        </div>
-      ))}
+      {stats.map(([label, value], index) => {
+        const palette = cyclePalette(index);
+        return (
+          <div key={label} className={`${PANEL_CLASS[palette]} ${SHADOW_CLASS[palette]} rounded-2xl border border-ink p-4`}>
+            <p className="font-display text-4xl font-semibold leading-none sm:text-5xl">{formatStatValue(value ?? 0)}</p>
+            <p className="mt-2 font-mono text-xs font-semibold uppercase">{label}</p>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -61,7 +68,7 @@ export function BarChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
               {row.label}
             </span>
             <div className="h-3 overflow-hidden rounded bg-bg">
-              <div className="h-full rounded bg-accent" style={{ width }} />
+              <div className="h-full rounded border-r border-ink" style={{ width, backgroundColor: BAR_COLORS[index % BAR_COLORS.length] }} />
             </div>
             <span className="min-w-14 text-right text-xs text-muted">
               {formatNumber(row.value)} {valueLabel ?? ""}
@@ -189,6 +196,10 @@ function formatCell(value: ReportCell | undefined) {
   if (typeof value === "number") return formatNumber(value);
   if (/^\d{4}-\d{2}-\d{2}T/.test(value)) return new Date(value).toLocaleString();
   return value;
+}
+
+function formatStatValue(value: number | string) {
+  return typeof value === "number" ? formatNumber(value) : value;
 }
 
 function formatNumber(value: number) {
