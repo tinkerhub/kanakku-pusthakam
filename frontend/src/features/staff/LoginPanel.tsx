@@ -19,6 +19,7 @@ export function LoginPanel({
   const [mode, setMode] = useState<"login" | "forgot">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [forgotPending, setForgotPending] = useState(false);
@@ -108,7 +109,7 @@ export function LoginPanel({
   return (
     <main className="desk-shell blueprint-bg grid place-items-center px-5 py-10">
       <form
-        className="desk-panel w-full max-w-md bg-bg p-6"
+        className="desk-panel card-tilt-1 panel-blue w-full max-w-md p-6"
         onSubmit={(event) => {
           event.preventDefault();
           if (isPending) return;
@@ -132,14 +133,25 @@ export function LoginPanel({
           onChange={(e) => setUsername(e.target.value)}
         />
         <label className="mt-3 block text-sm font-semibold">Password</label>
-        <input
-          className="desk-input pill mt-1 w-full bg-panel"
-          name="password"
-          autoComplete="current-password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <div className="relative mt-1">
+          <input
+            className="desk-input pill w-full bg-panel pr-16"
+            name="password"
+            autoComplete="current-password"
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-pressed={showPassword}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            className="absolute inset-y-1 right-1 inline-flex items-center rounded-full px-3 font-mono text-xs font-semibold uppercase tracking-tight text-accent transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+          >
+            {showPassword ? "Hide" : "Show"}
+          </button>
+        </div>
         {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
         <button
           className="desk-button-primary mt-5 flex w-full items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"

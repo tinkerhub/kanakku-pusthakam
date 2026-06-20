@@ -81,12 +81,17 @@ export function PublicRequestPanel({
     setLookupValue(value);
   }
 
+  // Each tab wears its own vibrant colour when active: borrow=blue, scan=yellow,
+  // my requests=pink. Inactive tabs stay outlined.
+  const TAB_ACTIVE: Record<ActiveTab, string> = {
+    borrow: "status-box-step1",
+    scan: "status-box-step2",
+    requests: "status-box-step3",
+  };
+
   function tabClass(tab: ActiveTab) {
-    // Tabs use the brutalist status-box rectangle but filled with the brand ACCENT
-    // (red), not the blue "in-progress" status colour — a selected tab is navigation,
-    // not a request status.
     return activeTab === tab
-      ? "status-box border-ink bg-accent text-on-accent shadow-brutal-sm w-full py-2"
+      ? `status-box ${TAB_ACTIVE[tab]} shadow-brutal-sm w-full py-2`
       : "status-box w-full py-2 hover:bg-surface hover:text-ink";
   }
 
@@ -98,7 +103,7 @@ export function PublicRequestPanel({
     !submitMutation.isPending;
 
   return (
-    <aside className="space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:flex lg:flex-col lg:overflow-hidden">
+    <aside className="space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:flex lg:flex-col lg:overflow-hidden lg:p-2">
       {disabled ? (
         <Card>
           <p className="text-xs font-semibold uppercase tracking-wide text-accent">

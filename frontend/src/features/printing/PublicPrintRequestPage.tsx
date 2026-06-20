@@ -287,9 +287,9 @@ export function PublicPrintRequestPage() {
           />
         </div>
 
-        <aside className="min-w-0 space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:overflow-y-auto">
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:overflow-y-auto lg:p-2">
           {submittedToken ? <SubmittedTokenCard token={submittedToken} /> : null}
-          <Card className="card-tilt-1 panel-yellow">
+          <Card className="card-tilt-1 panel-pink">
             <p className="font-mono text-xs font-semibold uppercase tracking-wide">
               Status Tracker
             </p>

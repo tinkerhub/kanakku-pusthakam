@@ -23,6 +23,14 @@ export function statusStageLabel(status: string): string {
   return STAGES[statusStageIndex(status)] ?? STAGES[0];
 }
 
+// Each step always wears its own vibrant colour once reached.
+const STEP_COLOR = [
+  "status-box-step1",
+  "status-box-step2",
+  "status-box-step3",
+  "status-box-step4",
+];
+
 function StepBox({
   step,
   label,
@@ -34,17 +42,18 @@ function StepBox({
   state: "completed" | "current" | "upcoming" | "issue";
   rejected: boolean;
 }) {
-  const className = (rejected && step === 0) || state === "issue"
-    ? "status-box status-box-danger"
-    : state === "completed"
-      ? "status-box status-box-done"
-      : state === "current"
-        ? "status-box status-box-active"
-        : "status-box status-box-pending";
+  const danger = (rejected && step === 0) || state === "issue";
+  const reached = state === "completed" || state === "current";
+  const colorClass = danger
+    ? "status-box-danger"
+    : reached
+      ? STEP_COLOR[step % STEP_COLOR.length]
+      : "status-box-upcoming";
+  const emphasis = state === "current" && !danger ? "status-box-current" : "";
 
   return (
     <span
-      className={`${className} w-full flex-col leading-tight`}
+      className={`status-box ${colorClass} ${emphasis} w-full flex-col leading-tight`}
       aria-current={state === "current" ? "step" : undefined}
     >
       <span className="font-bold opacity-70">{step + 1}</span>

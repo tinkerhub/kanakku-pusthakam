@@ -215,11 +215,6 @@ export function PrintDetailsForm({
           </FormSection>
         </fieldset>
 
-        {!verified ? (
-          <p className="panel-yellow card-tilt-1 rounded-lg border border-ink px-3 py-2 text-sm shadow-brutal-sm">
-            Verify your Check-In before submitting a print request.
-          </p>
-        ) : null}
         {uploadProgress ? <p className="text-sm text-muted">{uploadProgress}</p> : null}
         {submitError ? (
           <p className="status-box status-box-danger w-full justify-start px-3 py-2 text-sm">
@@ -250,9 +245,9 @@ function FormSection({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-ink bg-bg shadow-brutal-sm">
+    <section className="overflow-hidden rounded-lg border-2 border-ink bg-bg shadow-brutal-sm">
       <div
-        className={`${panelClass} flex items-center gap-2 border-b border-ink px-3 py-2 font-mono text-xs font-semibold uppercase tracking-wide`}
+        className={`${panelClass} flex items-center gap-2 border-b-2 border-ink px-3 py-2 font-mono text-xs font-semibold uppercase tracking-wide`}
       >
         <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-ink bg-panel text-ink">
           {icon}

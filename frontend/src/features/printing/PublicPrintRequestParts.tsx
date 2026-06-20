@@ -21,6 +21,14 @@ const steps = [
   { key: "collected", label: "Collected" },
 ];
 
+// Each step always wears its own vibrant colour once reached.
+const STEP_COLOR = [
+  "status-box-step1",
+  "status-box-step2",
+  "status-box-step3",
+  "status-box-step4",
+];
+
 export function TextInput({
   label,
   value,
@@ -179,12 +187,10 @@ export function StatusStepper({ status }: { status: PrintStatus }) {
     <div className="space-y-3">
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {steps.map((step, index) => {
-          const state =
-            index < currentIndex
-              ? "status-box-done"
-              : index === currentIndex
-                ? "status-box-active"
-                : "";
+          const reached = currentIndex >= 0 && index <= currentIndex;
+          const state = reached
+            ? `${STEP_COLOR[index % STEP_COLOR.length]}${index === currentIndex ? " status-box-current" : ""}`
+            : "status-box-upcoming";
           return (
             <div
               className={`status-box w-full ${state}`}

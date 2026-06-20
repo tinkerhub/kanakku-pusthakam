@@ -38,6 +38,7 @@ export default {
         "hardsoft-yellow": "4px 4px 0 0 rgb(var(--shadow-color)), 0 0 12px 0 rgba(252,223,70,0.55)",
         "hardsoft-mint": "4px 4px 0 0 rgb(var(--shadow-color)), 0 0 12px 0 rgba(116,221,156,0.55)",
         "hardsoft-coral": "4px 4px 0 0 rgb(var(--shadow-color)), 0 0 12px 0 rgba(255,138,128,0.55)",
+        "hardsoft-pink": "4px 4px 0 0 rgb(var(--shadow-color)), 0 0 12px 0 rgba(249,168,212,0.55)",
       },
       borderRadius: {
         sm: "0.25rem",

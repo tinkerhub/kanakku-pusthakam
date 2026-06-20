@@ -168,6 +168,33 @@
     background: #ffdad6;
     color: #93000a;
   }
+  /* Fixed per-step colours for status steppers: each step always wears its own
+     vibrant colour once reached, so a finished request is never monotone. */
+  .status-box-step1 {
+    background: #7dd3fc;
+    color: #00374a;
+  }
+  .status-box-step2 {
+    background: #fcdf46;
+    color: #3d3400;
+  }
+  .status-box-step3 {
+    background: #f9a8d4;
+    color: #5a1633;
+  }
+  .status-box-step4 {
+    background: #74dd9c;
+    color: #00321b;
+  }
+  /* Steps not yet reached: faded dashed outline. */
+  .status-box-upcoming {
+    border-style: dashed;
+    opacity: 0.55;
+  }
+  /* The live step gets the hard offset block for emphasis. */
+  .status-box-current {
+    box-shadow: 2px 2px 0 0 rgb(var(--shadow-color));
+  }
 
   /* ── Desk shell (staff console + shared) — reskinned to Blueprint ───────── */
   .desk-shell {
@@ -177,9 +204,14 @@
 
   .desk-panel {
     @apply min-w-0 bg-panel;
-    border: 1px solid rgb(var(--color-ink));
-    border-radius: 1rem;
-    box-shadow: 4px 4px 0 0 rgb(var(--shadow-color));
+    border: 2px solid rgb(var(--color-ink));
+    border-radius: 0.5rem;
+    /* Hard offset block + a soft ambient glow ("hardsoft", like the catalog
+       cards). The glow wraps the corners so the bottom-right no longer reads as
+       a hard page-background sliver, while all four corners stay rounded. */
+    box-shadow:
+      4px 4px 0 0 rgb(var(--shadow-color)),
+      0 0 12px 0 rgb(var(--shadow-color) / 0.16);
   }
 
   .desk-input {
@@ -275,12 +307,17 @@
     border-radius: 9999px;
   }
 
+  /* Tilted cards bump to a 2px border: a 1px border on a rotated element
+     sub-pixels away on some edges (the "missing edge" artifact), and the bold
+     edge matches the brutalist directory cards. */
   .card-tilt-1 {
     transform: rotate(-1.5deg);
+    border-width: 2px;
   }
 
   .card-tilt-2 {
     transform: rotate(1.5deg);
+    border-width: 2px;
   }
 
   .panel-blue {
@@ -301,5 +338,10 @@
   .panel-coral {
     background: #ffb4a8;
     color: #5a1a12;
+  }
+
+  .panel-pink {
+    background: #f9a8d4;
+    color: #5a1633;
   }
 }

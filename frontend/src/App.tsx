@@ -12,7 +12,7 @@ import { KioskPage, ScannerPage, SuperadminPage } from "./features/staff/Platfor
 import { ResetPasswordPage } from "./features/staff/ResetPasswordPage";
 import { StaffApp } from "./features/staff/StaffApp";
 import { PublicStatsPage } from "./features/stats/PublicStatsPage";
-import { cyclePalette, PANEL_CLASS, SHADOW_CLASS } from "./lib/palette";
+import { cycleDirectory, PANEL_CLASS, SHADOW_CLASS } from "./lib/palette";
 import { useTenant } from "./lib/tenant";
 
 function LandingPage() {
@@ -110,7 +110,7 @@ function LandingPage() {
         {makerspacesQuery.data && makerspacesQuery.data.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {makerspacesQuery.data.map((makerspace, index) => {
-              const palette = cyclePalette(index);
+              const palette = cycleDirectory(index);
               const tiltClass = index % 2 === 0 ? "card-tilt-1" : "card-tilt-2";
 
               return (
