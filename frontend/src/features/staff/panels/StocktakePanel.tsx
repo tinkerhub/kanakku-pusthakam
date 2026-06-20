@@ -43,21 +43,21 @@ export function StocktakePanel({ makerspace }: { makerspace: Makerspace }) {
 
   return (
     <Panel title="Stocktake">
-      <button disabled={create.isPending} onClick={() => create.mutate()}>
+      <button className="desk-button-primary" disabled={create.isPending} onClick={() => create.mutate()}>
         {create.isPending ? "Starting..." : "Start stocktake"}
       </button>
       {createError ? <p className="mt-2 text-sm text-danger">{createError}</p> : null}
       {actionError ? <p className="mt-2 text-sm text-danger">{actionError}</p> : null}
       <div className="mt-3 grid gap-2">
         {stocktakes.data?.results?.map((row) => (
-          <div key={row.id} className="rounded-md border border-line bg-surface p-3 text-sm">
+          <div key={row.id} className="rounded-2xl border border-ink bg-surface p-3 text-sm shadow-brutal-sm">
             <div className="flex flex-wrap items-center gap-2">
               <strong>#{row.id}</strong>
-              <span className="rounded-md border border-line bg-bg px-2 py-0.5 text-xs text-muted">{row.status}</span>
-              <button onClick={() => setOpenId((id) => (id === row.id ? null : row.id))}>{openId === row.id ? "Hide counts" : "Count items"}</button>
-              <button disabled={action.isPending} onClick={() => action.mutate(`/admin/stocktakes/${row.id}/complete`)}>Complete</button>
-              <button disabled={action.isPending} onClick={() => action.mutate(`/admin/stocktakes/${row.id}/approve`)}>Approve</button>
-              <button disabled={action.isPending} onClick={() => action.mutate(`/admin/stocktakes/${row.id}/apply-adjustments`)}>Apply</button>
+              <span className={stocktakeStatusClass(row.status)}>{row.status}</span>
+              <button className="desk-button" onClick={() => setOpenId((id) => (id === row.id ? null : row.id))}>{openId === row.id ? "Hide counts" : "Count items"}</button>
+              <button className="desk-button" disabled={action.isPending} onClick={() => action.mutate(`/admin/stocktakes/${row.id}/complete`)}>Complete</button>
+              <button className="desk-button" disabled={action.isPending} onClick={() => action.mutate(`/admin/stocktakes/${row.id}/approve`)}>Approve</button>
+              <button className="desk-button-primary" disabled={action.isPending} onClick={() => action.mutate(`/admin/stocktakes/${row.id}/apply-adjustments`)}>Apply</button>
             </div>
             <p className="mt-1 text-muted">{row.notes}</p>
             {openId === row.id ? <CountSection makerspace={makerspace} stocktakeId={row.id} /> : null}
@@ -97,7 +97,7 @@ function CountSection({ makerspace, stocktakeId }: { makerspace: Makerspace; sto
   const lines = detail.data?.lines ?? [];
 
   return (
-    <div className="mt-3 rounded-md border border-line bg-bg p-3">
+    <div className="mt-3 rounded-xl border border-ink bg-bg p-3">
       <div className="grid gap-2 md:grid-cols-[1fr_120px_140px_auto] md:items-end">
         <label className="grid gap-1 text-xs text-muted">
           <span>Product</span>
@@ -116,24 +116,24 @@ function CountSection({ makerspace, stocktakeId }: { makerspace: Makerspace; sto
             {CONDITIONS.map((value) => <option key={value} value={value}>{value}</option>)}
           </select>
         </label>
-        <button disabled={!productId || record.isPending} onClick={() => record.mutate()}>{record.isPending ? "Saving..." : "Record count"}</button>
+        <button className="desk-button-primary" disabled={!productId || record.isPending} onClick={() => record.mutate()}>{record.isPending ? "Saving..." : "Record count"}</button>
       </div>
       {recordError ? <p className="mt-2 text-sm text-danger">{recordError}</p> : null}
       <div className="mt-3 grid min-w-0 gap-1">
         {lines.length ? (
           <div className="overflow-x-auto">
             <table className="min-w-[560px] text-left text-xs">
-              <thead className="text-muted">
+              <thead className="bg-surface text-muted">
                 <tr><th className="py-1">Product</th><th>Expected</th><th>Counted</th><th>Variance</th><th>Condition</th></tr>
               </thead>
               <tbody>
                 {lines.map((line) => (
-                  <tr key={line.id} className="border-t border-line">
+                  <tr key={line.id} className="border-t border-ink">
                     <td className="py-1"><span className="block max-w-48 break-words">{productName(line.product)}</span></td>
                     <td>{line.expected_quantity}</td>
                     <td>{line.counted_quantity}</td>
-                    <td className={line.variance_quantity === 0 ? "text-muted" : "text-danger"}>{line.variance_quantity}</td>
-                    <td>{line.condition}</td>
+                    <td className={line.variance_quantity === 0 ? "text-muted" : "font-semibold text-danger"}>{line.variance_quantity}</td>
+                    <td><span className={conditionClass(line.condition)}>{line.condition}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -143,4 +143,17 @@ function CountSection({ makerspace, stocktakeId }: { makerspace: Makerspace; sto
       </div>
     </div>
   );
+}
+
+function stocktakeStatusClass(status: string) {
+  const normalized = status.toLowerCase();
+  if (normalized.includes("approved") || normalized.includes("applied")) return "status-box status-box-done px-2 py-0.5 text-xs";
+  if (normalized.includes("complete")) return "status-box status-box-active px-2 py-0.5 text-xs";
+  return "status-box status-box-pending px-2 py-0.5 text-xs";
+}
+
+function conditionClass(condition: string) {
+  if (condition === "available") return "chip chip-available";
+  if (condition === "damaged" || condition === "lost") return "status-box status-box-danger px-2 py-0.5 text-xs";
+  return "chip";
 }

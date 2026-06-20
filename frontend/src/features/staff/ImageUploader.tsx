@@ -103,8 +103,8 @@ export function ImageUploader({
   return (
     <div className="space-y-2">
       <p className="font-mono text-xs uppercase tracking-tight text-muted">{label}</p>
-      <div className="flex items-center gap-3">
-        <div className={`${previewBox} shrink-0 overflow-hidden border-2 border-ink bg-surface`}>
+      <div className="flex items-center gap-3 rounded-2xl border border-dashed border-ink bg-bg p-3">
+        <div className={`${previewBox} shrink-0 overflow-hidden rounded-xl border border-ink bg-surface shadow-brutal-sm`}>
           {currentUrl ? (
             <img
               src={currentUrl}
@@ -126,12 +126,12 @@ export function ImageUploader({
               const file = event.target.files?.[0];
               if (file) handleFile(file);
             }}
-            className="block w-full text-sm text-muted file:mr-3 file:border-2 file:border-ink file:bg-accent file:px-3 file:py-1.5 file:font-mono file:text-xs file:font-semibold file:uppercase file:text-on-accent"
+            className="block w-full text-sm text-muted file:mr-3 file:rounded-full file:border file:border-ink file:bg-accent file:px-3 file:py-1.5 file:font-mono file:text-xs file:font-semibold file:uppercase file:text-on-accent"
           />
           {currentUrl ? (
             <button
               type="button"
-              className="font-mono text-xs uppercase text-danger hover:underline disabled:opacity-50"
+              className="desk-button mt-1"
               disabled={disabled || status === "uploading"}
               onClick={clearImage}
             >

@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 
 import { Modal } from "../../../components/ui";
 import { staffRequest } from "../../../lib/api";
+import { PANEL_CLASS, SHADOW_CLASS, cyclePalette } from "../../../lib/palette";
 import { Panel, type Makerspace } from "./shared";
 
 type RawRow = Record<string, unknown>;
@@ -157,20 +158,20 @@ export function BulkImport({ makerspace }: { makerspace: Makerspace }) {
 function ImportSummary({ result }: { result: ImportResult }) {
   const errorRows = new Map((result.errors ?? []).map((item) => [item.row, item.errors]));
   return (
-    <div className="grid gap-3 rounded-md border border-line bg-panel p-3">
+    <div className="grid gap-3 rounded-2xl border border-ink bg-panel p-3 shadow-brutal-sm">
       <div className="grid gap-2 text-sm sm:grid-cols-4">
-        <Metric label="Create" value={result.created ?? result.summary?.create ?? 0} />
-        <Metric label="Update" value={result.updated ?? result.summary?.update ?? 0} />
-        <Metric label="Errors" value={result.summary?.errors ?? result.errors?.length ?? 0} />
-        <Metric label="Rows" value={result.summary?.total ?? result.rows?.length ?? 0} />
+        <Metric index={0} label="Create" value={result.created ?? result.summary?.create ?? 0} />
+        <Metric index={1} label="Update" value={result.updated ?? result.summary?.update ?? 0} />
+        <Metric index={2} label="Errors" value={result.summary?.errors ?? result.errors?.length ?? 0} />
+        <Metric index={3} label="Rows" value={result.summary?.total ?? result.rows?.length ?? 0} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] text-left text-sm">
-          <thead className="text-xs uppercase text-muted"><tr><th className="px-2 py-1">Row</th><th className="px-2 py-1">Status</th><th className="px-2 py-1">Name</th><th className="px-2 py-1">Message</th></tr></thead>
+          <thead className="bg-surface text-xs uppercase text-muted"><tr><th className="px-2 py-1">Row</th><th className="px-2 py-1">Status</th><th className="px-2 py-1">Name</th><th className="px-2 py-1">Message</th></tr></thead>
           <tbody>
             {(result.rows ?? []).map((row) => {
               const errors = errorRows.get(row.row);
-              return <tr key={row.row} className="border-t border-line"><td className="px-2 py-1">{row.row}</td><td className="px-2 py-1">{errors ? "error" : row.action ?? "ready"}</td><td className="px-2 py-1">{String(row.data?.name ?? "")}</td><td className="px-2 py-1 text-muted">{errors ? Object.entries(errors).map(([k, v]) => `${k}: ${v}`).join("; ") : ""}</td></tr>;
+              return <tr key={row.row} className="border-t border-ink"><td className="px-2 py-1">{row.row}</td><td className="px-2 py-1"><span className={errors ? "status-box status-box-danger px-2 py-0.5 text-xs" : "status-box status-box-active px-2 py-0.5 text-xs"}>{errors ? "error" : row.action ?? "ready"}</span></td><td className="px-2 py-1">{String(row.data?.name ?? "")}</td><td className="px-2 py-1 text-muted">{errors ? Object.entries(errors).map(([k, v]) => `${k}: ${v}`).join("; ") : ""}</td></tr>;
             })}
           </tbody>
         </table>
@@ -179,8 +180,14 @@ function ImportSummary({ result }: { result: ImportResult }) {
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
-  return <div><p className="text-xs uppercase text-muted">{label}</p><p className="font-semibold text-ink">{value}</p></div>;
+function Metric({ index, label, value }: { index: number; label: string; value: number }) {
+  const palette = cyclePalette(index);
+  return (
+    <div className={`${PANEL_CLASS[palette]} ${SHADOW_CLASS[palette]} rounded-2xl border border-ink p-4`}>
+      <p className="font-mono text-xs uppercase tracking-wide">{label}</p>
+      <p className="mt-2 font-display text-4xl leading-none">{value}</p>
+    </div>
+  );
 }
 
 async function parseFile(file: File) {

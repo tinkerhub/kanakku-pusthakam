@@ -55,10 +55,10 @@ export function NeedsFixShelf({ makerspace }: { makerspace: Makerspace }) {
       ) : null}
       <div className="grid gap-2">
         {rows.map((item) => (
-          <div key={item.id} className="rounded-md border border-line bg-surface px-3 py-2">
+          <div key={item.id} className="rounded-2xl border border-ink bg-surface px-3 py-2 shadow-brutal-sm">
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <span className="font-medium text-ink">{item.name}</span>
-              <span className="rounded-md bg-warn/15 px-2 py-0.5 text-xs font-semibold text-warn">
+              <span className="status-box status-box-pending px-2 py-0.5 text-xs font-semibold">
                 {item.needs_fix_quantity} to fix
               </span>
               <span className="text-muted">{item.available_quantity} available · {item.total_quantity} total</span>
@@ -76,10 +76,10 @@ export function NeedsFixShelf({ makerspace }: { makerspace: Makerspace }) {
                   onChange={(event) => setQty((current) => ({ ...current, [item.id]: event.target.value }))}
                 />
               </label>
-              <button type="button" disabled={act.isPending} onClick={() => run(item, "repair")}>
+              <button className="desk-button-primary" type="button" disabled={act.isPending} onClick={() => run(item, "repair")}>
                 Repair → stock
               </button>
-              <button type="button" className="text-danger" disabled={act.isPending} onClick={() => run(item, "scrap")}>
+              <button type="button" className="desk-button text-danger" disabled={act.isPending} onClick={() => run(item, "scrap")}>
                 Scrap
               </button>
             </div>

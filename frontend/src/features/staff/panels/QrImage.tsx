@@ -15,12 +15,12 @@ export function QrImage({ qrId, label }: { qrId: number; label: string }) {
   }, [qr.data?.svg]);
 
   if (qr.isLoading) {
-    return <div className="grid aspect-square place-items-center rounded-md border border-line text-xs text-muted">Loading QR</div>;
+    return <div className="grid aspect-square place-items-center rounded-xl border border-ink bg-bg text-xs text-muted">Loading QR</div>;
   }
 
   if (qr.isError || !src) {
-    return <div className="grid aspect-square place-items-center rounded-md border border-danger/40 text-xs text-danger">QR unavailable</div>;
+    return <div className="status-box status-box-danger grid aspect-square place-items-center rounded-xl text-xs">QR unavailable</div>;
   }
 
-  return <img className="aspect-square w-full rounded-md border border-line bg-white p-2" src={src} alt={`${label} QR`} />;
+  return <img className="aspect-square w-full rounded-xl border border-ink bg-white p-2 shadow-brutal-sm" src={src} alt={`${label} QR`} />;
 }

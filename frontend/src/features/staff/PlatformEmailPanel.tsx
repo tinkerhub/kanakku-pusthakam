@@ -73,7 +73,7 @@ export function PlatformEmailPanel() {
         Instance-wide SMTP for password resets and makerspace notifications when a makerspace has no SMTP configured.
       </p>
 
-      <div className="mt-4 rounded-md border border-line bg-surface p-3">
+      <div className="mt-4 rounded-2xl border border-ink bg-surface p-3 shadow-brutal-sm">
         <div className="grid gap-2 sm:grid-cols-2">
           <input
             className="desk-input"

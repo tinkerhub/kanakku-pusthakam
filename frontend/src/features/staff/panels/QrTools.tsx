@@ -135,7 +135,7 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
   return (
     <Panel title="QR tools">
       <div className="grid gap-4">
-        <div className="rounded-md border border-line bg-surface p-3">
+        <div className="rounded-2xl border border-ink bg-surface p-3 shadow-brutal-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">Makerspace</p>
@@ -196,7 +196,7 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
           </ActionBox>
         </div>
 
-        <div className="rounded-md border border-line bg-surface p-3">
+        <div className="rounded-2xl border border-ink bg-surface p-3 shadow-brutal-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="font-semibold text-ink">{batch.data?.title ?? "Working batch"}</h3>
@@ -211,7 +211,7 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
           {!batch.isLoading && !batchItems.length ? <p className="mt-3 text-sm text-muted">Add box, product, or individual asset unit QR codes to this batch.</p> : null}
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {batchItems.map((item) => (
-              <article key={item.id} className="rounded-md border border-line bg-bg p-3 text-center">
+              <article key={item.id} className="rounded-2xl border border-ink bg-bg p-3 text-center shadow-brutal-sm">
                 <QrImage qrId={item.qr_code.id} label={item.label_text} />
                 <p className="mt-2 text-sm font-semibold text-ink">{item.label_text}</p>
                 <p className="text-xs text-muted">{item.target_type} #{item.target_id}</p>
@@ -240,11 +240,11 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
 }
 
 function ActionBox({ children, title }: { children: React.ReactNode; title: string }) {
-  return <section className="rounded-md border border-line bg-surface p-3"><h3 className="mb-2 font-semibold text-ink">{title}</h3>{children}</section>;
+  return <section className="rounded-2xl border border-ink bg-surface p-3 shadow-brutal-sm"><h3 className="mb-2 font-semibold text-ink">{title}</h3>{children}</section>;
 }
 
 function ErrorText({ text }: { text: string }) {
-  return <p className="mt-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{text}</p>;
+  return <p className="status-box status-box-danger mt-2 px-3 py-2 text-sm">{text}</p>;
 }
 
 function ModalActions(props: { pending: boolean; disabled: boolean; submitLabel: string; onCancel: () => void; onSubmit: () => void }) {

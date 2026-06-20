@@ -115,7 +115,7 @@ export function MakerspaceEmailSettings({ makerspace }: { makerspace: Makerspace
 
   return (
     <>
-      <div className="rounded-md border border-line bg-bg p-4">
+      <div className="rounded-2xl border border-ink bg-bg p-4 shadow-brutal-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="grid max-w-2xl gap-2">
             <h3 className="text-base font-semibold text-ink">Email (SMTP)</h3>
@@ -195,7 +195,7 @@ export function MakerspaceEmailSettings({ makerspace }: { makerspace: Makerspace
         ) : null}
       </div>
 
-      <div className="rounded-md border border-line bg-bg p-4">
+      <div className="rounded-2xl border border-ink bg-bg p-4 shadow-brutal-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="grid max-w-2xl gap-2">
             <h3 className="text-base font-semibold text-ink">Notification recipients</h3>
@@ -218,7 +218,7 @@ export function MakerspaceEmailSettings({ makerspace }: { makerspace: Makerspace
           {recipients.data?.map((recipient) => (
             <label
               key={recipient.id}
-              className="flex items-start gap-3 rounded-md border border-line bg-surface p-3 text-sm text-ink"
+              className="flex items-start gap-3 rounded-xl border border-ink bg-surface p-3 text-sm text-ink"
             >
               <input
                 className="mt-1 h-4 w-4"

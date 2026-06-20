@@ -61,7 +61,7 @@ export function ApiClientsTelegramSettings({ makerspace }: { makerspace: Makersp
   });
 
   return (
-    <div className="rounded-md border border-line bg-surface p-3">
+    <div className="rounded-2xl border border-ink bg-surface p-3 shadow-brutal-sm">
       <h3 className="font-semibold text-ink">Integration settings</h3>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <input
@@ -102,7 +102,7 @@ export function ApiClientsTelegramSettings({ makerspace }: { makerspace: Makersp
       </button>
       {saveSettings.error ? <p className="mt-2 text-sm text-danger">{saveSettings.error.message}</p> : null}
       {testTelegram.data ? (
-        <p className={`mt-2 text-sm ${testTelegram.data.delivered ? "text-muted" : "text-danger"}`}>
+        <p className={testTelegram.data.delivered ? "status-box status-box-done mt-2 px-3 py-2 text-sm" : "status-box status-box-danger mt-2 px-3 py-2 text-sm"}>
           Telegram delivered: {testTelegram.data.delivered ? "yes" : "no"}
           {!testTelegram.data.delivered && testTelegram.data.detail ? ` - ${testTelegram.data.detail}` : ""}
         </p>

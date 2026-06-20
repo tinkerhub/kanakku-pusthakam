@@ -110,7 +110,7 @@ export function ApiClientsPanel({
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="space-y-3">
           {canManageMakerspace ? (
-            <article className="rounded-md border border-line bg-surface p-3">
+            <article className="rounded-2xl border border-ink bg-surface p-3 shadow-brutal-sm">
               <h3 className="font-semibold text-ink">API clients</h3>
               <div className="mt-3 grid gap-2">
                 <input
@@ -135,9 +135,9 @@ export function ApiClientsPanel({
               </button>
               {createClient.error ? <p className="mt-2 text-sm text-danger">{createClient.error.message}</p> : null}
               {oneTimeSecret ? (
-                <div className="mt-3 rounded-md border border-accent/40 bg-accent/10 p-3">
+                <div className="status-box status-box-active mt-3 p-3">
                   <p className="text-sm font-semibold text-ink">Copy this secret now &mdash; it will not be shown again.</p>
-                  <p className="mt-2 break-all rounded-md border border-line bg-bg p-2 font-mono text-xs text-ink">
+                  <p className="mt-2 break-all rounded-xl border border-ink bg-bg p-2 font-mono text-xs text-ink">
                     {oneTimeSecret.client_secret}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -156,7 +156,7 @@ export function ApiClientsPanel({
               ) : null}
             </article>
           ) : (
-            <article className="rounded-md border border-line bg-surface p-3">
+            <article className="rounded-2xl border border-ink bg-surface p-3 shadow-brutal-sm">
               <h3 className="font-semibold text-ink">Request API access</h3>
               <div className="mt-3 grid gap-2">
                 <input
@@ -210,18 +210,18 @@ export function ApiClientsPanel({
           <ApiClientsAccessSummary makerspace={makerspace} isSuperadmin={isSuperadmin} settings={settings.data} />
 
           {canManageMakerspace ? (
-            <article className="rounded-md border border-line bg-surface p-3">
+            <article className="rounded-2xl border border-ink bg-surface p-3 shadow-brutal-sm">
               <h3 className="font-semibold text-ink">Existing clients</h3>
               {apiClients.isLoading ? <p className="mt-3 text-sm text-muted">Loading clients...</p> : null}
               <div className="mt-3 space-y-2">
                 {apiClients.data?.results?.map((client) => (
-                  <div key={client.id} className="rounded-md border border-line bg-bg p-3">
+                  <div key={client.id} className="rounded-xl border border-ink bg-bg p-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <p className="font-semibold text-ink">{client.label}</p>
                         <p className="mt-1 break-all font-mono text-xs text-muted">{client.client_id}</p>
                       </div>
-                      <span className={`rounded-md px-2 py-1 text-xs font-semibold ${client.is_active ? "bg-success/15 text-success" : "bg-warn/15 text-warn"}`}>
+                      <span className={client.is_active ? "status-box status-box-active px-2 py-1 text-xs font-semibold" : "status-box status-box-pending px-2 py-1 text-xs font-semibold"}>
                         {client.is_active ? "Active" : "Inactive"}
                       </span>
                     </div>
@@ -252,17 +252,17 @@ export function ApiClientsPanel({
             </article>
           ) : (
             <>
-              <article className="rounded-md border border-line bg-surface p-3">
+              <article className="rounded-2xl border border-ink bg-surface p-3 shadow-brutal-sm">
                 <h3 className="font-semibold text-ink">Your requests</h3>
                 <div className="mt-3 space-y-2">
                   {requests.data?.results?.map((request) => (
-                    <div key={request.id} className="rounded-md border border-line bg-bg p-3">
+                    <div key={request.id} className="rounded-xl border border-ink bg-bg p-3">
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
                           <p className="font-semibold text-ink">{request.label}</p>
                           <p className="mt-1 text-xs text-muted">{formatDate(request.created_at)}</p>
                         </div>
-                        <span className="rounded-md border border-line bg-surface px-2 py-1 text-xs font-semibold uppercase text-muted">
+                        <span className={requestStatusClass(request.status)}>
                           {request.status}
                         </span>
                       </div>
@@ -274,7 +274,7 @@ export function ApiClientsPanel({
                 </div>
               </article>
               {requests.data?.results?.length === 0 ? (
-                <p className="rounded-md border border-line bg-surface p-3 text-sm text-muted">
+                <p className="rounded-xl border border-ink bg-surface p-3 text-sm text-muted">
                   No API access requests yet.
                 </p>
               ) : null}
@@ -284,6 +284,12 @@ export function ApiClientsPanel({
       </div>
     </Panel>
   );
+}
+
+function requestStatusClass(status: ApiKeyRequest["status"]) {
+  if (status === "approved") return "status-box status-box-done px-2 py-1 text-xs font-semibold uppercase";
+  if (status === "rejected") return "status-box status-box-danger px-2 py-1 text-xs font-semibold uppercase";
+  return "status-box status-box-pending px-2 py-1 text-xs font-semibold uppercase";
 }
 
 function splitOrigins(value: string) {

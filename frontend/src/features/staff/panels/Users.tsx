@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Badge, ConfirmDialog, EmptyState } from "../../../components/ui";
 import { staffRequest } from "../../../lib/api";
+import { PANEL_CLASS, SHADOW_CLASS, cyclePalette } from "../../../lib/palette";
 import { Panel, useStaffGet, type Makerspace } from "./shared";
 import {
   AddStaffModal,
@@ -170,18 +171,24 @@ export function Users({ makerspaces, isSuperadmin }: { makerspaces: Makerspace[]
   return (
     <Panel title="Users">
       <div className="grid gap-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap gap-2">
-            {roles.map((role, index) => (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="grid flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {roles.map((role, index) => {
+              const palette = cyclePalette(index);
+              return (
               <button
                 key={role.value}
-                className={`desk-button ${activeRole === role.value ? "border-accent text-accent" : ""}`}
+                className={`${PANEL_CLASS[palette]} ${SHADOW_CLASS[palette]} rounded-2xl border border-ink p-4 text-left transition hover:-translate-y-0.5 hover:scale-[1.02] ${activeRole === role.value ? "ring-2 ring-ink" : ""}`}
                 type="button"
                 onClick={() => setActiveRole(role.value)}
               >
-                {role.label} ({staffResults(lists[index].data).length})
+                <span className="block font-mono text-xs uppercase tracking-wide">{role.label}</span>
+                <span className="mt-2 block font-display text-4xl leading-none">
+                  {staffResults(lists[index].data).length}
+                </span>
               </button>
-            ))}
+              );
+            })}
           </div>
           <div className="desk-actions ml-auto flex flex-wrap gap-2">
             <button className="desk-button-primary" type="button" onClick={openAdd}>
@@ -272,10 +279,10 @@ function StaffTable({ rows, makerspaceNames, loading, onRestrict, onRestore, onR
   if (loading) return <p className="text-sm text-muted">Loading staff...</p>;
   if (!rows.length) return <EmptyState title="No staff" description="No memberships exist for this role." />;
   return (
-    <div className="overflow-x-auto rounded-md border border-line bg-bg">
+    <div className="overflow-x-auto rounded-xl border border-ink bg-bg">
       <table className="w-full min-w-[760px] text-left text-sm">
         <thead className="bg-surface text-xs uppercase text-muted">
-          <tr className="border-b border-line">
+          <tr className="border-b border-ink">
             {["Username", "Email", "Makerspace", "Access", ""].map((header) => (
               <th key={header} className="px-3 py-2 font-semibold">{header}</th>
             ))}
@@ -283,7 +290,7 @@ function StaffTable({ rows, makerspaceNames, loading, onRestrict, onRestore, onR
         </thead>
         <tbody>
           {rows.map((membership) => (
-            <tr key={membership.id} className="border-b border-line last:border-b-0">
+            <tr key={membership.id} className="border-b border-ink last:border-b-0">
               <td className="px-3 py-2 font-semibold text-ink"><span className="block max-w-40 break-words">{membership.user.username}</span></td>
               <td className="px-3 py-2 text-muted"><span className="block max-w-56 break-all">{membership.user.email || "-"}</span></td>
               <td className="px-3 py-2 text-ink">

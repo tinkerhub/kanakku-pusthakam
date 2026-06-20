@@ -60,15 +60,15 @@ function ContainerRow({ container, makerspaceId }: { container: Container; maker
   const togglePanel = (next: "contents" | "history") => setPanel((current) => (current === next ? null : next));
 
   return (
-    <div className="min-w-0 rounded-md border border-line bg-surface p-3 text-sm">
+    <div className="min-w-0 rounded-2xl border border-ink bg-surface p-3 text-sm shadow-brutal-sm">
       <div className="flex flex-wrap items-center gap-2">
         <strong className="min-w-0 break-words text-ink">{container.label}</strong>
         {container.location ? <span className="text-xs text-muted">{container.location}</span> : null}
-        {container.is_active === false ? <span className="rounded-md bg-warn/15 px-2 py-0.5 text-xs text-warn">Inactive</span> : null}
+        {container.is_active === false ? <span className="status-box status-box-pending px-2 py-0.5 text-xs">Inactive</span> : null}
         <div className="desk-actions ml-0 flex w-full flex-wrap gap-2 sm:ml-auto sm:w-auto">
-          <button type="button" onClick={() => setEditing((value) => !value)}>{editing ? "Cancel" : "Edit"}</button>
-          <button type="button" onClick={() => togglePanel("contents")}>{panel === "contents" ? "Hide contents" : "Contents"}</button>
-          <button type="button" onClick={() => togglePanel("history")}>{panel === "history" ? "Hide history" : "History"}</button>
+          <button className="desk-button" type="button" onClick={() => setEditing((value) => !value)}>{editing ? "Cancel" : "Edit"}</button>
+          <button className="desk-button" type="button" onClick={() => togglePanel("contents")}>{panel === "contents" ? "Hide contents" : "Contents"}</button>
+          <button className="desk-button" type="button" onClick={() => togglePanel("history")}>{panel === "history" ? "Hide history" : "History"}</button>
         </div>
       </div>
 
@@ -77,13 +77,13 @@ function ContainerRow({ container, makerspaceId }: { container: Container; maker
           <label className="grid min-w-0 gap-1 text-xs text-muted"><span>Label</span><input className="desk-input min-w-0" value={label} onChange={(event) => setLabel(event.target.value)} /></label>
           <label className="grid min-w-0 gap-1 text-xs text-muted"><span>Location</span><input className="desk-input min-w-0" value={location} onChange={(event) => setLocation(event.target.value)} /></label>
           <label className="flex items-center gap-2 text-xs text-muted"><input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} /> Active</label>
-          <button disabled={!label.trim() || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving..." : "Save"}</button>
+          <button className="desk-button-primary" disabled={!label.trim() || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving..." : "Save"}</button>
         </div>
       ) : null}
       {saveError ? <p className="mt-2 text-danger">{saveError}</p> : null}
 
       {panel === "contents" ? (
-        <div className="mt-3 grid gap-2 rounded-md border border-line bg-bg p-2">
+        <div className="mt-3 grid gap-2 rounded-xl border border-ink bg-bg p-2">
           {contents.isLoading ? <p className="text-xs text-muted">Loading...</p> : null}
           <p className="text-xs font-semibold text-ink">Products</p>
           {contents.data?.products.length ? contents.data.products.map((product) => (
@@ -100,7 +100,7 @@ function ContainerRow({ container, makerspaceId }: { container: Container; maker
       ) : null}
 
       {panel === "history" ? (
-        <div className="mt-3 rounded-md border border-line bg-bg p-2">
+        <div className="mt-3 rounded-xl border border-ink bg-bg p-2">
           {history.isLoading ? <p className="text-xs text-muted">Loading...</p> : null}
           {history.data?.scans.length ? history.data.scans.map((scan) => (
             <p key={scan.id} className="text-xs text-muted">{new Date(scan.created_at).toLocaleString()} — {scan.context || "scan"}</p>
@@ -122,7 +122,7 @@ function AssetQrRow({ asset }: { asset: { id: number; asset_tag: string; product
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
       <span>{asset.asset_tag} ({asset.status})</span>
-      <button type="button" className="text-accent" disabled={show.isPending} onClick={() => show.mutate()}>{qrId ? "QR shown" : "Show QR"}</button>
+      <button type="button" className="desk-button" disabled={show.isPending} onClick={() => show.mutate()}>{qrId ? "QR shown" : "Show QR"}</button>
       {qrId ? <QrImage qrId={qrId} label={asset.asset_tag} /> : null}
       {show.error instanceof Error ? <span className="text-danger">{show.error.message}</span> : null}
     </div>

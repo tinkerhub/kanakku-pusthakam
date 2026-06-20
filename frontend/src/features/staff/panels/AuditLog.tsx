@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { DataTable } from "../../../components/ui";
+import type { DataTableColumn } from "../../../components/ui";
 import { Panel, useStaffGet } from "./shared";
 
 type AuditLogEntry = {
@@ -39,23 +41,45 @@ export function AuditLog() {
     setTargetId(value);
     setPage(1);
   };
+  const columns: DataTableColumn<AuditLogEntry>[] = [
+    {
+      key: "action",
+      header: "Action",
+      sortable: true,
+      render: (log) => <span className="font-semibold text-ink">{log.action}</span>,
+    },
+    {
+      key: "target_type",
+      header: "Target",
+      render: (log) => (
+        <span className="block max-w-96 break-all font-mono text-xs text-muted">
+          {log.target_type}:{log.target_id}
+        </span>
+      ),
+    },
+    {
+      key: "created_at",
+      header: "Created",
+      sortable: true,
+      render: (log) => <span className="whitespace-nowrap text-muted">{formatLocalDateTime(log.created_at)}</span>,
+    },
+  ];
 
   return (
     <Panel title="Audit logs">
       <div className="mb-3 grid gap-2 sm:grid-cols-2">
-        <input className="desk-input" placeholder="target type, e.g. inventory.inventoryproduct" value={targetType} onChange={(e) => updateTargetType(e.target.value)} />
-        <input className="desk-input" placeholder="target id" value={targetId} onChange={(e) => updateTargetId(e.target.value)} />
+        <input className="desk-input pill" type="search" placeholder="target type, e.g. inventory.inventoryproduct" value={targetType} onChange={(e) => updateTargetType(e.target.value)} />
+        <input className="desk-input pill" type="search" placeholder="target id" value={targetId} onChange={(e) => updateTargetId(e.target.value)} />
       </div>
-      <div className="grid gap-2 text-sm">
-        {logs.error ? <p className="text-sm text-danger">{logs.error.message}</p> : null}
-        {logs.data?.results?.map((log) => (
-          <div key={log.id} className="rounded-md border border-line bg-surface p-2">
-            <span className="font-semibold">{log.action}</span>
-            <span className="ml-2 text-muted">{log.target_type}:{log.target_id}</span>
-            <span className="ml-2 text-muted">{formatLocalDateTime(log.created_at)}</span>
-          </div>
-        ))}
-      </div>
+      {logs.error ? <p className="text-sm text-danger">{logs.error.message}</p> : null}
+      <DataTable<AuditLogEntry>
+        columns={columns}
+        data={logs.data?.results ?? []}
+        getRowId={(row) => row.id}
+        loading={logs.isLoading}
+        emptyTitle="No audit logs"
+        emptyDescription="No entries match the current filters."
+      />
       <div className="mt-3 flex items-center justify-between gap-3 text-sm">
         <button className="desk-button" disabled={!logs.data?.previous} onClick={() => setPage((current) => Math.max(1, current - 1))}>
           Previous

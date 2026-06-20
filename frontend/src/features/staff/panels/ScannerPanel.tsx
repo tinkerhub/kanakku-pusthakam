@@ -131,7 +131,7 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
       <p className="mb-3 text-sm text-muted">Scan or paste a QR payload to resolve a box, product, or asset and act on it.</p>
       <div className="flex flex-wrap gap-2">
         <input
-          className="desk-input flex-1 font-mono"
+          className="desk-input pill flex-1 font-mono"
           placeholder="QR payload"
           value={payload}
           onChange={(event) => setPayload(event.target.value)}
@@ -143,10 +143,10 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
         <button className="desk-button" type="button" onClick={() => setShowScanner(true)}>Scan camera</button>
       </div>
       {resolveError ? <p className="mt-2 text-sm text-danger">{resolveError}</p> : null}
-      {successNote ? <p className="mt-2 text-sm text-accent">{successNote}</p> : null}
+      {successNote ? <p className="status-box status-box-done mt-2 px-3 py-2 text-sm">{successNote}</p> : null}
 
       {resolved && target ? (
-        <div className="mt-4 rounded-md border border-line bg-surface p-3">
+        <div className="mt-4 rounded-2xl border border-ink bg-surface p-3 shadow-brutal-sm">
           <p className="text-sm font-semibold text-ink">
             {target.type === "box" ? `Box: ${target.label} (${target.code})`
               : target.type === "product" ? `Product: ${target.name}`
@@ -155,22 +155,22 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
           <p className="mt-1 text-xs text-muted">QR #{resolved.qr.id} · {resolved.qr.status}</p>
           <div className="desk-actions mt-3 flex flex-wrap gap-2 text-sm">
             {actions.includes("contents") && target.type === "box" ? (
-              <button type="button" disabled={loadContents.isPending} onClick={() => loadContents.mutate(target.id)}>View contents</button>
+              <button className="desk-button" type="button" disabled={loadContents.isPending} onClick={() => loadContents.mutate(target.id)}>View contents</button>
             ) : null}
             {actions.includes("revoke") ? (
-              <button type="button" className="text-danger" disabled={revoke.isPending} onClick={() => revoke.mutate(resolved.qr.id)}>
+              <button type="button" className="desk-button text-danger" disabled={revoke.isPending} onClick={() => revoke.mutate(resolved.qr.id)}>
                 {revoke.isPending ? "Revoking..." : "Revoke QR"}
               </button>
             ) : null}
             {canRebind ? (
-              <button type="button" onClick={() => setShowRebind((open) => !open)}>
+              <button className="desk-button" type="button" onClick={() => setShowRebind((open) => !open)}>
                 Rename & rebind
               </button>
             ) : null}
           </div>
           {showRebind ? (
             <form
-              className="mt-3 grid gap-2 rounded-md border border-line bg-bg p-3 text-sm"
+              className="mt-3 grid gap-2 rounded-xl border border-ink bg-bg p-3 text-sm"
               onSubmit={(event) => {
                 event.preventDefault();
                 if (selectedProductId) rebind.mutate();
@@ -221,7 +221,7 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
           ) : null}
           {revokeError ? <p className="mt-2 text-sm text-danger">{revokeError}</p> : null}
           {contents ? (
-            <div className="mt-3 rounded-md border border-line bg-bg p-2 text-xs text-muted">
+            <div className="mt-3 rounded-xl border border-ink bg-bg p-2 text-xs text-muted">
               <p className="font-semibold text-ink">Contents</p>
               {contents.products.map((product) => <p key={`p-${product.id}`}>{product.name} — {product.available_quantity} available</p>)}
               {contents.assets.map((asset) => <p key={`a-${asset.id}`}>{asset.asset_tag} ({asset.status})</p>)}

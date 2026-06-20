@@ -78,7 +78,7 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
       </p>
 
       <form
-        className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6"
+        className="grid gap-2 rounded-2xl border border-ink bg-surface p-3 shadow-brutal-sm sm:grid-cols-2 xl:grid-cols-6"
         onSubmit={(event) => {
           event.preventDefault();
           if (form.name.trim()) create.mutate();
@@ -119,7 +119,7 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
       ) : !rows.length ? (
         <p className="mt-3 text-sm text-muted">Nothing on the list yet.</p>
       ) : (
-        <div className="mt-3 max-h-[28rem] overflow-x-auto overflow-y-auto rounded-md border border-line">
+        <div className="mt-3 max-h-[28rem] overflow-x-auto overflow-y-auto rounded-xl border border-ink">
           <table className="min-w-[760px] divide-y divide-line text-left text-sm">
             <thead className="sticky top-0 bg-surface text-xs uppercase tracking-wide text-muted">
               <tr>
@@ -128,7 +128,7 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-line bg-bg text-ink">
+            <tbody className="divide-y divide-ink bg-bg text-ink">
               {rows.map((item) => (
                 <tr key={item.id}>
                   <td className="px-3 py-2 text-xs uppercase text-muted">{item.kind}</td>
@@ -148,7 +148,7 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
                   <td className="px-3 py-2">
                     <button
                       type="button"
-                      className={`rounded px-2 py-1 text-xs font-semibold ${item.status === "bought" ? "bg-accent text-on-accent" : "border border-line text-muted"}`}
+                      className={item.status === "bought" ? "status-box status-box-done px-2 py-1 text-xs font-semibold" : "status-box status-box-pending px-2 py-1 text-xs font-semibold"}
                       onClick={() => update.mutate({ id: item.id, status: item.status === "bought" ? "pending" : "bought" })}
                     >
                       {item.status === "bought" ? "Bought" : "Pending"}

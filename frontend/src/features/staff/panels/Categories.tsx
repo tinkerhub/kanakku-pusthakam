@@ -174,7 +174,7 @@ export function Categories({ makerspace }: { makerspace: Makerspace }) {
   return (
     <Panel title="Categories">
       <div className="grid gap-3">
-        <div className="grid gap-2 rounded-md border border-line bg-panel p-3 md:grid-cols-[1fr_1fr_120px_1fr_auto]">
+        <div className="grid gap-2 rounded-2xl border border-ink bg-panel p-3 shadow-brutal-sm md:grid-cols-[1fr_1fr_120px_1fr_auto]">
           <input
             className="desk-input"
             placeholder="Name"
@@ -200,7 +200,7 @@ export function Categories({ makerspace }: { makerspace: Makerspace }) {
             value={form.icon}
             onChange={(event) => setForm((current) => ({ ...current, icon: event.target.value }))}
           />
-          <button className="desk-button" type="button" disabled={!form.name.trim() || create.isPending} onClick={() => create.mutate()}>
+          <button className="desk-button-primary" type="button" disabled={!form.name.trim() || create.isPending} onClick={() => create.mutate()}>
             Add category
           </button>
         </div>

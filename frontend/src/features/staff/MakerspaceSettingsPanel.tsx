@@ -123,7 +123,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
   return (
     <Panel title="Makerspace settings">
       <div className="grid gap-4">
-        <div className="rounded-md border border-line bg-bg p-4">
+        <div className="rounded-2xl border border-ink bg-bg p-4 shadow-brutal-sm">
           <h3 className="text-base font-semibold text-ink">Branding</h3>
           <p className="mt-1 text-sm text-muted">
             Logo and cover image shown on this makerspace&apos;s public pages. When no
@@ -146,7 +146,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             />
           </div>
         </div>
-        <div className="rounded-md border border-line bg-bg p-4">
+        <div className="rounded-2xl border border-ink bg-bg p-4 shadow-brutal-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="grid max-w-2xl gap-2">
               <div className="flex flex-wrap items-center gap-2">
@@ -179,7 +179,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             </button>
           </div>
         </div>
-        <div className="rounded-md border border-line bg-bg p-4">
+        <div className="rounded-2xl border border-ink bg-bg p-4 shadow-brutal-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="grid max-w-2xl gap-2">
               <div className="flex flex-wrap items-center gap-2">
@@ -207,7 +207,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             </label>
           </div>
         </div>
-        <div className="rounded-md border border-line bg-bg p-4">
+        <div className="rounded-2xl border border-ink bg-bg p-4 shadow-brutal-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="grid max-w-2xl gap-2">
               <div className="flex flex-wrap items-center gap-2">
@@ -238,7 +238,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
           </div>
         </div>
         <MakerspaceEmailSettings makerspace={makerspace} />
-        <div className="rounded-md border border-line bg-bg p-4">
+        <div className="rounded-2xl border border-ink bg-bg p-4 shadow-brutal-sm">
           <form
             className="grid gap-4"
             onSubmit={(event) => {
@@ -305,7 +305,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             </label>
 
             {hasDomain ? (
-              <div className="rounded-md border border-line bg-surface p-3 text-sm text-muted">
+              <div className="rounded-xl border border-ink bg-surface p-3 text-sm text-muted">
                 <p className="font-semibold text-ink">Resulting URLs</p>
                 <ul className="mt-2 grid gap-1">
                   {customDomainUrls.map((url) => (

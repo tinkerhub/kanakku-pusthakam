@@ -15,7 +15,7 @@ export function ApiClientsAccessSummary({
   settings?: ApiSettingsSummary;
 }) {
   return (
-    <article className="rounded-md border border-line bg-surface p-3">
+    <article className="rounded-2xl border border-ink bg-surface p-3 shadow-brutal-sm">
       <h3 className="font-semibold text-ink">Makerspace API access</h3>
       <Config label="Makerspace code" value={settings?.public_code ?? makerspace.public_code} />
       <Config

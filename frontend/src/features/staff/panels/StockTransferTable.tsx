@@ -1,7 +1,7 @@
 import type { Transfer } from "./StockTransferPanel";
 
 export function ErrorText({ text }: { text: string }) {
-  return <p className="mt-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{text}</p>;
+  return <p className="status-box status-box-danger mt-2 px-3 py-2 text-sm">{text}</p>;
 }
 
 export function TransferTable({
@@ -23,7 +23,7 @@ export function TransferTable({
   if (error) return <ErrorText text={error} />;
   if (!transfers.length) return <p className="text-sm text-muted">No stock transfers recorded.</p>;
   return (
-    <div className="overflow-x-auto rounded-md border border-line">
+    <div className="overflow-x-auto rounded-xl border border-ink">
       <table className="min-w-[760px] divide-y divide-line text-left text-sm">
         <thead className="bg-surface text-xs uppercase tracking-wide text-muted">
           <tr>
@@ -35,7 +35,7 @@ export function TransferTable({
             <th className="px-3 py-2">Lines</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-line bg-bg text-ink">
+        <tbody className="divide-y divide-ink bg-bg text-ink">
           {transfers.map((transfer) => (
             <tr key={transfer.id}>
               <td className="whitespace-nowrap px-3 py-2 font-medium">#{transfer.id}</td>

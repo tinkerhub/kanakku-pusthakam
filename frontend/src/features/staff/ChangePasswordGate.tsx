@@ -30,7 +30,7 @@ export function ChangePasswordGate({ username, onChanged, onSignOut }: ChangePas
   return (
     <main className="desk-shell grid place-items-center px-5">
       <form
-        className="desk-panel w-full max-w-md p-6"
+        className="desk-panel w-full max-w-md rounded-2xl border border-ink p-6 shadow-hardsoft-blue"
         onSubmit={(event) => {
           event.preventDefault();
           if (canSubmit) mutation.mutate();
@@ -63,9 +63,9 @@ export function ChangePasswordGate({ username, onChanged, onSignOut }: ChangePas
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
         />
-        {mismatch ? <p className="mt-3 text-sm text-danger">Passwords do not match.</p> : null}
+        {mismatch ? <p className="status-box status-box-danger mt-3 px-3 py-2 text-sm">Passwords do not match.</p> : null}
         {mutation.error ? (
-          <p className="mt-3 text-sm text-danger">{(mutation.error as Error).message}</p>
+          <p className="status-box status-box-danger mt-3 px-3 py-2 text-sm">{(mutation.error as Error).message}</p>
         ) : null}
         <button className="desk-button-primary mt-5 w-full" disabled={!canSubmit}>
           {mutation.isPending ? "Updating..." : "Update password"}

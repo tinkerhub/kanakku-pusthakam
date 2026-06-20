@@ -167,7 +167,7 @@ export function CreateMakerspaceModal({
         <Field label="Location" error={errors.location}>
           <input className="desk-input w-full" value={form.location} onChange={(event) => onChange({ ...form, location: event.target.value })} />
         </Field>
-        <label className="flex items-start gap-3 rounded-md border border-line bg-surface p-3 text-sm">
+        <label className="flex items-start gap-3 rounded-xl border border-ink bg-surface p-3 text-sm">
           <input
             className="mt-1 h-4 w-4 accent-accent"
             type="checkbox"
@@ -242,7 +242,7 @@ export function ResetPasswordModal({
       {result ? (
         <div className="grid gap-3 text-sm">
           <p className="text-muted">Share this with the user securely. It won't be shown again.</p>
-          <div className="rounded-md border border-accent/40 bg-accent/10 p-3">
+          <div className="status-box status-box-active p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <code className="break-all font-mono text-base font-semibold text-ink">
                 {result.temporary_password}
