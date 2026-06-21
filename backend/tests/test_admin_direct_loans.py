@@ -7,7 +7,9 @@ from rest_framework.test import APIClient
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.boxes.models import Box, QrCode
+from apps.hardware_requests import direct_loan_workflow
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
+from apps.hardware_requests.workflow_errors import RequestValidationError
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from tests.return_helpers import make_issue_evidence, make_return_evidence
@@ -644,6 +646,104 @@ def test_direct_loan_rejects_box_qr_fallback_for_individual_tracked_product():
     product.refresh_from_db()
     assert product.available_quantity == 1
     assert product.issued_quantity == 0
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_admin_direct_container_only_handout_return_audit_and_reissue(monkeypatch):
+    makerspace = make_space("direct-container-only")
+    admin = make_admin(makerspace)
+    container = Box.objects.create(makerspace=makerspace, label="Solo tote")
+    client = authed(admin)
+
+    issued = client.post(
+        direct_url(makerspace),
+        {"identifier": "member-direct", "container_id": container.id},
+        format="json",
+    )
+
+    assert issued.status_code == 201
+    assert issued.data["items"] == []
+    assert issued.data["target_label"] == "Solo tote"
+    loan = PublicToolLoan.objects.get()
+    assert loan.container == container
+    assert loan.request.items.count() == 0
+    assert AuditLog.objects.filter(
+        action="admin_direct.checked_out",
+        target_type="boxes.box",
+        target_id=str(container.id),
+    ).exists()
+
+    evidence = make_return_evidence(makerspace, admin)
+    allow_uploaded(monkeypatch)
+    returned = client.post(
+        f"/api/v1/admin/direct-loans/{loan.id}/return",
+        return_body(evidence, notes="Container is back."),
+        format="json",
+    )
+
+    assert returned.status_code == 200
+    assert returned.data["status"] == PublicToolLoan.Status.RETURNED
+    assert AuditLog.objects.filter(
+        action="admin_direct.returned",
+        target_type="boxes.box",
+        target_id=str(container.id),
+    ).exists()
+
+    issued_again = client.post(
+        direct_url(makerspace),
+        {"identifier": "member-direct-2", "container_id": container.id},
+        format="json",
+    )
+
+    assert issued_again.status_code == 201
+    assert PublicToolLoan.objects.filter(container=container).count() == 2
+
+
+def test_direct_loan_empty_request_rejects_before_checkin(monkeypatch):
+    makerspace = make_space("direct-empty-before-checkin")
+    admin = make_admin(makerspace)
+    calls = []
+
+    def verify(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("check-in should not be called")
+
+    monkeypatch.setattr("apps.checkin.client.verify", verify)
+
+    with pytest.raises(
+        RequestValidationError,
+        match="Provide qr_payloads, items, or a container.",
+    ):
+        direct_loan_workflow.issue_direct_loan(
+            makerspace,
+            admin,
+            "member-direct",
+            qr_payloads=[],
+            items=[],
+        )
+
+    assert calls == []
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_direct_loan_rejects_container_when_module_disabled():
+    makerspace = make_space("direct-container-module-disabled")
+    makerspace.enabled_modules = [
+        module for module in makerspace.enabled_modules if module != "containers"
+    ]
+    makerspace.save(update_fields=["enabled_modules"])
+    admin = make_admin(makerspace)
+    container = Box.objects.create(makerspace=makerspace, label="Disabled tote")
+
+    response = authed(admin).post(
+        direct_url(makerspace),
+        {"identifier": "member-direct", "container_id": container.id},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "Containers module is disabled for this makerspace." in str(response.data)
+    assert PublicToolLoan.objects.count() == 0
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)

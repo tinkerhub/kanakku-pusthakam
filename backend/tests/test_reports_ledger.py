@@ -80,6 +80,34 @@ def _self_checkout_loan(makerspace, product, username):
     return loan
 
 
+def _container_only_direct_loan(makerspace, username, label="Container Loan"):
+    requester = make_user(username, access_status=User.AccessStatus.ACTIVE)
+    issued_at = timezone.now() - timedelta(hours=3)
+    container = Box.objects.create(makerspace=makerspace, label=label)
+    hardware_request = HardwareRequest.objects.create(
+        makerspace=makerspace,
+        requester=requester,
+        requester_username=requester.username,
+        status=HardwareRequest.Status.ISSUED,
+        issued_at=issued_at,
+    )
+    loan = PublicToolLoan.objects.create(
+        makerspace=makerspace,
+        request=hardware_request,
+        requester=requester,
+        container=container,
+        target_type="direct",
+        target_id=hardware_request.id,
+        target_label=container.label,
+        status=PublicToolLoan.Status.CHECKED_OUT,
+        source=PublicToolLoan.Source.ADMIN_DIRECT,
+        due_at=issued_at + timedelta(days=7),
+    )
+    loan.checked_out_at = issued_at
+    loan.save(update_fields=["checked_out_at"])
+    return loan
+
+
 def test_ledger_returns_outstanding_request_and_self_checkout_scoped_to_makerspace():
     makerspace = make_space("ledger-scope-a")
     other_space = make_space("ledger-scope-b")
@@ -313,9 +341,73 @@ def test_ledger_direct_handout_reports_loan_container():
     )
 
     assert response.status_code == 200
+    assert response.data["count"] == 1
     row = response.data["results"][0]
     assert row["source"] == "direct_handout"
     assert row["container"] == {"label": "Direct Tote"}
+
+
+def test_ledger_container_only_direct_handout_has_single_container_row():
+    makerspace = make_space("ledger-container-only")
+    manager = make_member("ledger-container-only-manager", makerspace)
+    loan = _container_only_direct_loan(
+        makerspace,
+        "ledger-container-only-holder",
+        label="Standalone Tote",
+    )
+
+    response = authenticated_client(manager).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/ledger"
+    )
+
+    assert response.status_code == 200
+    assert response.data["count"] == 1
+    row = response.data["results"][0]
+    assert row["source"] == "direct_handout"
+    assert row["item_name"] == "Standalone Tote"
+    assert row["holder"] == "ledger-container-only-holder@e.com"
+    assert row["quantity"] == 1
+    assert row["units"] == []
+    assert row["container"] is None
+    assert row["target_label"] is None
+    assert row["reference_id"] == loan.id
+
+
+def test_aggregate_ledger_excludes_hidden_and_archived_container_only_loans():
+    visible = make_space("ledger-container-visible")
+    hidden = make_space("ledger-container-hidden")
+    archived = make_space("ledger-container-archived")
+    hidden.superadmin_access_enabled = False
+    hidden.save(update_fields=["superadmin_access_enabled"])
+    archived.archived_at = timezone.now()
+    archived.save(update_fields=["archived_at"])
+    superadmin = make_user(
+        "ledger-container-aggregate-super",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    visible_loan = _container_only_direct_loan(
+        visible,
+        "ledger-container-visible-holder",
+        label="Visible Tote",
+    )
+    _container_only_direct_loan(
+        hidden,
+        "ledger-container-hidden-holder",
+        label="Hidden Tote",
+    )
+    _container_only_direct_loan(
+        archived,
+        "ledger-container-archived-holder",
+        label="Archived Tote",
+    )
+
+    response = authenticated_client(superadmin).get("/api/v1/admin/ledger")
+
+    assert response.status_code == 200
+    assert response.data["count"] == 1
+    assert response.data["results"][0]["item_name"] == "Visible Tote"
+    assert response.data["results"][0]["reference_id"] == visible_loan.id
 
 
 def test_ledger_self_checkout_without_loan_container_has_no_container():

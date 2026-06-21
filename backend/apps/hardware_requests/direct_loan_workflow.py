@@ -35,6 +35,9 @@ from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 def issue_direct_loan(
     makerspace, actor, identifier, *, qr_payloads, items, container_id=None
 ):
+    if not qr_payloads and not items and container_id is None:
+        raise RequestValidationError("Provide qr_payloads, items, or a container.")
+
     result = checkin.verify(makerspace, identifier)
     due_at = timezone.now() + timedelta(days=(makerspace.default_loan_days or 7))
     with transaction.atomic():
@@ -109,7 +112,8 @@ def issue_direct_loan(
                     requester=requester,
                     target_type="direct",
                     target_id=request.id,
-                    target_label=", ".join(labels)[:200] or "Direct handout",
+                    target_label=", ".join(labels)[:200]
+                    or (container.label if container else "Direct handout"),
                     asset_ids=asset_ids,
                     source=PublicToolLoan.Source.ADMIN_DIRECT,
                     due_at=due_at,
@@ -127,6 +131,7 @@ def issue_direct_loan(
                 request=request,
             )
         _record_item_logs(actor, "admin_direct.checked_out", makerspace, request, loan)
+        _record_container_log(actor, "admin_direct.checked_out", makerspace, loan)
         return loan
 
 
@@ -198,6 +203,7 @@ def return_direct_loan(loan, actor, evidence_id, notes):
         _record_item_logs(
             actor, "admin_direct.returned", locked.makerspace, locked.request, locked
         )
+        _record_container_log(actor, "admin_direct.returned", locked.makerspace, locked)
         audit.record(
             actor,
             "evidence.attached",
@@ -275,3 +281,18 @@ def _record_item_logs(actor, action, makerspace, request, loan):
                 "source": loan.source,
             },
         )
+
+
+def _record_container_log(actor, action, makerspace, loan):
+    if not loan.container_id:
+        return
+    audit.record(
+        actor,
+        action,
+        makerspace=makerspace,
+        target=loan.container,
+        meta=dict(
+            loan_id=loan.id, request_id=loan.request_id,
+            container_id=loan.container_id, source=loan.source,
+        ),
+    )

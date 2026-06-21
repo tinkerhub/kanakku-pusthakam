@@ -2,6 +2,34 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — lend an empty container on its own (2026-06-22)
+
+Follow-up to the Ledger-container feature. Staff can now hand out an **empty carrier container by
+itself** (no hardware items) via Direct Handout, and it shows as its own Ledger row. Codex
+Stage-1 plan-reviewed (NEEDS_REVISION→all 5 refinements adopted: audit logging, guard-before-checkin,
+module-off 400, precise presence check, aggregate-scope tests); Stage-4 review clean. No migration.
+**Containers lent this way are always empty carriers** (per product owner) — the `container` FK on
+`PublicToolLoan` is an attribution note and does NOT move any registered box contents.
+
+- **`DirectLoanIssueSerializer.validate`** now accepts `qr_payloads` **or** `items` **or**
+  `container_id` (precise `container_id is not None` check, so `0` isn't treated as absent).
+- **`DirectLoanListCreateView.post`** now returns **400** if `container_id` is supplied while the
+  `containers` module is disabled (was: silently nulled).
+- **`direct_loan_workflow.issue_direct_loan`**: rejects a truly-empty request (no items/qr/container)
+  **before** `checkin.verify()` (deterministic 400, not a 503); container-only `target_label` is the
+  container label; new `_record_container_log` emits `admin_direct.checked_out`/`returned` audit rows
+  targeting the container whenever `loan.container_id` is set (fixes the zero-item audit gap).
+- **`operations/ledger.py`**: `_request_item_rows` now also returns `requests_with_items`;
+  `_container_only_rows(makerspace_id, requests_with_items)` emits one row per active `ADMIN_DIRECT`
+  loan that has a container but produced no item rows (`item_name=container.label`, `quantity=1`,
+  `units=[]`, `container=None`). Same per-makerspace + aggregate hidden/archived scoping as item rows;
+  reuses the `_box_payload` same-makerspace guard. A loan with items+container shows the box on its
+  item rows and is **not** duplicated as a container-only row (dedup by `request_id`).
+- Frontend Direct Handout form already supported it (pick container, leave items empty, verify, Issue)
+  — no change. Tests: `tests/test_admin_direct_loans.py` (container-only issue/return/reissue, empty
+  guard before Check-In, module-disabled 400, audit) + `tests/test_reports_ledger.py` (single
+  container-only row, no item+container duplicate, aggregate hidden/archived exclusion). 51 tests green.
+
 ## Recent batch — Ledger shows the physical container per item (2026-06-22)
 
 Small additive read-path/display feature (Codex Stage-1 plan-reviewed NEEDS_REVISION→adopted all 5

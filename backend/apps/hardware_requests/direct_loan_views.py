@@ -2,7 +2,7 @@ from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
@@ -70,7 +70,7 @@ class DirectLoanListCreateView(generics.ListAPIView):
         serializer.is_valid(raise_exception=True)
         container_id = serializer.validated_data.get("container_id")
         if container_id is not None and not module_enabled(makerspace, "containers"):
-            container_id = None
+            raise ValidationError("Containers module is disabled for this makerspace.")
         loan = direct_loan_workflow.issue_direct_loan(
             makerspace,
             request.user,
