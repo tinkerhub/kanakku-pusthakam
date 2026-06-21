@@ -2,6 +2,66 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — unified per-makerspace editable email templates (2026-06-21)
+
+Batch 2 (the queued email-template unification). Codex Stage-1 plan-reviewed (APPROVED after 9
+blockers + delta re-review); Stage-2 built by Codex in 3 phases, Claude-verified per diff; Stage-4
+Codex review clean after **3 P2 fixes**. Backend **733 passing** with `API_CLIENT_ENC_KEY` set (the
+lone `test_global_csp_img_src_does_not_allow_s3_public_origin` failure is the documented dev-container
+env artifact; the other encryption/HMAC failures only appear when the container's enc key is unset).
+Migrations: `integrations/0002` (create), `integrations/0003` (data-migrate + sanitize), and
+`hardware_requests/0017` (delete `HardwareEmailTemplate`). Plan (gitignored):
+`docs/superpowers/specs/2026-06-21-email-templates-plan.md`.
+
+- **One renderer, one registry for ALL lifecycle email** (hardware + printing, requester + staff).
+  Rendering is **safe flat merge-variable substitution + nh3 HTML sanitize** — NOT the Django Template
+  engine (so no SSTI / object-attribute leaks). `apps/integrations/email_render.py`:
+  `render_email_template(makerspace, key, variables) -> {subject, text_body, html_body}` substitutes
+  only `\{\{\s*([a-z0-9_]+)\s*\}\}` flat tokens (dotted/object paths never match → can't leak);
+  subject/text get raw values, **html escapes every value UNLESS the registry marks that variable
+  `trusted_html=True`** (the `*_html` builder vars, produced only by helpers that escape each
+  user-controlled part). The html is wrapped into the makerspace's active `EmailLayout` (`{{ content }}`
+  slot, default layout otherwise) then **sanitized at render time** (defense in depth) by
+  `sanitize_email_html` (nh3: explicit tag allowlist, `a[href,title]` only, http/https/mailto schemes,
+  **no `img`, no `style`**). A **blank override `html_body` means "text-only"** (does NOT fall back to
+  the default branded HTML — Stage-4 P2). `nh3` added to `backend/requirements.txt` (rebuild the image).
+- **Registry** (`apps/integrations/email_registry_hardware.py` + `_printing.py` + `email_registry.py`
+  barrel): 27 keys (`hw_*` 6 requester + 8 staff, `print_*` 5 requester + 8 staff). Each entry has
+  `{family, audience, action (EDIT_INVENTORY|MANAGE_PRINTING), label, variables[{name,description,
+  sample,trusted_html}], default_subject/text/html}`. Defaults are the OLD templates **rewritten flat**
+  (no `{% %}`, no dotted paths) — conditionals became precomputed flat block vars
+  (`return_due_block`, `reason_block`, `status_link_block`/`_html`) filled by the send sites.
+- **Models** (`apps/integrations/email_models.py`, imported by the `models.py` barrel):
+  `EmailTemplate(makerspace, key, subject, text_body, html_body, is_active)` (unique per
+  makerspace+key) + `EmailLayout(makerspace OneToOne, html, is_active)`. **Both `save()` sanitize html**
+  so every write path (admin, API, shell) stores clean HTML.
+- **All 4 send paths rewired** to build flat dicts → `render_email_template` (no Django Template left):
+  `hardware_requests/notifications.py` (hw requester, `_item_list_html` escapes product names),
+  `hardware_requests/staff_notifications.py` (hw staff, now HTML-capable via layout),
+  `printing/emails.py` requester (recipient rule `contact_email or requester.email` PRESERVED) + staff.
+  **Behavior change:** authenticated print submit (`printing/views_requests.py`) now also emails the
+  **requester** (`queue_print_email("submitted", …)`), not just staff. Static `templates/email/print_*`
+  + `base.html` deleted. The data migration **best-effort translates** any legacy customized
+  `HardwareEmailTemplate` rows' Django syntax to flat tokens (Stage-4 P2).
+- **Staff REST surface** (`apps/admin_api/views_email_templates.py`): `GET …/email-templates` (lists
+  only the keys the actor's role may edit, merged with stored overrides + `is_customized`),
+  `GET/PUT/DELETE …/email-templates/<key>` (retrieve / save / reset-to-default), `GET/PUT
+  …/email-layout` (MANAGE_MAKERSPACE; **rejects a non-blank layout missing `{{ content }}`** —
+  Stage-4 P2), `POST …/email-templates/<key>/preview` (sample-value render, no send). Family-action
+  gating (`EDIT_INVENTORY`/`MANAGE_PRINTING`), 404-before-403, audited. OpenAPI snapshot + generated
+  TS client regenerated. Django `/control/` `EmailTemplate`/`EmailLayout` admin (superadmin, key
+  validated against the registry) + Integrations sidebar entries; old `HardwareEmailTemplate` admin
+  removed; purge graph swaps in the two new (CASCADE) models.
+- **React staff console** (`features/staff/panels/EmailTemplates.tsx` + `EmailTemplateEditor.tsx`): a
+  new **Email templates** tab (visible with EDIT_INVENTORY ∨ MANAGE_PRINTING ∨ MANAGE_MAKERSPACE),
+  Hardware/Printing grouped list, editor (subject/text/html + **click-to-insert merge-field chips** at
+  the caret), Reset-to-default, **live preview in a `sandbox=""` iframe** (no scripts/referrer — XSS
+  safe), and a Base-layout card (MANAGE_MAKERSPACE only).
+- Tests: `tests/test_email_templates.py` (renderer security/XSS, defaults vs override, blank-html
+  text-only, legacy-syntax migration translation, send-path routing) + `tests/test_email_template_api.py`
+  (role gating, 404-before-403, reset, layout slot validation, preview). Out of scope (deferred): SMTP
+  test-send, password-reset/API-key emails, WYSIWYG, img/tracking pixels.
+
 ## Recent batch — per-makerspace GPS location + maps link + public UI polish (2026-06-21)
 
 Codex Stage-1 plan-reviewed (APPROVED after 2 revisions); Stage-2 built by Codex, Claude-verified

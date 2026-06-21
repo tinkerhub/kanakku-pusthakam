@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from apps.accounts import rbac
 from apps.evidence.storage import StorageUnavailable
 from apps.makerspaces.guards import require_module
-from apps.printing.emails import queue_staff_print_email
+from apps.printing.emails import queue_print_email, queue_staff_print_email
 from apps.printing.models import PrintRequest, PrintRequestFile
 from apps.printing.permissions import CanManagePrinting, IsActiveRequester
 from apps.printing.serializers import (
@@ -51,6 +51,7 @@ class PrintRequestCreateListView(generics.ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
         require_module(serializer.validated_data["bucket"].makerspace, "printing")
         instance = serializer.save()
+        queue_print_email("submitted", instance.pk)
         queue_staff_print_email("submitted", instance.pk)
         return Response(
             PrintRequestSerializer(instance, context=self.get_serializer_context()).data,

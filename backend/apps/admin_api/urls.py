@@ -1,6 +1,12 @@
 from django.urls import path
 
 from apps.admin_api import api_client_views, views
+from apps.admin_api.views_email_templates import (
+    EmailLayoutView,
+    EmailTemplateDetailView,
+    EmailTemplateListView,
+    EmailTemplatePreviewView,
+)
 from apps.admin_api.views_notification_recipients import NotificationRecipientsView
 from apps.admin_api.views_platform import PlatformEmailSettingsView
 from apps.makerspaces.models import MakerspaceMembership
@@ -93,6 +99,26 @@ urlpatterns = [
         "makerspace/<int:makerspace_id>/notification-recipients",
         NotificationRecipientsView.as_view(),
         name="admin-notification-recipients",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/email-templates",
+        EmailTemplateListView.as_view(),
+        name="admin-email-templates",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/email-layout",
+        EmailLayoutView.as_view(),
+        name="admin-email-layout",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/email-templates/<str:key>/preview",
+        EmailTemplatePreviewView.as_view(),
+        name="admin-email-template-preview",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/email-templates/<str:key>",
+        EmailTemplateDetailView.as_view(),
+        name="admin-email-template-detail",
     ),
     path(
         "api-clients/<int:pk>",

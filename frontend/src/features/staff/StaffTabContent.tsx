@@ -3,6 +3,7 @@ import { DirectLoans } from "./DirectLoans";
 import { MakerspaceSettingsPanel } from "./MakerspaceSettingsPanel";
 import { PlatformEmailPanel } from "./PlatformEmailPanel";
 import { CommandCenter } from "./panels/CommandCenter";
+import { EmailTemplatesPanel } from "./panels/EmailTemplates";
 import {
   AuditLog,
   BulkImport,
@@ -143,6 +144,13 @@ export function StaffTabContent({
           key={makerspaceKey}
           makerspace={activeMakerspace}
           isSuperadmin={isSuperadmin}
+          canManageMakerspace={canManageMakerspace}
+        />
+      ) : null}
+      {activeTab === "emails" ? (
+        <EmailTemplatesPanel
+          key={makerspaceKey}
+          makerspace={activeMakerspace}
           canManageMakerspace={canManageMakerspace}
         />
       ) : null}

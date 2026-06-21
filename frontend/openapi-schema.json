@@ -2889,6 +2889,387 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/email-layout": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_email_layout_retrieve",
+                "summary": "Retrieve or update the email base layout",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailLayout"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            },
+            "put": {
+                "operationId": "api_v1_admin_makerspace_email_layout_update",
+                "summary": "Retrieve or update the email base layout",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailLayout"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailLayout"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailLayout"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailLayout"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid email layout."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/email-templates": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_email_templates_list",
+                "summary": "List editable email templates",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EmailTemplateRow"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/email-templates/{key}": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_email_templates_retrieve",
+                "summary": "Retrieve, update, or reset an email template",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailTemplateRow"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            },
+            "put": {
+                "operationId": "api_v1_admin_makerspace_email_templates_update",
+                "summary": "Retrieve, update, or reset an email template",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailTemplateWrite"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailTemplateWrite"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailTemplateWrite"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailTemplateRow"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid email template."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "api_v1_admin_makerspace_email_templates_destroy",
+                "summary": "Retrieve, update, or reset an email template",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/email-templates/{key}/preview": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_email_templates_preview_create",
+                "summary": "Preview an email template",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailPreviewRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailPreviewRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailPreviewRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailRendered"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/inventory": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_inventory_list",
@@ -11474,6 +11855,156 @@
                 ],
                 "type": "string",
                 "description": "* `needs_fix` - needs_fix\n* `remove` - remove"
+            },
+            "EmailLayout": {
+                "type": "object",
+                "properties": {
+                    "html": {
+                        "type": "string"
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "default": true
+                    },
+                    "is_default": {
+                        "type": "boolean",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "html",
+                    "is_default"
+                ]
+            },
+            "EmailPreviewRequest": {
+                "type": "object",
+                "properties": {
+                    "subject": {
+                        "type": "string"
+                    },
+                    "text_body": {
+                        "type": "string"
+                    },
+                    "html_body": {
+                        "type": "string"
+                    }
+                }
+            },
+            "EmailRendered": {
+                "type": "object",
+                "properties": {
+                    "subject": {
+                        "type": "string"
+                    },
+                    "text_body": {
+                        "type": "string"
+                    },
+                    "html_body": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "html_body",
+                    "subject",
+                    "text_body"
+                ]
+            },
+            "EmailTemplateRow": {
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string"
+                    },
+                    "family": {
+                        "type": "string"
+                    },
+                    "audience": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "variables": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/EmailVariable"
+                        }
+                    },
+                    "subject": {
+                        "type": "string"
+                    },
+                    "text_body": {
+                        "type": "string"
+                    },
+                    "html_body": {
+                        "type": "string"
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    },
+                    "is_customized": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "audience",
+                    "family",
+                    "html_body",
+                    "is_active",
+                    "is_customized",
+                    "key",
+                    "label",
+                    "subject",
+                    "text_body",
+                    "variables"
+                ]
+            },
+            "EmailTemplateWrite": {
+                "type": "object",
+                "properties": {
+                    "subject": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "text_body": {
+                        "type": "string"
+                    },
+                    "html_body": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "default": true
+                    }
+                },
+                "required": [
+                    "subject",
+                    "text_body"
+                ]
+            },
+            "EmailVariable": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "sample": {
+                        "type": "string"
+                    },
+                    "trusted_html": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "description",
+                    "name",
+                    "sample",
+                    "trusted_html"
+                ]
             },
             "Error": {
                 "type": "object",

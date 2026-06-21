@@ -75,7 +75,6 @@ UNFOLD = {
                     _item("Return events", "assignment_return", "admin:hardware_requests_returnevent_changelist"),
                     _item("Accountability", "gavel", "admin:hardware_requests_requesteraccountability_changelist"),
                     _item("Issued asset links", "link", "admin:hardware_requests_hardwarerequestitemasset_changelist"),
-                    _item("Email templates", "mail", "admin:hardware_requests_hardwareemailtemplate_changelist"),
                 ],
             },
             {
@@ -123,6 +122,8 @@ UNFOLD = {
                     _item("API clients", "vpn_key", "admin:apiclients_apiclient_changelist"),
                     _item("API key requests", "approval", "admin:apiclients_apikeyrequest_changelist"),
                     _item("Platform email", "mail", "admin:integrations_platformemailsettings_changelist"),
+                    _item("Email templates", "mail", "admin:integrations_emailtemplate_changelist"),
+                    _item("Email layouts", "mail", "admin:integrations_emaillayout_changelist"),
                 ],
             },
             {

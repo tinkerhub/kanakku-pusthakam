@@ -1,48 +1,13 @@
 import logging
 
-from django.template import Context, Template
-from django.utils import timezone
+from django.utils.html import escape
 
 from apps.hardware_requests.models import HardwareRequest
 from apps.integrations.email import send_makerspace_email
+from apps.integrations.email_render import render_email_template
 from apps.integrations.staff_notifications import staff_emails_for_stream
 
 logger = logging.getLogger(__name__)
-
-STAFF_TEMPLATES = {
-    "submitted": {
-        "subject": "{{ makerspace.name }} hardware request #{{ request.id }} submitted",
-        "text_body": "A new hardware request needs review.\n\n{{ staff_summary }}",
-    },
-    "accepted": {
-        "subject": "{{ makerspace.name }} hardware request #{{ request.id }} accepted",
-        "text_body": "Hardware request #{{ request.id }} was accepted.\n\n{{ staff_summary }}",
-    },
-    "rejected": {
-        "subject": "{{ makerspace.name }} hardware request #{{ request.id }} rejected",
-        "text_body": "Hardware request #{{ request.id }} was rejected.\n\n{{ staff_summary }}",
-    },
-    "issued": {
-        "subject": "{{ makerspace.name }} hardware request #{{ request.id }} issued",
-        "text_body": "Hardware request #{{ request.id }} was issued.\n\n{{ staff_summary }}",
-    },
-    "partially_returned": {
-        "subject": "{{ makerspace.name }} hardware request #{{ request.id }} partially returned",
-        "text_body": "Hardware request #{{ request.id }} was partially returned.\n\n{{ staff_summary }}",
-    },
-    "returned": {
-        "subject": "{{ makerspace.name }} hardware request #{{ request.id }} returned",
-        "text_body": "Hardware request #{{ request.id }} was fully returned and closed.\n\n{{ staff_summary }}",
-    },
-    "closed_with_issue": {
-        "subject": "{{ makerspace.name }} hardware request #{{ request.id }} closed with issue",
-        "text_body": "Hardware request #{{ request.id }} was closed with damaged or missing items.\n\n{{ staff_summary }}",
-    },
-    "return_reminder": {
-        "subject": "{{ makerspace.name }} hardware request #{{ request.id }} return reminder",
-        "text_body": "Hardware request #{{ request.id }} is due for return.\n\n{{ staff_summary }}",
-    },
-}
 
 
 def send_staff_hardware_email(request, event) -> bool:
@@ -63,19 +28,25 @@ def send_staff_hardware_email(request, event) -> bool:
         if not recipients:
             return False
 
-        template = STAFF_TEMPLATES[event]
-        context = Context(
+        rendered = render_email_template(
+            staff_request.makerspace,
+            "hw_staff_" + event,
             {
-                "request": staff_request,
-                "makerspace": staff_request.makerspace,
+                "makerspace_name": staff_request.makerspace.name,
+                "request_id": staff_request.pk,
                 "staff_summary": _staff_summary(staff_request),
-                "now": timezone.now(),
+                "staff_summary_html": _staff_summary_html(staff_request),
             },
-            autoescape=True,
         )
-        subject = Template(template["subject"]).render(context).strip()
-        body = Template(template["text_body"]).render(context)
-        return bool(send_makerspace_email(staff_request.makerspace, subject, body, recipients))
+        return bool(
+            send_makerspace_email(
+                staff_request.makerspace,
+                rendered["subject"],
+                rendered["text_body"],
+                recipients,
+                html_body=rendered["html_body"],
+            )
+        )
     except Exception:
         logger.warning(
             "hardware_staff_notification_failed",
@@ -104,3 +75,8 @@ def _staff_summary(request):
     if request.rejection_reason:
         lines.append(f"Reason: {request.rejection_reason}")
     return "\n".join(lines)
+
+
+def _staff_summary_html(request):
+    lines = _staff_summary(request).splitlines()
+    return "<div>" + "<br>".join(str(escape(line)) for line in lines) + "</div>"

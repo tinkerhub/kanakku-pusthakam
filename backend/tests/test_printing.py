@@ -1226,8 +1226,12 @@ def test_print_email_templates_render_subject_and_branded_html(
     assert len(message.alternatives) == 1
     html, mimetype = message.alternatives[0]
     assert mimetype == "text/html"
-    assert "Makerspace" in html
-    assert "background:#111111;color:#FBB905" in html
+    # Renders through the per-makerspace editable layout (default layout wrapper).
+    assert "Makerspace notifications" in html
+    # The renderer sanitizes the final HTML: no inline style (nh3 drops the style
+    # attr by design) and never any script.
+    assert "style=" not in html
+    assert "<script" not in html
 
 
 def test_printbucket_admin_changelist_is_superadmin_only():

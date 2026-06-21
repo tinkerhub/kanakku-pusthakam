@@ -23,8 +23,8 @@ from apps.apiclients.models import ApiClient, ApiKeyRequest
 from apps.audit.models import AuditLog
 from apps.boxes.models import Box, BoxScan, QrCode, QrScanEvent
 from apps.evidence.models import EvidencePhoto
+from apps.integrations.models import EmailLayout, EmailTemplate
 from apps.hardware_requests.models import (
-    HardwareEmailTemplate,
     HardwareRequest,
     HardwareRequestItemAsset,
     PublicToolLoan,
@@ -60,7 +60,6 @@ def test_core_models_are_registered_in_django_admin():
         QrCode,
         QrScanEvent,
         HardwareRequest,
-        HardwareEmailTemplate,
         PublicToolLoan,
         ReturnEvent,
         RequesterAccountability,
@@ -77,6 +76,8 @@ def test_core_models_are_registered_in_django_admin():
         ApiKeyRequest,
         AuditLog,
         EvidencePhoto,
+        EmailTemplate,
+        EmailLayout,
         ToBuyItem,
         User,
     }

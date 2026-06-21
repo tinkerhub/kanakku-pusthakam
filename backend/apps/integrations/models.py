@@ -26,3 +26,6 @@ class PlatformEmailSettings(models.Model):
 
     def __str__(self):
         return "Platform email settings"
+
+
+from apps.integrations.email_models import EmailTemplate, EmailLayout  # noqa: F401,E402

@@ -17,10 +17,10 @@ from apps.audit.models import AuditLog
 from apps.boxes.models import Box
 from apps.checkin.client import CheckinDenied, CheckinResult, CheckinUnavailable
 from apps.hardware_requests.models import (
-    HardwareEmailTemplate,
     HardwareRequest,
     HardwareRequestItem,
 )
+from apps.integrations.email_models import EmailTemplate
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
@@ -639,11 +639,11 @@ def test_accept_email_uses_admin_configured_template(
 ):
     makerspace = make_space("request-template-email")
     product = make_product(makerspace)
-    HardwareEmailTemplate.objects.create(
+    EmailTemplate.objects.create(
         makerspace=makerspace,
-        key=HardwareEmailTemplate.Key.REQUEST_ACCEPTED,
-        subject="Custom approval {{ request.id }}",
-        text_body="Hi {{ request.requester_username }}, approved by {{ makerspace.name }}.",
+        key="hw_request_accepted",
+        subject="Custom approval {{ request_id }}",
+        text_body="Approved by {{ makerspace_name }}.",
     )
     hardware_request = make_hardware_request(
         makerspace,
@@ -667,7 +667,7 @@ def test_accept_email_uses_admin_configured_template(
         message for message in mailoutbox if message.to == ["template-email-admin@e.com"]
     )
     assert requester_email.subject == f"Custom approval {hardware_request.id}"
-    assert f"Hi {hardware_request.requester_username}" in requester_email.body
+    assert f"Approved by {makerspace.name}." in requester_email.body
     assert "accepted" in staff_email.subject
 
 

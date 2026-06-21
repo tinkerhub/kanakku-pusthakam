@@ -19,7 +19,8 @@ from apps.audit.models import AuditLog
 from apps.boxes.models import Box, BoxScan, QrCode, QrScanEvent
 from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.asset_link_models import HardwareRequestItemAsset
-from apps.hardware_requests.models import HardwareEmailTemplate, HardwareRequest, HardwareRequestItem
+from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
+from apps.integrations.email_models import EmailLayout, EmailTemplate
 from apps.hardware_requests.return_models import RequesterAccountability, ReturnEvent
 from apps.hardware_requests.self_checkout_models import PublicToolLoan
 from apps.inventory.models import Category, InventoryAsset, InventoryProduct
@@ -386,11 +387,15 @@ def populate_full_purge_graph(makerspace, survivor, actor):
         label="Lifecycle API key",
         reason="Testing purge.",
     )
-    HardwareEmailTemplate.objects.create(
+    EmailTemplate.objects.create(
         makerspace=makerspace,
-        key=HardwareEmailTemplate.Key.REQUEST_RECEIVED,
+        key="hw_request_received",
         subject="Request received",
         text_body="Received.",
+    )
+    EmailLayout.objects.create(
+        makerspace=makerspace,
+        html="<div>{{ content }}</div>",
     )
     MakerspaceMembership.objects.create(
         makerspace=makerspace,
@@ -447,7 +452,8 @@ def assert_purged_makerspace_graph(space_id):
     assert StockTransferLine.objects.filter(transfer__makerspace_id=space_id).count() == 0
     assert ApiClient.objects.filter(makerspace_id=space_id).count() == 0
     assert ApiKeyRequest.objects.filter(makerspace_id=space_id).count() == 0
-    assert HardwareEmailTemplate.objects.filter(makerspace_id=space_id).count() == 0
+    assert EmailTemplate.objects.filter(makerspace_id=space_id).count() == 0
+    assert EmailLayout.objects.filter(makerspace_id=space_id).count() == 0
     assert MakerspaceMembership.objects.filter(makerspace_id=space_id).count() == 0
     assert AuditLog.objects.filter(makerspace_id=space_id).count() == 0
 
