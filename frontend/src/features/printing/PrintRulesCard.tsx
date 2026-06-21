@@ -11,7 +11,7 @@ type PrintRulesCardProps = {
  */
 export function PrintRulesCard({ makerspaceName }: PrintRulesCardProps) {
   return (
-    <Card className="card-tilt-1 panel-yellow">
+    <Card className="card-tilt-1 panel-mint">
       <p className="font-mono text-xs font-semibold uppercase tracking-wide">Rules</p>
       <ul className="mt-3 space-y-2 text-sm leading-6">
         <li className="flex gap-2">

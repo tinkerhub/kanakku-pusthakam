@@ -116,8 +116,8 @@ export function PublicRequestPanel({
         </Card>
       ) : (
         <>
-          <Card className="shrink-0" padding="sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+          <Card className="shrink-0 panel-mint" padding="sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-white">
               Check-In
             </p>
             <label className="mt-3 block">
