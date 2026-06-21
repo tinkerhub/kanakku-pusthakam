@@ -8,5 +8,5 @@ class TelegramWebhookSerializer(serializers.Serializer):
 
 class TelegramTestAlertSerializer(serializers.Serializer):
     makerspace_id = serializers.IntegerField()
-    message = serializers.CharField(default="Makerspace Manager test alert.")
+    message = serializers.CharField(default="Kanakku Pusthakam test alert.")
 

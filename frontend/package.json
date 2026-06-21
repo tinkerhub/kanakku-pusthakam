@@ -1,5 +1,5 @@
 {
-  "name": "makerspace-manager-frontend",
+  "name": "kanakku-pusthakam-frontend",
   "type": "module",
   "scripts": {
     "dev": "vite",

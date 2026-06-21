@@ -1,4 +1,9 @@
-# Makerspace Manager
+# Kanakku Pusthakam
+
+> **This is a fork of [Shaan-Shoukath/Makerspace-Manager](https://github.com/Shaan-Shoukath/Makerspace-Manager).**
+> Kanakku Pusthakam is maintained by [TinkerHub](https://github.com/tinkerhub) and builds on the
+> original Makerspace Manager project. All credit for the original work goes to its author and
+> contributors — see [Contributors](#contributors) below.
 
 This project started from inside the TinkerSpace Kochi community.
 
@@ -277,3 +282,22 @@ See [docs/self-hosting.md](docs/self-hosting.md) for the full environment refere
 
 Contributions are welcome. Please read **[CONTRIBUTING.md](CONTRIBUTING.md)** for the development
 workflow, branch/commit conventions, testing expectations, and how to open a pull request.
+
+---
+
+## Contributors
+
+Kanakku Pusthakam stands on the work of everyone who built and improved the upstream project.
+
+### Original author
+
+- **[Shaan Shoukath](https://github.com/Shaan-Shoukath)** — creator of the original
+  [Makerspace Manager](https://github.com/Shaan-Shoukath/Makerspace-Manager) project that this fork
+  is based on.
+
+### Fork maintainers
+
+- **[TinkerHub](https://github.com/tinkerhub)** — maintains this fork, **Kanakku Pusthakam**.
+
+Want to see your name here? Contributions of all kinds — code, docs, translations, or running it at
+your space and reporting what's rough — are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).

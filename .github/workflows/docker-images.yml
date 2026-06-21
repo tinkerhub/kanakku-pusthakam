@@ -18,10 +18,10 @@ jobs:
         include:
           - name: backend
             context: backend
-            image: makerspace-manager-backend
+            image: kanakku-pusthakam-backend
           - name: frontend
             context: frontend
-            image: makerspace-manager-frontend
+            image: kanakku-pusthakam-frontend
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
