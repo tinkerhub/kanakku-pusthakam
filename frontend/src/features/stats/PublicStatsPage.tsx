@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
+import { MakerspaceLocation } from "../../components/MakerspaceLocation";
 import { Card } from "../../components/ui/Card";
 import { Spinner } from "../../components/ui/Spinner";
 import { useTenant, useTenantPath } from "../../lib/tenant";
@@ -47,6 +48,11 @@ export function PublicStatsPage() {
               <p className="mt-2 text-sm text-muted">
                 Live community activity from the public catalog.
               </p>
+              <MakerspaceLocation
+                className="mt-2"
+                location={bootstrap?.makerspace.location}
+                mapUrl={bootstrap?.makerspace.map_url}
+              />
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Link className="desk-button" to={tenantPath()}>

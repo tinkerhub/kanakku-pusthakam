@@ -1,4 +1,5 @@
 import re
+from decimal import Decimal
 
 from django.db import transaction
 from drf_spectacular.utils import extend_schema_field
@@ -35,6 +36,23 @@ class MakerspaceSerializer(serializers.ModelSerializer):
     )
     telegram_bot_token_set = serializers.SerializerMethodField()
     smtp_password_set = serializers.SerializerMethodField()
+    latitude = serializers.DecimalField(
+        required=False,
+        allow_null=True,
+        max_digits=9,
+        decimal_places=6,
+        min_value=Decimal("-90"),
+        max_value=Decimal("90"),
+    )
+    longitude = serializers.DecimalField(
+        required=False,
+        allow_null=True,
+        max_digits=9,
+        decimal_places=6,
+        min_value=Decimal("-180"),
+        max_value=Decimal("180"),
+    )
+    map_url = serializers.CharField(read_only=True)
     logo_url = serializers.SerializerMethodField()
     cover_image_url = serializers.SerializerMethodField()
 
@@ -46,6 +64,9 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "public_code",
             "slug",
             "location",
+            "latitude",
+            "longitude",
+            "map_url",
             "public_inventory_enabled",
             "public_stats_enabled",
             "superadmin_access_enabled",
@@ -79,6 +100,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "public_api_key",
+            "map_url",
             "logo_key",
             "logo_url",
             "cover_image_key",
@@ -123,23 +145,23 @@ class MakerspaceSerializer(serializers.ModelSerializer):
                         {"frontend_domain": "Enter a valid domain, e.g. alphamakerspace.com."}
                     )
                 attrs["hidden_from_central_directory"] = False
-                return attrs
-            if not _HOSTNAME_RE.match(normalized_domain):
-                raise serializers.ValidationError(
-                    {"frontend_domain": "Enter a valid domain, e.g. alphamakerspace.com."}
-                )
+            else:
+                if not _HOSTNAME_RE.match(normalized_domain):
+                    raise serializers.ValidationError(
+                        {"frontend_domain": "Enter a valid domain, e.g. alphamakerspace.com."}
+                    )
 
-            queryset = Makerspace.objects.filter(frontend_domain__iexact=normalized_domain)
-            if self.instance is not None:
-                queryset = queryset.exclude(pk=self.instance.pk)
-            if queryset.exists():
-                raise serializers.ValidationError(
-                    {
-                        "frontend_domain": (
-                            "A makerspace with this frontend domain already exists."
-                        )
-                    }
-                )
+                queryset = Makerspace.objects.filter(frontend_domain__iexact=normalized_domain)
+                if self.instance is not None:
+                    queryset = queryset.exclude(pk=self.instance.pk)
+                if queryset.exists():
+                    raise serializers.ValidationError(
+                        {
+                            "frontend_domain": (
+                                "A makerspace with this frontend domain already exists."
+                            )
+                        }
+                    )
 
         effective_domain = attrs.get(
             "frontend_domain",
@@ -156,6 +178,20 @@ class MakerspaceSerializer(serializers.ModelSerializer):
                         "A frontend domain is required to hide a makerspace from the central directory."
                     )
                 }
+            )
+        lat = (
+            attrs["latitude"]
+            if "latitude" in attrs
+            else getattr(self.instance, "latitude", None)
+        )
+        lng = (
+            attrs["longitude"]
+            if "longitude" in attrs
+            else getattr(self.instance, "longitude", None)
+        )
+        if (lat is None) != (lng is None):
+            raise serializers.ValidationError(
+                {"latitude": "Latitude and longitude must be set together."}
             )
         return attrs
 

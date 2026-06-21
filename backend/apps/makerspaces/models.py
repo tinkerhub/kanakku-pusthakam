@@ -1,8 +1,9 @@
+from decimal import Decimal
 from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Lower
@@ -92,6 +93,26 @@ class Makerspace(models.Model):
         ],
     )
     location = models.CharField(max_length=200, blank=True)
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(Decimal("-90")),
+            MaxValueValidator(Decimal("90")),
+        ],
+    )
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(Decimal("-180")),
+            MaxValueValidator(Decimal("180")),
+        ],
+    )
     public_inventory_enabled = models.BooleanField(default=True)
     public_stats_enabled = models.BooleanField(default=False)
     superadmin_access_enabled = models.BooleanField(default=True)
@@ -165,6 +186,13 @@ class Makerspace(models.Model):
                 | Q(frontend_domain__isnull=False),
                 name="ck_makerspace_hidden_requires_domain",
             ),
+            models.CheckConstraint(
+                condition=(
+                    Q(latitude__isnull=True, longitude__isnull=True)
+                    | Q(latitude__isnull=False, longitude__isnull=False)
+                ),
+                name="makerspace_latlng_pair",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -174,6 +202,12 @@ class Makerspace(models.Model):
         self.public_code = (self.public_code or "").upper()
         self.frontend_domain = normalize_frontend_domain(self.frontend_domain)
         super().save(*args, **kwargs)
+
+    @property
+    def map_url(self) -> str:
+        if self.latitude is None or self.longitude is None:
+            return ""
+        return f"https://www.google.com/maps?q={self.latitude},{self.longitude}"
 
     def clean(self):
         if self.hidden_from_central_directory and not self.frontend_domain:

@@ -4,10 +4,12 @@ import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
+import { MakerspaceLocation } from "../../components/MakerspaceLocation";
 import { Card } from "../../components/ui/Card";
 import { useTenant, useTenantPath } from "../../lib/tenant";
 import { formatSlug } from "../inventory/PublicInventoryParts";
 import { useTenantBootstrap } from "../inventory/usePublicInventory";
+import { PrintRulesCard } from "./PrintRulesCard";
 import { StatusResult, SubmittedTokenCard } from "./PublicPrintRequestParts";
 import {
   PrintDetailsForm,
@@ -187,6 +189,11 @@ export function PublicPrintRequestPage() {
               <p className="mt-2 text-sm text-muted">
                 Submit print files — check status anytime with your email.
               </p>
+              <MakerspaceLocation
+                className="mt-2"
+                location={bootstrap?.makerspace.location}
+                mapUrl={bootstrap?.makerspace.map_url}
+              />
             </div>
             <Link className="desk-button" to={tenantPath()}>
               Back to inventory
@@ -341,6 +348,8 @@ export function PublicPrintRequestPage() {
               ) : null}
             </div>
           </Card>
+
+          <PrintRulesCard makerspaceName={displayName} />
         </aside>
         </section>
       ) : null}

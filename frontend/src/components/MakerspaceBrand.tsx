@@ -17,7 +17,7 @@ const LOGO_SIZE: Record<NonNullable<MakerspaceBrandProps["size"]>, string> = {
 const NAME_SIZE: Record<NonNullable<MakerspaceBrandProps["size"]>, string> = {
   sm: "text-base",
   md: "text-xl",
-  lg: "text-2xl",
+  lg: "text-3xl sm:text-4xl",
 };
 
 /**
@@ -43,7 +43,7 @@ export function MakerspaceBrand({
       ) : null}
       {!hideName || !logoUrl ? (
         <span
-          className={`font-display font-bold uppercase tracking-tight text-ink ${NAME_SIZE[size]}`}
+          className={`font-display font-bold uppercase tracking-tight [word-spacing:0.2em] text-ink ${NAME_SIZE[size]}`}
         >
           {name}
         </span>

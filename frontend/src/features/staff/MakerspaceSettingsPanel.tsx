@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "../../components/ui";
 import { staffRequest } from "../../lib/api";
 import { ImageUploader } from "./ImageUploader";
+import { LocationSettings } from "./LocationSettings";
 import { MakerspaceEmailSettings } from "./MakerspaceEmailSettings";
 import { Panel, type Makerspace, useStaffGet } from "./StaffPanels";
 
@@ -146,6 +147,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             />
           </div>
         </div>
+        <LocationSettings makerspace={makerspace} />
         <div className="rounded-2xl border border-ink bg-bg p-4 shadow-brutal-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="grid max-w-2xl gap-2">

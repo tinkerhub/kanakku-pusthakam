@@ -2,6 +2,34 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — per-makerspace GPS location + maps link + public UI polish (2026-06-21)
+
+Codex Stage-1 plan-reviewed (APPROVED after 2 revisions); Stage-2 built by Codex, Claude-verified
+per diff; Stage-4 review clean after 2 P2 fixes + 1 P3 extraction. New geolocation tests green
+(the 8 failing encryption tests are a dev-container `API_CLIENT_ENC_KEY`-unset artifact). One
+migration (`makerspaces/0023`).
+
+- **Per-makerspace GPS location → Google Maps link.** `Makerspace` gains `latitude`/`longitude`
+  (`DecimalField(9,6)`, ±90/±180 bounds) + a `map_url` property (`google.com/maps?q=lat,lng`, "" when
+  unset), with a `makerspace_latlng_pair` DB `CheckConstraint` (both-or-neither, `condition=`).
+  `MakerspaceSerializer` exposes writable lat/lng + read-only `map_url`, enforcing both-or-neither on
+  the **effective merge** of attrs over the instance (so a partial PATCH clearing one coordinate 400s).
+  `PublicMakerspaceSerializer` + the bootstrap payload expose `map_url`. Staff set it in a new
+  **Location & map** card (`features/staff/LocationSettings.tsx`, extracted to keep
+  `MakerspaceSettingsPanel` small): location label + lat/lng inputs + a "Use my current location"
+  button (browser Geolocation; needs https/localhost) + a Maps preview link. No embedded map widget
+  (strict CSP blocks external tiles/scripts) — Geolocation API + a plain link are the CSP-safe path.
+  New shared `components/MakerspaceLocation.tsx` renders the clickable `📍 label ↗` (plain text when
+  no coords), used on the landing cards and every public header (inventory/item/print/checkout/stats).
+  The landing card was refactored to the **stretched-link** pattern (article + an absolute z-10
+  catalog `<Link>`, maps anchor at z-20) so the maps link is separately clickable without nesting
+  anchors. Tests: `tests/test_makerspace_geolocation.py`.
+- **Public UI polish.** Landing footer pinned to the viewport bottom (flex-col shell + `flex-1`
+  content); `MakerspaceBrand` wordmark gained `word-spacing` (the Clash Display + `tracking-tight`
+  combo was collapsing the space, e.g. "TINKERSPACECALICUT") and the `lg` size bumped to
+  `text-3xl sm:text-4xl`. New 3D-print **Rules card** (`features/printing/PrintRulesCard.tsx`): rules
+  bullets + a disclaimer using the active `{displayName}` (not a hardcoded tenant).
+
 ## Recent batch — pink dark theme + brand logos + recipient toggles + manual-log hours + nav/reports (2026-06-20)
 
 Phase-by-phase batch (commit-per-green, each with tests where applicable); branch `feat/lean-paid-production`.

@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
+import { MakerspaceLocation } from "../../components/MakerspaceLocation";
 import { Card } from "../../components/ui/Card";
 import { Spinner } from "../../components/ui/Spinner";
 import { useTenant, useTenantPath } from "../../lib/tenant";
@@ -31,6 +32,11 @@ export function PublicItemDetailPage() {
               name={displayName}
               logoUrl={bootstrapData?.makerspace.logo_url}
               size="md"
+            />
+            <MakerspaceLocation
+              className="mt-2"
+              location={bootstrapData?.makerspace.location}
+              mapUrl={bootstrapData?.makerspace.map_url}
             />
             <h1 className="font-mono text-xs font-semibold uppercase tracking-wide text-muted">
               Item detail

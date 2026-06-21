@@ -12179,6 +12179,22 @@
                         "type": "string",
                         "maxLength": 200
                     },
+                    "latitude": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
+                        "nullable": true
+                    },
+                    "longitude": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
+                        "nullable": true
+                    },
+                    "map_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "public_inventory_enabled": {
                         "type": "boolean"
                     },
@@ -12294,6 +12310,7 @@
                     "id",
                     "logo_key",
                     "logo_url",
+                    "map_url",
                     "name",
                     "public_api_key",
                     "slug",
@@ -13673,6 +13690,22 @@
                     "location": {
                         "type": "string",
                         "maxLength": 200
+                    },
+                    "latitude": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
+                        "nullable": true
+                    },
+                    "longitude": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
+                        "nullable": true
+                    },
+                    "map_url": {
+                        "type": "string",
+                        "readOnly": true
                     },
                     "public_inventory_enabled": {
                         "type": "boolean"
@@ -15126,6 +15159,10 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "map_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "logo_url": {
                         "type": "string",
                         "format": "uri",
@@ -15143,6 +15180,7 @@
                     "cover_image_url",
                     "location",
                     "logo_url",
+                    "map_url",
                     "name",
                     "public_code",
                     "slug"

@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
+import { MakerspaceLocation } from "../../components/MakerspaceLocation";
 import { Card } from "../../components/ui/Card";
 import QrScanner from "../../components/ui/QrScanner";
 import { useTenant, useTenantPath } from "../../lib/tenant";
@@ -102,6 +103,11 @@ export function PublicSelfCheckoutPage() {
               <p className="mt-2 text-sm text-muted">
                 Scan a physical tool label to check it out or return it.
               </p>
+              <MakerspaceLocation
+                className="mt-2"
+                location={bootstrap?.makerspace.location}
+                mapUrl={bootstrap?.makerspace.map_url}
+              />
             </div>
             <Link className="desk-button" to={tenantPath()}>
               Back to inventory

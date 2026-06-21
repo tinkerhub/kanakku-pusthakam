@@ -1,6 +1,7 @@
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 
 import { MakerspaceBrand } from "./components/MakerspaceBrand";
+import { MakerspaceLocation } from "./components/MakerspaceLocation";
 import { Card } from "./components/ui/Card";
 import { Spinner } from "./components/ui/Spinner";
 import { PublicInventoryPage } from "./features/inventory/PublicInventoryPage";
@@ -24,7 +25,7 @@ function LandingPage() {
   }
 
   return (
-    <main className="desk-shell">
+    <main className="desk-shell flex flex-col">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -41,7 +42,7 @@ function LandingPage() {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <section className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="desk-panel h-fit bg-bg p-5">
           <p className="font-mono text-xs font-semibold uppercase tracking-wide text-accent">
             LIVE ACTIVITY
@@ -115,9 +116,8 @@ function LandingPage() {
 
               return (
                 <div className={tiltClass} key={makerspace.slug}>
-                  <Link
-                    className={`group flex h-full flex-col overflow-hidden rounded-lg border border-ink bg-panel transition-all duration-150 hover:-translate-y-1 hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 ${SHADOW_CLASS[palette]}`}
-                    to={`/m/${makerspace.slug}`}
+                  <article
+                    className={`group relative flex h-full flex-col overflow-hidden rounded-lg border border-ink bg-panel transition-all duration-150 hover:-translate-y-1 hover:scale-[1.02] focus-within:ring-2 focus-within:ring-accent/40 ${SHADOW_CLASS[palette]}`}
                   >
                     <div className={`border-b border-ink px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wide ${PANEL_CLASS[palette]}`}>
                       Zone blueprint
@@ -143,9 +143,12 @@ function LandingPage() {
                         logoUrl={makerspace.logo_url}
                         size="md"
                       />
-                      <p className="mt-2 break-words font-mono text-xs uppercase text-muted">
-                        {makerspace.location || makerspace.slug}
-                      </p>
+                      <MakerspaceLocation
+                        className="relative z-20 mt-2 break-words"
+                        fallback={makerspace.slug}
+                        location={makerspace.location}
+                        mapUrl={makerspace.map_url}
+                      />
                       <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-5">
                         <span className="chip min-w-0 truncate">
                           {makerspace.public_code}
@@ -155,7 +158,14 @@ function LandingPage() {
                         </span>
                       </div>
                     </div>
-                  </Link>
+                    <Link
+                      aria-label={`Open ${makerspace.name} catalog`}
+                      className="absolute inset-0 z-10"
+                      to={`/m/${makerspace.slug}`}
+                    >
+                      <span className="sr-only">Open catalog</span>
+                    </Link>
+                  </article>
                 </div>
               );
             })}
