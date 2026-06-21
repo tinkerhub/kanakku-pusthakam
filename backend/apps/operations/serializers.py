@@ -83,12 +83,17 @@ class LedgerUnitSerializer(serializers.Serializer):
     serial_number = serializers.CharField(allow_blank=True)
 
 
+class LedgerContainerSerializer(serializers.Serializer):
+    label = serializers.CharField()
+
+
 class LedgerRowSerializer(serializers.Serializer):
     source = serializers.ChoiceField(choices=["request", "self_checkout", "direct_handout"])
     item_name = serializers.CharField()
     holder = serializers.CharField(allow_blank=True)
     quantity = serializers.IntegerField()
     units = LedgerUnitSerializer(many=True)
+    container = LedgerContainerSerializer(allow_null=True, required=False)
     target_label = serializers.CharField(
         allow_blank=True,
         allow_null=True,

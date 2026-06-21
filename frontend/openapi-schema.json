@@ -12468,6 +12468,17 @@
                     "evidence_id"
                 ]
             },
+            "LedgerContainer": {
+                "type": "object",
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "label"
+                ]
+            },
             "LedgerResponse": {
                 "type": "object",
                 "properties": {
@@ -12506,6 +12517,14 @@
                         "items": {
                             "$ref": "#/components/schemas/LedgerUnit"
                         }
+                    },
+                    "container": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LedgerContainer"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "target_label": {
                         "type": "string",

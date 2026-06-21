@@ -2,6 +2,28 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — Ledger shows the physical container per item (2026-06-22)
+
+Small additive read-path/display feature (Codex Stage-1 plan-reviewed NEEDS_REVISION→adopted all 5
+refinements; Stage-2 by Codex, Claude-verified; Stage-4 review clean). No migration. Staff hand out
+requested hardware inside an available carrying box and need to see/recover it in the Ledger.
+
+- **`apps/operations/ledger.py`** now resolves a per-row container, **source-aware** (the two sources
+  are mutually exclusive, so it never falls back across them — avoids misattributing a stray box):
+  loan-backed rows (self-checkout / direct handout) → `loan.container`; reviewed-request rows →
+  `request.assigned_box`. `_box_payload(box, makerspace_id)` returns `{"label": box.label}` **only**
+  when the box exists AND is same-makerspace (mirrors the `_units_for_item` defensive guard; no DB
+  constraint spans box↔request makerspace). Adds `request__assigned_box` +
+  `request__public_tool_loan__container` to the existing `select_related` (JOINs, no N+1 — perf test
+  confirms). **Label only, never `box.code`** (QR payload) — the ledger is `VIEW_INVENTORY`-gated.
+  Missing container → `null` is normal (box-less issues, self-checkout).
+- **`LedgerRowSerializer`** gains `container` (nullable `LedgerContainerSerializer{label}`).
+- **`Ledger.tsx`**: `container` on the row type, a muted `📦 <label>` line under each item row in
+  `UnitLines` (no icon library), and container label folded into the search filter.
+- Tests: `tests/test_reports_ledger.py` (reviewed w/ + w/o box; direct-handout w/ container;
+  self-checkout w/ stray `assigned_box` still `null` — the no-cross-source-fallback guard). OpenAPI
+  snapshot regenerated.
+
 ## Recent batch — unified per-makerspace editable email templates (2026-06-21)
 
 Batch 2 (the queued email-template unification). Codex Stage-1 plan-reviewed (APPROVED after 9

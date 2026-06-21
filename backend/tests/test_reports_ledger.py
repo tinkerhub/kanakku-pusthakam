@@ -4,6 +4,7 @@ import pytest
 from django.utils import timezone
 
 from apps.accounts.models import User
+from apps.boxes.models import Box
 from apps.hardware_requests.models import (
     HardwareRequest,
     HardwareRequestItem,
@@ -260,6 +261,80 @@ def test_ledger_quantity_tracked_loan_has_empty_units():
     assert response.status_code == 200
     assert response.data["results"][0]["item_name"] == "Clamp Meter"
     assert response.data["results"][0]["units"] == []
+
+
+def test_ledger_reviewed_request_reports_assigned_box_container():
+    makerspace = make_space("ledger-reviewed-box")
+    manager = make_member("ledger-reviewed-box-manager", makerspace)
+    product = make_product(makerspace, name="Bench Supply")
+    box = Box.objects.create(makerspace=makerspace, label="Reviewed Tote")
+    request = _request_loan(makerspace, product, "ledger-reviewed-box-holder")
+    request.assigned_box = box
+    request.save(update_fields=["assigned_box", "updated_at"])
+
+    response = authenticated_client(manager).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/ledger"
+    )
+
+    assert response.status_code == 200
+    row = response.data["results"][0]
+    assert row["source"] == "request"
+    assert row["container"] == {"label": "Reviewed Tote"}
+
+
+def test_ledger_reviewed_issued_request_without_assigned_box_has_no_container():
+    makerspace = make_space("ledger-reviewed-no-box")
+    manager = make_member("ledger-reviewed-no-box-manager", makerspace)
+    product = make_product(makerspace, name="Function Generator")
+    _request_loan(makerspace, product, "ledger-reviewed-no-box-holder")
+
+    response = authenticated_client(manager).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/ledger"
+    )
+
+    assert response.status_code == 200
+    row = response.data["results"][0]
+    assert row["source"] == "request"
+    assert row["container"] is None
+
+
+def test_ledger_direct_handout_reports_loan_container():
+    makerspace = make_space("ledger-direct-container")
+    manager = make_member("ledger-direct-container-manager", makerspace)
+    product = make_product(makerspace, name="Direct Kit")
+    container = Box.objects.create(makerspace=makerspace, label="Direct Tote")
+    loan = _self_checkout_loan(makerspace, product, "ledger-direct-container-holder")
+    loan.source = PublicToolLoan.Source.ADMIN_DIRECT
+    loan.container = container
+    loan.save(update_fields=["source", "container"])
+
+    response = authenticated_client(manager).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/ledger"
+    )
+
+    assert response.status_code == 200
+    row = response.data["results"][0]
+    assert row["source"] == "direct_handout"
+    assert row["container"] == {"label": "Direct Tote"}
+
+
+def test_ledger_self_checkout_without_loan_container_has_no_container():
+    makerspace = make_space("ledger-self-no-container")
+    manager = make_member("ledger-self-no-container-manager", makerspace)
+    product = make_product(makerspace, name="Self Checkout Kit")
+    assigned_box = Box.objects.create(makerspace=makerspace, label="Ignored Request Box")
+    loan = _self_checkout_loan(makerspace, product, "ledger-self-no-container-holder")
+    loan.request.assigned_box = assigned_box
+    loan.request.save(update_fields=["assigned_box", "updated_at"])
+
+    response = authenticated_client(manager).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/ledger"
+    )
+
+    assert response.status_code == 200
+    row = response.data["results"][0]
+    assert row["source"] == "self_checkout"
+    assert row["container"] is None
 
 
 def test_ledger_reviewed_request_units_come_from_issued_asset_links():

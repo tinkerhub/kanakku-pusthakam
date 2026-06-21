@@ -25,8 +25,10 @@ def _request_item_rows(makerspace_id):
         HardwareRequestItem.objects.select_related(
             "product",
             "request",
+            "request__assigned_box",
             "request__requester",
             "request__public_tool_loan",
+            "request__public_tool_loan__container",
             "request__public_tool_loan__requester",
         )
         .filter(
@@ -78,6 +80,7 @@ def _request_item_rows(makerspace_id):
                 "holder": _request_holder(item.request),
                 "quantity": item.outstanding,
                 "units": _units_for_item(item, loan, asset_map),
+                "container": _container(item, loan),
                 "target_label": loan.target_label if loan else None,
                 "since": item.request.issued_at,
                 "due": (loan.due_at if loan else None) or item.request.return_due_at,
@@ -87,6 +90,22 @@ def _request_item_rows(makerspace_id):
             }
         )
     return rows
+
+
+def _box_payload(box, makerspace_id):
+    if box is None or box.makerspace_id != makerspace_id:
+        return None
+    return {"label": box.label}
+
+
+def _container(item, loan):
+    # source-aware: loan-backed rows (self-checkout/direct handout) use the loan's
+    # container; reviewed-request rows use the request's assigned box. They are
+    # mutually exclusive, so never fall back across sources (avoids misattribution).
+    box = loan.container if (loan is not None and loan.container_id) else None
+    if loan is None and item.request.assigned_box_id:
+        box = item.request.assigned_box
+    return _box_payload(box, item.request.makerspace_id)
 
 
 def _loan_asset_map(item_loans):

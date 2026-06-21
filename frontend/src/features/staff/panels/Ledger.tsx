@@ -8,6 +8,7 @@ type LedgerRow = {
   source: LedgerSource;
   item_name: string;
   units: Array<{ asset_tag: string; serial_number: string }>;
+  container: { label: string } | null;
   target_label: string | null;
   holder: string;
   quantity: number;
@@ -50,7 +51,9 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
   const visibleRows = useMemo(() => {
     const normalizedFilter = filter.trim().toLowerCase();
     const filtered = normalizedFilter
-      ? rows.filter((row) => `${row.holder} ${row.item_name}`.toLowerCase().includes(normalizedFilter))
+      ? rows.filter((row) =>
+          `${row.holder} ${row.item_name} ${row.container?.label ?? ""}`.toLowerCase().includes(normalizedFilter),
+        )
       : rows;
 
     return [...filtered].sort((a, b) => compareRows(a, b, sort.key, sort.direction));
@@ -152,20 +155,36 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
 }
 
 function UnitLines({ row }: { row: LedgerRow }) {
+  const containerLine = row.container ? (
+    <div className="mt-0.5 break-words text-xs text-muted">📦 {row.container.label}</div>
+  ) : null;
+
   if (row.units.length) {
     return (
-      <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted">
-        {row.units.map((unit) => (
-          <span className="break-words" key={`${unit.asset_tag}-${unit.serial_number || "no-serial"}`}>
-            #{unit.asset_tag}
-            {unit.serial_number ? ` · ${unit.serial_number}` : ""}
-          </span>
-        ))}
-      </div>
+      <>
+        <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted">
+          {row.units.map((unit) => (
+            <span className="break-words" key={`${unit.asset_tag}-${unit.serial_number || "no-serial"}`}>
+              #{unit.asset_tag}
+              {unit.serial_number ? ` · ${unit.serial_number}` : ""}
+            </span>
+          ))}
+        </div>
+        {containerLine}
+      </>
     );
   }
 
-  return row.target_label ? <div className="mt-0.5 break-words text-xs text-muted">{row.target_label}</div> : null;
+  if (row.target_label) {
+    return (
+      <>
+        <div className="mt-0.5 break-words text-xs text-muted">{row.target_label}</div>
+        {containerLine}
+      </>
+    );
+  }
+
+  return containerLine;
 }
 
 function SortableHeader({
