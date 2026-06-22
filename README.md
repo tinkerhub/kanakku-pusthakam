@@ -1,7 +1,7 @@
-# OSMM Makerspace Manager
+# Kanakku Pusthakam
 
 > **This is a fork of [Shaan-Shoukath/Makerspace-Manager](https://github.com/Shaan-Shoukath/Makerspace-Manager).**
-> [OSMM Makerspace Manager](https://github.com/Shaan-Shoukath/OSMM-Makerspace-Manager) is maintained by
+> [Kanakku Pusthakam](https://github.com/Shaan-Shoukath/OSMM-Makerspace-Manager) is maintained by
 > [TinkerHub](https://github.com/tinkerhub) and
 > [Shaan Shoukath](https://github.com/Shaan-Shoukath), and builds on the
 > original Makerspace Manager project. All credit for the original work goes to its author and
@@ -289,7 +289,7 @@ workflow, branch/commit conventions, testing expectations, and how to open a pul
 
 ## Contributors
 
-[OSMM Makerspace Manager](https://github.com/Shaan-Shoukath/OSMM-Makerspace-Manager) stands on the work of everyone who built and improved the upstream project.
+[Kanakku Pusthakam](https://github.com/Shaan-Shoukath/OSMM-Makerspace-Manager) stands on the work of everyone who built and improved the upstream project.
 
 ### Original author
 
@@ -299,8 +299,8 @@ workflow, branch/commit conventions, testing expectations, and how to open a pul
 
 ### Fork maintainers
 
-- **[TinkerHub](https://github.com/tinkerhub)** — maintains this fork, **[OSMM Makerspace Manager](https://github.com/Shaan-Shoukath/OSMM-Makerspace-Manager)**.
-- **[Shaan Shoukath](https://github.com/Shaan-Shoukath)** — maintains this fork, **[OSMM Makerspace Manager](https://github.com/Shaan-Shoukath/OSMM-Makerspace-Manager)**.
+- **[TinkerHub](https://github.com/tinkerhub)** — maintains this fork, **[Kanakku Pusthakam](https://github.com/Shaan-Shoukath/OSMM-Makerspace-Manager)**.
+- **[Shaan Shoukath](https://github.com/Shaan-Shoukath)** — maintains this fork, **[Kanakku Pusthakam](https://github.com/Shaan-Shoukath/OSMM-Makerspace-Manager)**.
 
 Want to see your name here? Contributions of all kinds — code, docs, translations, or running it at
 your space and reporting what's rough — are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
