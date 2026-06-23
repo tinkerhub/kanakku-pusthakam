@@ -5,6 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.integrations.models import EmailLog
+from apps.integrations.smtp_validation import sanitize_email_error
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +95,7 @@ def _deliver(log):
         msg.send()
     except Exception as exc:
         log.status = EmailLog.Status.FAILED
-        log.error = str(exc)[:2000]
+        log.error = sanitize_email_error(exc)
         logger.exception(
             "email_delivery_failed",
             extra={"email_log_id": log.pk, "to_email": log.to_email},

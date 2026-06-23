@@ -12321,11 +12321,12 @@
             "EmailLogStatusEnum": {
                 "enum": [
                     "pending",
+                    "sending",
                     "sent",
                     "failed"
                 ],
                 "type": "string",
-                "description": "* `pending` - Pending\n* `sent` - Sent\n* `failed` - Failed"
+                "description": "* `pending` - Pending\n* `sending` - Sending\n* `sent` - Sent\n* `failed` - Failed"
             },
             "EmailPreviewRequest": {
                 "type": "object",
