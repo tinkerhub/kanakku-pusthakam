@@ -3,7 +3,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("hardware_requests", "0017_remove_hardwareemailtemplate"),
+        ("hardware_requests", "0017_delete_hardwareemailtemplate"),
     ]
 
     operations = [
