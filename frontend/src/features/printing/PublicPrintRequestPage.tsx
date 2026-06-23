@@ -4,12 +4,11 @@ import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
-import { MakerspaceLocation } from "../../components/MakerspaceLocation";
+import { OsmmBadge } from "../../components/OsmmLogo";
 import { Card } from "../../components/ui/Card";
 import { useTenant, useTenantPath } from "../../lib/tenant";
 import { formatSlug } from "../inventory/PublicInventoryParts";
 import { useTenantBootstrap } from "../inventory/usePublicInventory";
-import { PrintRulesCard } from "./PrintRulesCard";
 import { StatusResult, SubmittedTokenCard } from "./PublicPrintRequestParts";
 import {
   PrintDetailsForm,
@@ -32,7 +31,6 @@ export function PublicPrintRequestPage() {
   const tenant = useTenant();
   const makerspaceSlug = tenant.mode === "single" ? tenant.slug : slug ?? "";
   const tenantPath = useTenantPath(makerspaceSlug);
-  const [identifier, setIdentifier] = useState("");
   const [verifiedIdentifier, setVerifiedIdentifier] = useState("");
   const [verifiedName, setVerifiedName] = useState("");
   const [form, setForm] = useState<FormState>(initialForm);
@@ -84,14 +82,15 @@ export function PublicPrintRequestPage() {
     }
   }, []);
   const verifyMutation = useMutation({
-    mutationFn: (id: string) => verifyPrintCheckin(makerspaceSlug, id),
-    onSuccess: (data, id) => {
-      setVerifiedIdentifier(id);
+    mutationFn: (email: string) => verifyPrintCheckin(makerspaceSlug, email),
+    onSuccess: (data, email) => {
+      setVerifiedIdentifier(email);
       setVerifiedName(data.username);
     },
   });
   const verified =
-    identifier.trim().length > 0 && identifier.trim() === verifiedIdentifier;
+    form.contactEmail.trim().length > 0 &&
+    form.contactEmail.trim() === verifiedIdentifier;
   const displayName =
     bootstrap?.branding.display_name ||
     bootstrap?.makerspace.name ||
@@ -109,7 +108,7 @@ export function PublicPrintRequestPage() {
       for (const [index, item] of files.entries()) {
         setUploadProgress(`Uploading ${index + 1}/${files.length}`);
         const presigned = await presignPrintUpload(makerspaceSlug, {
-          identifier: identifier.trim(),
+          contact_email: form.contactEmail.trim(),
           kind: item.kind,
           filename: item.file.name,
           content_type:
@@ -129,8 +128,7 @@ export function PublicPrintRequestPage() {
       );
       return submitPrintRequest(makerspaceSlug, {
         website,
-        identifier: identifier.trim(),
-        requester_name: optional(form.requesterName),
+        requester_name: form.requesterName.trim(),
         title: form.title.trim(),
         project_brief: optional(form.projectBrief),
         preferred_settings: optional(form.preferredSettings),
@@ -141,8 +139,8 @@ export function PublicPrintRequestPage() {
           : null,
         quantity: form.quantity,
         source_link: optional(form.sourceLink),
-        contact_email: optional(form.contactEmail),
-        contact_phone: optional(form.contactPhone),
+        contact_email: form.contactEmail.trim(),
+        contact_phone: form.contactPhone.trim(),
         file_ids: fileIds,
       });
     },
@@ -158,9 +156,24 @@ export function PublicPrintRequestPage() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
+  function updateContactEmail(value: string) {
+    updateField("contactEmail", value);
+    if (value.trim() !== verifiedIdentifier) {
+      setVerifiedIdentifier("");
+      setVerifiedName("");
+      verifyMutation.reset();
+    }
+  }
+
   function submitForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (verified && form.title.trim()) {
+    if (
+      verified &&
+      form.requesterName.trim() &&
+      form.contactEmail.trim() &&
+      form.contactPhone.trim() &&
+      form.title.trim()
+    ) {
       submitMutation.mutate();
     }
   }
@@ -176,7 +189,7 @@ export function PublicPrintRequestPage() {
     <main className="desk-shell">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-screen-xl flex-col gap-4 px-5 py-6 sm:px-8">
-          <p className="text-sm font-semibold uppercase tracking-wide text-accent">
+          <p className="text-sm font-semibold tracking-wide text-accent-ink">
             Public 3D Print Request
           </p>
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -189,15 +202,13 @@ export function PublicPrintRequestPage() {
               <p className="mt-2 text-sm text-muted">
                 Submit print files — check status anytime with your email.
               </p>
-              <MakerspaceLocation
-                className="mt-2"
-                location={bootstrap?.makerspace.location}
-                mapUrl={bootstrap?.makerspace.map_url}
-              />
             </div>
-            <Link className="desk-button" to={tenantPath()}>
-              Back to inventory
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <OsmmBadge />
+              <Link className="desk-button" to={tenantPath()}>
+                Back to inventory
+              </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -213,7 +224,7 @@ export function PublicPrintRequestPage() {
       {!bootstrapQuery.isLoading && !enabled ? (
         <section className="mx-auto max-w-screen-sm px-5 py-6 sm:px-8">
           <Card>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+            <p className="text-xs font-semibold tracking-wide text-accent-ink">
               3D printing
             </p>
             <h2 className="mt-2 text-xl font-semibold text-ink">
@@ -241,36 +252,38 @@ export function PublicPrintRequestPage() {
       {!bootstrapQuery.isLoading && enabled ? (
         <section className="mx-auto grid max-w-screen-xl grid-cols-1 gap-5 px-5 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-4">
-          <Card className="card-tilt-1 panel-yellow">
-            <p className="font-mono text-xs font-semibold uppercase tracking-wide">
+          <Card className="bg-tone-yellow text-tone-yellow-ink dark:bg-[#332b00] dark:text-[#fcdf46]">
+            <p className="text-xs font-semibold tracking-wide">
               Check-In
             </p>
             <label className="mt-3 block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide">
-                Check-In email or phone
-              </span>
+                <span className="mb-1 block text-xs font-semibold tracking-wide opacity-80">
+                  Check-In email
+                </span>
               <input
-                className="desk-input pill w-full bg-panel"
-                placeholder="Email or phone used at Check-In"
-                value={identifier}
-                onChange={(event) => setIdentifier(event.target.value)}
+                className="desk-input w-full"
+                placeholder="you@example.com"
+                required
+                type="email"
+                value={form.contactEmail}
+                onChange={(event) => updateContactEmail(event.target.value)}
               />
             </label>
             <button
-              className="desk-button mt-3 bg-panel"
-              disabled={!identifier.trim() || verifyMutation.isPending}
+              className="desk-button mt-3"
+              disabled={!form.contactEmail.trim() || verifyMutation.isPending}
               type="button"
-              onClick={() => verifyMutation.mutate(identifier.trim())}
+              onClick={() => verifyMutation.mutate(form.contactEmail.trim())}
             >
               {verifyMutation.isPending ? "Verifying..." : "Verify Check-In"}
             </button>
             {verified ? (
-              <p className="status-box status-box-done mt-3 w-full justify-start px-3 py-2 text-sm normal-case">
+              <p className="mt-3 rounded-lg border border-tone-mint bg-tone-mint px-3 py-2 text-sm font-medium text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
                 Check-In verified{verifiedName ? ` for ${verifiedName}` : ""}
               </p>
             ) : null}
             {verifyMutation.error ? (
-              <p className="status-box status-box-danger mt-3 w-full justify-start px-3 py-2 text-sm normal-case">
+              <p className="mt-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
                 {verifyMutation.error.message}
               </p>
             ) : null}
@@ -294,26 +307,26 @@ export function PublicPrintRequestPage() {
           />
         </div>
 
-        <aside className="min-w-0 space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:overflow-y-auto lg:p-2">
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:overflow-y-auto">
           {submittedToken ? <SubmittedTokenCard token={submittedToken} /> : null}
-          <Card className="card-tilt-1 panel-pink">
-            <p className="font-mono text-xs font-semibold uppercase tracking-wide">
+          <Card className="bg-tone-pink text-tone-pink-ink dark:bg-[#3a1326] dark:text-[#f9a8d4]">
+            <p className="text-xs font-semibold tracking-wide">
               Status Tracker
             </p>
             <form className="mt-3 space-y-3" onSubmit={checkStatusByEmail}>
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide">
+                <span className="mb-1 block text-xs font-semibold tracking-wide opacity-80">
                   Request email
                 </span>
                 <input
-                  className="desk-input pill w-full bg-panel"
+                  className="desk-input w-full"
                   type="email"
                   value={statusEmail}
                   onChange={(event) => setStatusEmail(event.target.value)}
                 />
               </label>
               <button
-                className="desk-button bg-panel"
+                className="desk-button"
                 disabled={!statusEmail.trim() || statusByEmailMutation.isPending}
                 type="submit"
               >
@@ -329,7 +342,7 @@ export function PublicPrintRequestPage() {
             </div>
             <div className="mt-4 space-y-4">
               {statusByEmailMutation.error ? (
-                <p className="status-box status-box-danger w-full justify-start px-3 py-2 text-sm normal-case">
+                <p className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
                   {statusByEmailMutation.error.message}
                 </p>
               ) : null}
@@ -342,14 +355,12 @@ export function PublicPrintRequestPage() {
                 />
               ))}
               {statusByEmailMutation.data?.results.length === 0 ? (
-                <p className="rounded-lg border border-ink bg-panel px-3 py-2 text-sm">
+                <p className="rounded-lg border border-line bg-panel/80 px-3 py-2 text-sm">
                   No requests found for that email.
                 </p>
               ) : null}
             </div>
           </Card>
-
-          <PrintRulesCard makerspaceName={displayName} />
         </aside>
         </section>
       ) : null}

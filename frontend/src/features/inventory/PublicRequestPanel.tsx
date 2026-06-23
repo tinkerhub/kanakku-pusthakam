@@ -29,7 +29,7 @@ export function PublicRequestPanel({
 }: PublicRequestPanelProps) {
   const lookupStorageKey = `makerspace.request.lookup.${makerspaceSlug}`;
   const [activeTab, setActiveTab] = useState<ActiveTab>("borrow");
-  const [identifier, setIdentifier] = useState("");
+  const [requesterName, setRequesterName] = useState("");
   const [verifiedIdentifier, setVerifiedIdentifier] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -44,13 +44,13 @@ export function PublicRequestPanel({
   );
 
   const verifyMutation = useMutation({
-    mutationFn: (id: string) => verifyCheckin(makerspaceSlug, id),
-    onSuccess: (_data, id) => setVerifiedIdentifier(id),
+    mutationFn: (email: string) => verifyCheckin(makerspaceSlug, email),
+    onSuccess: (_data, email) => setVerifiedIdentifier(email),
   });
   const submitMutation = useMutation({
     mutationFn: () =>
       submitPublicRequest(makerspaceSlug, {
-        identifier: identifier.trim(),
+        requester_name: requesterName.trim(),
         contact_email: contactEmail.trim(),
         contact_phone: contactPhone.trim(),
         requested_for: requestedFor.trim(),
@@ -62,7 +62,7 @@ export function PublicRequestPanel({
     onSuccess: (response) => {
       void response;
       setSubmitted(true);
-      cacheLookup(contactEmail.trim() || contactPhone.trim());
+      cacheLookup(contactEmail.trim());
       onClear();
     },
   });
@@ -72,41 +72,65 @@ export function PublicRequestPanel({
     enabled: Boolean(lookupValue),
     staleTime: 30_000,
   });
-  const pendingLookup = contactEmail.trim() || contactPhone.trim() || identifier.trim();
+  const pendingLookup = contactEmail.trim();
   const verifySuccess =
-    verifyMutation.isSuccess && identifier.trim() === verifiedIdentifier;
+    verifyMutation.isSuccess && contactEmail.trim() === verifiedIdentifier;
+
+  function updateContactEmail(value: string) {
+    setContactEmail(value);
+    if (value.trim() !== verifiedIdentifier) {
+      setVerifiedIdentifier("");
+      verifyMutation.reset();
+    }
+  }
 
   function cacheLookup(value: string) {
     localStorage.setItem(lookupStorageKey, value);
     setLookupValue(value);
   }
 
-  // Each tab wears its own vibrant colour when active: borrow=blue, scan=yellow,
-  // my requests=pink. Inactive tabs stay outlined.
-  const TAB_ACTIVE: Record<ActiveTab, string> = {
-    borrow: "status-box-step1",
-    scan: "status-box-step2",
-    requests: "status-box-step3",
+  // Each tab carries its own palette tone — a touch of colour so the action row
+  // doesn't read as flat. Active = filled pastel (+ dark deep-tint); idle = neutral
+  // with a faint tone hover hint.
+  const tabTone: Record<ActiveTab, { active: string; idle: string }> = {
+    borrow: {
+      active:
+        "border-tone-blue bg-tone-blue text-tone-blue-ink dark:bg-[#0b2a38] dark:text-[#7dd3fc]",
+      idle: "hover:bg-tone-blue/40 hover:text-tone-blue-ink",
+    },
+    scan: {
+      active:
+        "border-tone-mint bg-tone-mint text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]",
+      idle: "hover:bg-tone-mint/40 hover:text-tone-mint-ink",
+    },
+    requests: {
+      active:
+        "border-tone-pink bg-tone-pink text-tone-pink-ink dark:bg-[#3a1326] dark:text-[#f9a8d4]",
+      idle: "hover:bg-tone-pink/40 hover:text-tone-pink-ink",
+    },
   };
 
   function tabClass(tab: ActiveTab) {
+    const tone = tabTone[tab];
     return activeTab === tab
-      ? `status-box ${TAB_ACTIVE[tab]} shadow-brutal-sm w-full py-2`
-      : "status-box w-full py-2 hover:bg-surface hover:text-ink";
+      ? `status-box w-full py-2 shadow-soft ${tone.active}`
+      : `status-box w-full py-2 ${tone.idle}`;
   }
 
   const canSubmit =
-    identifier.trim().length > 0 &&
-    (contactEmail.trim().length > 0 || contactPhone.trim().length > 0) &&
+    requesterName.trim().length > 0 &&
+    contactEmail.trim().length > 0 &&
+    contactPhone.trim().length > 0 &&
     requestedFor.trim().length > 0 &&
+    verifySuccess &&
     items.length > 0 &&
     !submitMutation.isPending;
 
   return (
-    <aside className="space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:flex lg:flex-col lg:overflow-hidden lg:p-2">
+    <aside className="space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:flex lg:flex-col lg:overflow-hidden">
       {disabled ? (
         <Card>
-          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+          <p className="text-xs font-semibold tracking-wide text-accent-ink">
             Requests
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ink">Unavailable</h2>
@@ -116,37 +140,64 @@ export function PublicRequestPanel({
         </Card>
       ) : (
         <>
-          <Card className="shrink-0 panel-mint" padding="sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
-              Check-In
+          <Card className="shrink-0" padding="sm">
+            <p className="text-xs font-semibold tracking-wide text-accent-ink">
+              Your Details
             </p>
             <label className="mt-3 block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
-                Check-In email or phone
+              <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
+                Name
               </span>
               <input
                 className="desk-input w-full"
-                placeholder="Email or phone used at Check-In"
-                value={identifier}
-                onChange={(event) => setIdentifier(event.target.value)}
+                placeholder="Your full name"
+                required
+                value={requesterName}
+                onChange={(event) => setRequesterName(event.target.value)}
+              />
+            </label>
+            <label className="mt-3 block">
+              <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
+                Email
+              </span>
+              <input
+                className="desk-input w-full"
+                placeholder="you@example.com"
+                required
+                type="email"
+                value={contactEmail}
+                onChange={(event) => updateContactEmail(event.target.value)}
+              />
+            </label>
+            <label className="mt-3 block">
+              <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
+                Phone
+              </span>
+              <input
+                className="desk-input w-full"
+                placeholder="+91 98765 43210"
+                required
+                type="tel"
+                value={contactPhone}
+                onChange={(event) => setContactPhone(event.target.value)}
               />
             </label>
             <button
               className="desk-button mt-3 w-full"
-              disabled={!identifier.trim() || verifyMutation.isPending}
+              disabled={!contactEmail.trim() || verifyMutation.isPending}
               type="button"
-              onClick={() => verifyMutation.mutate(identifier.trim())}
+              onClick={() => verifyMutation.mutate(contactEmail.trim())}
             >
               {verifyMutation.isPending ? "Verifying..." : "Verify Check-In"}
             </button>
             <div aria-live="polite" className="mt-3 space-y-2">
               {verifySuccess ? (
-                <p className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
+                <p className="rounded-lg border border-tone-mint bg-tone-mint px-3 py-2 text-sm font-medium text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
                   Check-In verified
                 </p>
               ) : null}
               {verifyMutation.error ? (
-                <p className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+                <p className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
                   {verifyMutation.error.message}
                 </p>
               ) : null}
@@ -202,8 +253,6 @@ export function PublicRequestPanel({
               >
                 <BorrowRequestCard
                   canSubmit={canSubmit}
-                  contactEmail={contactEmail}
-                  contactPhone={contactPhone}
                   items={items}
                   requestedFor={requestedFor}
                   submitError={submitMutation.error?.message}
@@ -211,8 +260,6 @@ export function PublicRequestPanel({
                   submitted={submitted}
                   totalItems={totalItems}
                   onClear={onClear}
-                  onContactEmailChange={setContactEmail}
-                  onContactPhoneChange={setContactPhone}
                   onRequestedForChange={setRequestedFor}
                   onSubmit={() => submitMutation.mutate()}
                 />
@@ -226,7 +273,9 @@ export function PublicRequestPanel({
                 role="tabpanel"
               >
                 <PublicToolScanPanel
-                  identifier={identifier}
+                  requesterName={requesterName}
+                  contactEmail={contactEmail}
+                  contactPhone={contactPhone}
                   makerspaceSlug={makerspaceSlug}
                 />
               </div>
@@ -241,11 +290,11 @@ export function PublicRequestPanel({
                 <Card>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+                      <p className="text-xs font-semibold tracking-wide text-accent-ink">
                         My Requests
                       </p>
                       <h2 className="mt-2 text-xl font-semibold text-ink">
-                        Check by email or phone
+                        Check by email
                       </h2>
                     </div>
                   </div>
@@ -258,15 +307,15 @@ export function PublicRequestPanel({
                     {requestsQuery.isFetching ? "Checking..." : "Show my requests"}
                   </button>
                   {requestsQuery.isError ? (
-                    <p className="mt-3 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+                    <p className="mt-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
                       {requestsQuery.error.message}
                     </p>
                   ) : null}
                   {requestsQuery.isSuccess ? (
                     <div className="mt-4 space-y-3">
                       {requestsQuery.data.length === 0 ? (
-                        <p className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">
-                          No requests found for this email or phone.
+                        <p className="rounded-lg border border-line bg-surface px-3 py-2 text-sm text-muted">
+                          No requests found for this email.
                         </p>
                       ) : (
                         requestsQuery.data.map((request) => (

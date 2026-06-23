@@ -31,14 +31,18 @@ type QrResolveResponse = {
 
 export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   const queryClient = useQueryClient();
-  const [identifier, setIdentifier] = useState("");
+  const [requesterName, setRequesterName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
   const [lineRows, setLineRows] = useState<LineDraft[]>([{ key: 1, productId: "", quantity: "1" }]);
   const [nextLineKey, setNextLineKey] = useState(2);
   const [scanned, setScanned] = useState<ScannedPayload[]>([]);
   const [showScanner, setShowScanner] = useState(false);
   const [qrPayloads, setQrPayloads] = useState("");
   const [containerId, setContainerId] = useState("");
-  // Track WHICH identifier was verified, not just a boolean: editing the field
+  const [showContainerScanner, setShowContainerScanner] = useState(false);
+  const [containerScanError, setContainerScanError] = useState("");
+  // Track WHICH email was verified, not just a boolean: editing the field
   // mid-flight must never approve a stale, mismatched identity.
   const [verifiedIdentifier, setVerifiedIdentifier] = useState("");
   const [verifiedUsername, setVerifiedUsername] = useState("");
@@ -46,13 +50,17 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   const [returnEvidenceId, setReturnEvidenceId] = useState<number | null>(null);
   const [returnNotes, setReturnNotes] = useState("");
   useEffect(() => {
-    setIdentifier("");
+    setRequesterName("");
+    setContactEmail("");
+    setContactPhone("");
     setLineRows([{ key: 1, productId: "", quantity: "1" }]);
     setNextLineKey(2);
     setScanned([]);
     setShowScanner(false);
     setQrPayloads("");
     setContainerId("");
+    setShowContainerScanner(false);
+    setContainerScanError("");
     setVerifiedIdentifier("");
     setVerifiedUsername("");
     setReturningLoan(null);
@@ -63,9 +71,12 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     ["inventory-all", makerspace.id],
     `/admin/makerspace/${makerspace.id}/inventory?page_size=1000`,
   );
+  // Fetch ALL containers (distinct cache key from the shared ["containers"] entry so a
+  // truncated first page can't leak in): the dropdown + the scan membership check both
+  // need the complete list, else a valid container past page one falsely reads as "not found".
   const containers = useStaffGet<ContainerResponse>(
-    ["containers", makerspace.id],
-    `/admin/makerspace/${makerspace.id}/containers`,
+    ["containers-all", makerspace.id],
+    `/admin/makerspace/${makerspace.id}/containers?page_size=1000`,
   );
   const containerOptions = Array.isArray(containers.data)
     ? containers.data
@@ -95,13 +106,16 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
       setVerifiedUsername(result.username);
     },
   });
-  const isVerified = verifiedIdentifier !== "" && verifiedIdentifier === identifier;
+  const isVerified =
+    verifiedIdentifier !== "" && verifiedIdentifier === contactEmail.trim();
   const issue = useMutation({
     mutationFn: () =>
       staffRequest(`/admin/makerspace/${makerspace.id}/direct-loans`, {
         method: "POST",
         body: JSON.stringify({
-          identifier,
+          requester_name: requesterName.trim(),
+          contact_email: contactEmail.trim(),
+          contact_phone: contactPhone.trim(),
           container_id: containerId ? Number(containerId) : null,
           qr_payloads: Array.from(new Set([
             ...scanned.map((item) => item.payload),
@@ -123,8 +137,16 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
       setScanned([]);
       setQrPayloads("");
       setContainerId("");
+      setShowContainerScanner(false);
+      setContainerScanError("");
     },
   });
+  const canIssue =
+    isVerified &&
+    requesterName.trim().length > 0 &&
+    contactEmail.trim().length > 0 &&
+    contactPhone.trim().length > 0 &&
+    !issue.isPending;
   const returnLoan = useMutation({
     mutationFn: ({ loanId, evidenceId, notes }: ReturnLoanPayload) =>
       staffRequest(`/admin/direct-loans/${loanId}/return`, {
@@ -175,8 +197,8 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   const removeScanned = (payload: string) => {
     setScanned((items) => items.filter((item) => item.payload !== payload));
   };
-  const updateIdentifier = (value: string) => {
-    setIdentifier(value);
+  const updateContactEmail = (value: string) => {
+    setContactEmail(value);
     setVerifiedIdentifier("");
     setVerifiedUsername("");
     verify.reset();
@@ -200,31 +222,89 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
         : [...items, { payload: cleanPayload, label }],
     );
   };
+  const handleContainerScan = async (payload: string) => {
+    try {
+      const result = await staffRequest<QrResolveResponse>("/admin/qr/resolve", {
+        method: "POST",
+        body: JSON.stringify({ payload }),
+      });
+      const target = result.target;
+      if (target.type !== "box") {
+        setContainerScanError("Scanned QR is not a container.");
+        return;
+      }
+      if (!containerOptions.some((container) => container.id === target.id)) {
+        setContainerScanError("That container isn't available for handout (inactive or not found).");
+        return;
+      }
+      setContainerId(String(target.id));
+      setContainerScanError("");
+    } catch {
+      setContainerScanError("Could not resolve the scanned QR.");
+    } finally {
+      setShowContainerScanner(false);
+    }
+  };
 
   return (
     <div className="grid gap-4">
       <Panel title="Direct handout">
-        <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-          <input className="desk-input" placeholder="Check-In username, email, phone, or ID" value={identifier} onChange={(e) => updateIdentifier(e.target.value)} />
-          <button className="desk-button" type="button" disabled={!identifier.trim() || verify.isPending} onClick={() => verify.mutate(identifier)}>
+        <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+          <input
+            className="desk-input"
+            placeholder="Borrower name"
+            required
+            value={requesterName}
+            onChange={(e) => setRequesterName(e.target.value)}
+          />
+          <input
+            className="desk-input"
+            placeholder="Borrower email"
+            required
+            type="email"
+            value={contactEmail}
+            onChange={(e) => updateContactEmail(e.target.value)}
+          />
+          <button className="desk-button" type="button" disabled={!contactEmail.trim() || verify.isPending} onClick={() => verify.mutate(contactEmail.trim())}>
             Verify check-in
           </button>
         </div>
-        {isVerified && verifiedUsername ? <p className="mt-2"><span className="status-box status-box-done">Verified as {verifiedUsername}</span></p> : null}
+        <input
+          className="desk-input mt-2 w-full"
+          placeholder="Borrower phone"
+          required
+          type="tel"
+          value={contactPhone}
+          onChange={(e) => setContactPhone(e.target.value)}
+        />
+        {isVerified && verifiedUsername ? <p className="mt-2 text-sm text-success-ink">Verified as {verifiedUsername}</p> : null}
         {verify.error ? <p className="mt-2 text-sm text-danger">{verify.error.message}</p> : null}
         <label className="mt-4 block text-sm font-medium text-ink" htmlFor="direct-loan-container">Container (optional)</label>
-        <select
-          id="direct-loan-container"
-          className="desk-input mt-1 w-full"
-          value={containerId}
-          disabled={containers.isLoading}
-          onChange={(e) => setContainerId(e.target.value)}
-        >
-          <option value="">No container</option>
-          {containerOptions.map((container) => (
-            <option key={container.id} value={container.id}>{container.label}</option>
-          ))}
-        </select>
+        <div className="mt-1 flex flex-col gap-2 md:flex-row">
+          <select
+            id="direct-loan-container"
+            className="desk-input w-full"
+            value={containerId}
+            disabled={containers.isLoading}
+            onChange={(e) => setContainerId(e.target.value)}
+          >
+            <option value="">No container</option>
+            {containerOptions.map((container) => (
+              <option key={container.id} value={container.id}>{container.label}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="desk-button"
+            onClick={() => {
+              setContainerScanError("");
+              setShowContainerScanner(true);
+            }}
+          >
+            Scan container
+          </button>
+        </div>
+        {containerScanError ? <p className="mt-1 text-sm text-danger">{containerScanError}</p> : null}
         <div className="mt-4">
           <div className="mb-2 flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold text-ink">Items</h3>
@@ -255,7 +335,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
           {scanned.length ? (
             <div className="mb-3 flex flex-wrap gap-2">
               {scanned.map((item) => (
-                <span key={item.payload} className="chip normal-case tracking-normal">
+                <span key={item.payload} className="inline-flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-1 text-sm text-ink">
                   {item.label}
                   <button className="text-muted hover:text-danger" type="button" onClick={() => removeScanned(item.payload)}>Remove</button>
                 </span>
@@ -269,13 +349,14 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
           value={qrPayloads}
           onChange={(e) => setQrPayloads(e.target.value)}
         />
-        <button className="desk-button-primary mt-3" disabled={!isVerified || issue.isPending} onClick={() => issue.mutate()}>
+        <button className="desk-button-primary mt-3" disabled={!canIssue} onClick={() => issue.mutate()}>
           Issue direct handout
         </button>
         {issue.error ? <p className="mt-3 text-sm text-danger">{issue.error.message}</p> : null}
         {products.error ? <p className="mt-3 text-sm text-danger">{products.error.message}</p> : null}
         {containers.error ? <p className="mt-3 text-sm text-danger">{containers.error.message}</p> : null}
         {showScanner ? <QrScanner onScan={handleScan} onClose={() => setShowScanner(false)} /> : null}
+        {showContainerScanner ? <QrScanner onScan={handleContainerScan} onClose={() => setShowContainerScanner(false)} /> : null}
       </Panel>
       <DirectLoanList loans={loans.data?.results ?? []} onReturn={openReturnModal} />
       <DirectLoanReturnModal
