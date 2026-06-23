@@ -57,6 +57,18 @@ def delete_object(object_key):
         logger.exception("Failed to delete public image object %s.", object_key)
 
 
+def put_bytes(object_key, data, content_type):
+    try:
+        _client().put_object(
+            Bucket=settings.PUBLIC_IMAGE_BUCKET,
+            Key=object_key,
+            Body=data,
+            ContentType=content_type,
+        )
+    except (BotoCoreError, ClientError) as exc:
+        raise StorageUnavailable from exc
+
+
 def copy_object(source_key, dest_key):
     try:
         _client().copy_object(
@@ -89,8 +101,6 @@ def object_exists(object_key):
 
 
 def object_size(object_key):
-    # Single HEAD: a missing object returns None (404), so callers don't need a separate
-    # object_exists() probe — that was a redundant second round-trip to the store.
     try:
         response = _client().head_object(
             Bucket=settings.PUBLIC_IMAGE_BUCKET,
