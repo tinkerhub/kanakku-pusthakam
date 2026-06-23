@@ -67,6 +67,7 @@ export function EmailLogPanel({ makerspace }: { makerspace: Makerspace }) {
     <Panel title="Email log">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <select
+          aria-label="Email log status"
           className="desk-input w-full sm:w-48"
           aria-label="Filter email logs by status"
           value={status}
@@ -78,6 +79,7 @@ export function EmailLogPanel({ makerspace }: { makerspace: Makerspace }) {
           <option value="pending">Pending</option>
         </select>
       </div>
+      {logs.isLoading ? <p className="mb-3 text-sm text-muted">Loading email logs...</p> : null}
       {logs.error ? <p className="mb-3 text-sm text-danger">{logs.error.message}</p> : null}
       {retry.error ? <p className="mb-3 text-sm text-danger">{retry.error.message}</p> : null}
       <div className="overflow-x-auto">

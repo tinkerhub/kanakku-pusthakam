@@ -36,7 +36,7 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
   const completed = useStaffGet<{ results: PrintRequest[] }>(["print-requests", makerspace.id, "completed"], reqUrl("completed"));
 
   const [showHistory, setShowHistory] = useState(false);
-  // History queries only fire when expanded (terminal lists can be large) — useStaffGet's
+  // History queries only fire when expanded (terminal lists can be large) - useStaffGet's
   // third arg is the TanStack `enabled` flag, so the network call is deferred until needed.
   const collected = useStaffGet<{ results: PrintRequest[] }>(["print-requests", makerspace.id, "collected"], reqUrl("collected"), showHistory);
   const rejected = useStaffGet<{ results: PrintRequest[] }>(["print-requests", makerspace.id, "rejected"], reqUrl("rejected"), showHistory);
@@ -87,6 +87,11 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
   // Backend _assign_print_job blocks start unless the printer is is_active AND status active,
   // so only offer those as start targets (otherwise the user hits a 409 after clicking Start).
   const startablePrinters = printerRows.filter((printer) => printer.is_active && printer.status === "active");
+  const compatibleSpools = spoolRows.filter(
+    (spool) => spool.is_active && (!selectedPrinter || spool.printer === Number(selectedPrinter) || spool.printer === null),
+  );
+  const selectedSpoolRow = compatibleSpools.find((spool) => String(spool.id) === selectedSpool);
+  const canStartPrint = Boolean(selectedPrinter && selectedSpoolRow);
 
   return (
     <Panel title="Print requests">
@@ -102,9 +107,9 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
       </div>
 
       <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Start-on-printer settings</p>
-      <p className="mb-2 text-xs text-muted">Used by “Start on printer” below — not by Accept.</p>
+      <p className="mb-2 text-xs text-muted">Used by "Start on printer" below - not by Accept.</p>
       {startablePrinters.length === 0 ? (
-        <p className="mb-2 text-xs text-warn">No active printer — add or activate one on the 3D Printing tab.</p>
+        <p className="mb-2 text-xs text-warn-ink">No active printer - add or activate one on the 3D Printing tab.</p>
       ) : null}
       <div className="mb-3 grid gap-2 rounded-2xl border border-ink bg-bg p-3 md:grid-cols-4">
         <label className="block">
@@ -118,8 +123,7 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Spool</span>
           <select className="desk-input w-full" value={selectedSpool} onChange={(event) => setSelectedSpool(event.target.value)}>
             <option value="">Spool</option>
-            {spoolRows
-              .filter((spool) => spool.is_active && (!selectedPrinter || spool.printer === Number(selectedPrinter) || spool.printer === null))
+            {compatibleSpools
               .map((spool) => <option key={spool.id} value={spool.id}>{[spool.material, spool.color].filter(Boolean).join(" ")} ({spool.remaining_weight_grams}g)</option>)}
           </select>
         </label>
@@ -132,18 +136,27 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
           <input className="desk-input w-full" type="number" min="0" value={estimatedGrams} onChange={(event) => setEstimatedGrams(event.target.value)} />
         </label>
       </div>
+      {selectedSpool && !selectedSpoolRow ? <p className="mb-3 text-xs text-danger">Choose a spool assigned to the selected printer, or an unassigned active spool.</p> : null}
       <div className="grid gap-3 lg:grid-cols-2">
-        <PrintRows title="Accepted" rows={accepted.data?.results ?? []} action={(row) => (
-          <button disabled={!selectedPrinter || action.isPending} onClick={() => action.mutate({ request: row, name: "start" })}>
-            {action.isPending ? "Starting..." : "Start on printer"}
-          </button>
-        )} />
-        <PrintRows title="Printing" rows={printing.data?.results ?? []} action={(row) => (
-          <>
-            <button disabled={action.isPending} onClick={() => action.mutate({ request: row, name: "complete" })}>Complete</button>
-            <button disabled={action.isPending} onClick={() => setFailingRequest(row)}>Fail</button>
-          </>
-        )} />
+        {accepted.isLoading ? (
+          <PrintRowsSkeleton title="Accepted" />
+        ) : (
+          <PrintRows title="Accepted" rows={accepted.data?.results ?? []} action={(row) => (
+            <button disabled={!canStartPrint || action.isPending} onClick={() => action.mutate({ request: row, name: "start" })}>
+              {action.isPending ? "Starting..." : "Start on printer"}
+            </button>
+          )} />
+        )}
+        {printing.isLoading ? (
+          <PrintRowsSkeleton title="Printing" />
+        ) : (
+          <PrintRows title="Printing" rows={printing.data?.results ?? []} action={(row) => (
+            <>
+              <button disabled={action.isPending} onClick={() => action.mutate({ request: row, name: "complete" })}>Complete</button>
+              <button disabled={action.isPending} onClick={() => setFailingRequest(row)}>Fail</button>
+            </>
+          )} />
+        )}
       </div>
 
       <div className="mt-3">
@@ -207,4 +220,28 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
       />
     </Panel>
   );
+}
+function PrintRowsSkeleton({ title, rows = 3 }: { title: string; rows?: number }) {
+  return (
+    <div className="rounded-md border border-line" aria-hidden="true">
+      <h3 className="border-b border-line bg-surface px-3 py-2 text-sm font-semibold text-muted">{title}</h3>
+      <div className="grid gap-0">
+        {Array.from({ length: rows }, (_, index) => (
+          <article key={index} className="border-b border-line p-3 last:border-b-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Skeleton className="h-4 w-44" />
+              <Skeleton className="h-5 w-20" />
+              <Skeleton className="ml-0 h-7 w-28 sm:ml-auto" />
+            </div>
+            <Skeleton className="mt-3 h-3 w-full" />
+            <Skeleton className="mt-2 h-3 w-2/3" />
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Skeleton({ className = "" }: { className?: string }) {
+  return <span className={`block animate-pulse rounded-md bg-muted/20 ${className}`} />;
 }
