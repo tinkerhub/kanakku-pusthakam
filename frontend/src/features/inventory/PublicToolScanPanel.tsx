@@ -95,7 +95,7 @@ export function PublicToolScanPanel({
 
   return (
     <Card>
-      <p className="text-xs font-semibold tracking-wide text-accent-ink">
+      <p className="text-xs font-semibold uppercase tracking-wide text-accent">
         QR Tool Checkout
       </p>
       <h2 className="mt-2 text-xl font-semibold text-ink">Scan public tool</h2>

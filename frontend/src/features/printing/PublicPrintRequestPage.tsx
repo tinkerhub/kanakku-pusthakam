@@ -4,10 +4,12 @@ import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
+import { MakerspaceLocation } from "../../components/MakerspaceLocation";
 import { Card } from "../../components/ui/Card";
 import { useTenant, useTenantPath } from "../../lib/tenant";
 import { formatSlug } from "../inventory/PublicInventoryParts";
 import { useTenantBootstrap } from "../inventory/usePublicInventory";
+import { PrintRulesCard } from "./PrintRulesCard";
 import { StatusResult, SubmittedTokenCard } from "./PublicPrintRequestParts";
 import {
   PrintDetailsForm,
@@ -189,7 +191,7 @@ export function PublicPrintRequestPage() {
     <main className="desk-shell">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-screen-xl flex-col gap-4 px-5 py-6 sm:px-8">
-          <p className="text-sm font-semibold tracking-wide text-accent-ink">
+          <p className="text-sm font-semibold uppercase tracking-wide text-accent">
             Public 3D Print Request
           </p>
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -202,6 +204,11 @@ export function PublicPrintRequestPage() {
               <p className="mt-2 text-sm text-muted">
                 Submit print files - check status anytime with your email.
               </p>
+              <MakerspaceLocation
+                className="mt-2"
+                location={bootstrap?.makerspace.location}
+                mapUrl={bootstrap?.makerspace.map_url}
+              />
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Link className="desk-button" to={tenantPath()}>
@@ -230,7 +237,7 @@ export function PublicPrintRequestPage() {
       {!bootstrapQuery.isLoading && !bootstrapQuery.isError && !enabled ? (
         <section className="mx-auto max-w-screen-sm px-5 py-6 sm:px-8">
           <Card>
-            <p className="text-xs font-semibold tracking-wide text-accent-ink">
+            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
               3D printing
             </p>
             <h2 className="mt-2 text-xl font-semibold text-ink">
@@ -257,17 +264,17 @@ export function PublicPrintRequestPage() {
 
       {!bootstrapQuery.isLoading && !bootstrapQuery.isError && enabled ? (
         <section className="mx-auto grid max-w-screen-xl grid-cols-1 gap-5 px-5 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="min-w-0 space-y-4">
-          <Card className="bg-tone-yellow text-tone-yellow-ink dark:bg-[#332b00] dark:text-[#fcdf46]">
-            <p className="text-xs font-semibold tracking-wide">
+        <div className="min-w-0 space-y-4 p-1 sm:p-2">
+          <Card className="card-tilt-1 panel-yellow">
+            <p className="font-mono text-xs font-semibold uppercase tracking-wide">
               Check-In
             </p>
             <label className="mt-3 block">
-                <span className="mb-1 block text-xs font-semibold tracking-wide opacity-80">
-                  Check-In email
-                </span>
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide">
+                Check-In email
+              </span>
               <input
-                className="desk-input w-full"
+                className="desk-input pill w-full bg-panel"
                 placeholder="you@example.com"
                 required
                 type="email"
@@ -276,7 +283,7 @@ export function PublicPrintRequestPage() {
               />
             </label>
             <button
-              className="desk-button mt-3"
+              className="desk-button mt-3 bg-panel"
               disabled={!form.contactEmail.trim() || verifyMutation.isPending}
               type="button"
               onClick={() => verifyMutation.mutate(form.contactEmail.trim())}
@@ -284,12 +291,12 @@ export function PublicPrintRequestPage() {
               {verifyMutation.isPending ? "Verifying..." : "Verify Check-In"}
             </button>
             {verified ? (
-              <p className="mt-3 rounded-lg border border-tone-mint bg-tone-mint px-3 py-2 text-sm font-medium text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
+              <p className="status-box status-box-done mt-3 w-full justify-start px-3 py-2 text-sm normal-case">
                 Check-In verified{verifiedName ? ` for ${verifiedName}` : ""}
               </p>
             ) : null}
             {verifyMutation.error ? (
-              <p className="mt-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+              <p className="status-box status-box-danger mt-3 w-full justify-start px-3 py-2 text-sm normal-case">
                 {verifyMutation.error.message}
               </p>
             ) : null}
@@ -313,26 +320,26 @@ export function PublicPrintRequestPage() {
           />
         </div>
 
-        <aside className="min-w-0 space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:overflow-y-auto">
+        <aside className="min-w-0 space-y-4 p-1 sm:p-2 lg:sticky lg:top-4 lg:self-start">
           {submittedToken ? <SubmittedTokenCard token={submittedToken} /> : null}
-          <Card className="bg-tone-pink text-tone-pink-ink dark:bg-[#3a1326] dark:text-[#f9a8d4]">
-            <p className="text-xs font-semibold tracking-wide">
+          <Card className="card-tilt-1 panel-pink">
+            <p className="font-mono text-xs font-semibold uppercase tracking-wide">
               Status Tracker
             </p>
             <form className="mt-3 space-y-3" onSubmit={checkStatusByEmail}>
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold tracking-wide opacity-80">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide">
                   Request email
                 </span>
                 <input
-                  className="desk-input w-full"
+                  className="desk-input pill w-full bg-panel"
                   type="email"
                   value={statusEmail}
                   onChange={(event) => setStatusEmail(event.target.value)}
                 />
               </label>
               <button
-                className="desk-button"
+                className="desk-button bg-panel"
                 disabled={!statusEmail.trim() || statusByEmailMutation.isPending}
                 type="submit"
               >
@@ -367,6 +374,7 @@ export function PublicPrintRequestPage() {
               ) : null}
             </div>
           </Card>
+          <PrintRulesCard makerspaceName={displayName} />
         </aside>
         </section>
       ) : null}

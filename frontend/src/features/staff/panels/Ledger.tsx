@@ -33,6 +33,22 @@ const sourceLabels: Record<LedgerSource, string> = {
   direct_handout: "Direct",
 };
 
+// Color-code each loan card by where it came from, reusing the vibrant panel palette.
+const sourcePanel: Record<LedgerSource, string> = {
+  request: "panel-blue",
+  self_checkout: "panel-mint",
+  direct_handout: "panel-coral",
+};
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "due", label: "Due date" },
+  { key: "since", label: "Out since" },
+  { key: "item_name", label: "Item" },
+  { key: "holder", label: "Holder" },
+  { key: "quantity", label: "Quantity" },
+  { key: "source", label: "Source" },
+];
+
 const LEDGER_PAGE_SIZE = 50;
 
 export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; isSuperadmin: boolean }) {
@@ -70,19 +86,12 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
   const totalRows = ledger.data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalRows / LEDGER_PAGE_SIZE));
 
-  const setSortKey = (key: SortKey) => {
-    setSort((current) => ({
-      key,
-      direction: current.key === key && current.direction === "asc" ? "desc" : "asc",
-    }));
-  };
-
   return (
     <Panel title="Ledger">
-      <div className="grid gap-3">
+      <div className="grid gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-lg font-semibold text-ink">{itemCount} items out</p>
+            <p className="font-display text-2xl font-semibold text-ink">{itemCount} items out</p>
             <p className="text-sm text-muted">
               {aggregate ? "Across all makerspaces" : makerspace.name}
               {ledger.data ? ` - ${ledger.data.count} records` : ""}
@@ -103,63 +112,57 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
           ) : null}
         </div>
 
-        <input
-          className="desk-input pill"
-          type="search"
-          placeholder="Filter by holder or item"
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-        />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <input
+            className="desk-input pill sm:flex-1"
+            type="search"
+            placeholder="Filter by holder or item"
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+          />
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs font-semibold uppercase tracking-wide text-muted">Sort</span>
+            <select
+              className="desk-input pill"
+              value={sort.key}
+              onChange={(event) => setSort((current) => ({ ...current, key: event.target.value as SortKey }))}
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="desk-button"
+              onClick={() =>
+                setSort((current) => ({ ...current, direction: current.direction === "asc" ? "desc" : "asc" }))
+              }
+            >
+              {sort.direction === "asc" ? "Asc ↑" : "Desc ↓"}
+            </button>
+          </div>
+        </div>
 
         {ledger.isLoading ? <p className="text-sm text-muted">Loading ledger...</p> : null}
         {ledger.error ? <p className="text-sm text-danger">{ledger.error.message}</p> : null}
         {!ledger.isLoading && !ledger.error && !visibleRows.length ? (
-          <p className="rounded-2xl border border-ink bg-bg p-3 text-sm text-muted">No items are currently out.</p>
+          <p className="rounded-2xl border-2 border-ink bg-bg p-4 text-sm text-muted shadow-brutal-sm">
+            No items are currently out.
+          </p>
         ) : null}
 
         {visibleRows.length ? (
-          <div className="overflow-x-auto rounded-md border border-line">
-            <table className="min-w-[760px] divide-y divide-line text-left text-sm">
-              <thead className="bg-bg text-xs font-semibold uppercase text-muted">
-                <tr>
-                  <SortableHeader label="Item" sortKey="item_name" sort={sort} onSort={setSortKey} />
-                  <SortableHeader label="Holder" sortKey="holder" sort={sort} onSort={setSortKey} />
-                  <SortableHeader label="Qty" sortKey="quantity" sort={sort} onSort={setSortKey} align="right" />
-                  <SortableHeader label="Out since" sortKey="since" sort={sort} onSort={setSortKey} />
-                  <SortableHeader label="Due" sortKey="due" sort={sort} onSort={setSortKey} />
-                  <SortableHeader label="Source" sortKey="source" sort={sort} onSort={setSortKey} />
-                  {aggregate ? <SortableHeader label="Makerspace" sortKey="makerspace_id" sort={sort} onSort={setSortKey} /> : null}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line bg-surface">
-                {visibleRows.map((row) => {
-                  const overdue = isOverdue(row.due, now);
-                  return (
-                    <tr key={`${row.source}-${row.reference_id}-${row.makerspace_id}-${row.item_name}`} className={overdue ? "bg-[#ffdad6]" : ""}>
-                      <td className="px-3 py-2 align-top">
-                        <div className="max-w-56 break-words font-medium text-ink">{row.item_name}</div>
-                        <UnitLines row={row} />
-                      </td>
-                      <td className="px-3 py-2 align-top text-ink"><span className="block max-w-48 break-words">{row.holder}</span></td>
-                      <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-ink">{row.quantity}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-muted">{formatDate(row.since)}</td>
-                      <td className={`whitespace-nowrap px-3 py-2 ${overdue ? "font-semibold text-danger" : "text-muted"}`}>
-                        <span className="inline-flex items-center gap-2">
-                          {formatDate(row.due)}
-                          {overdue ? <span className="status-box status-box-danger">Overdue</span> : null}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-2">
-                        <span className="chip normal-case tracking-normal">
-                          {sourceLabels[row.source]}
-                        </span>
-                      </td>
-                      {aggregate ? <td className="whitespace-nowrap px-3 py-2 text-muted">#{row.makerspace_id}</td> : null}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {visibleRows.map((row) => (
+              <LedgerCard
+                key={`${row.source}-${row.reference_id}-${row.makerspace_id}-${row.item_name}`}
+                row={row}
+                overdue={isOverdue(row.due, now)}
+                showMakerspace={aggregate}
+              />
+            ))}
           </div>
         ) : null}
 
@@ -179,15 +182,53 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
   );
 }
 
+function LedgerCard({ row, overdue, showMakerspace }: { row: LedgerRow; overdue: boolean; showMakerspace: boolean }) {
+  return (
+    <article
+      className={`${sourcePanel[row.source]} brutal-border rounded-lg p-4 shadow-brutal-sm ${
+        overdue ? "ring-2 ring-danger ring-offset-2 ring-offset-bg" : ""
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="font-display text-base font-semibold uppercase leading-tight break-words">{row.item_name}</h3>
+        <span className="chip shrink-0 normal-case tracking-normal">{sourceLabels[row.source]}</span>
+      </div>
+
+      <UnitLines row={row} />
+
+      <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+        <Field label="Holder" value={row.holder} />
+        <Field label="Qty" value={String(row.quantity)} />
+        <Field label="Out" value={formatDate(row.since)} />
+        <Field label="Due" value={formatDate(row.due)} danger={overdue} />
+        {showMakerspace ? <Field label="Space" value={`#${row.makerspace_id}`} /> : null}
+      </dl>
+
+      {overdue ? (
+        <span className="status-box status-box-danger mt-3 inline-flex px-3 py-1 text-xs normal-case">Overdue</span>
+      ) : null}
+    </article>
+  );
+}
+
+function Field({ label, value, danger = false }: { label: string; value: string; danger?: boolean }) {
+  return (
+    <>
+      <dt className="font-mono text-xs font-semibold uppercase tracking-wide opacity-70">{label}</dt>
+      <dd className={`break-words ${danger ? "font-semibold text-danger" : ""}`}>{value}</dd>
+    </>
+  );
+}
+
 function UnitLines({ row }: { row: LedgerRow }) {
   const containerLine = row.container ? (
-    <div className="mt-0.5 break-words text-xs text-muted">📦 {row.container.label}</div>
+    <div className="mt-1 break-words text-xs opacity-80">{"📦"} {row.container.label}</div>
   ) : null;
 
   if (row.units.length) {
     return (
       <>
-        <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted">
+        <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 font-mono text-xs opacity-80">
           {row.units.map((unit) => (
             <span className="break-words" key={`${unit.asset_tag}-${unit.serial_number || "no-serial"}`}>
               #{unit.asset_tag}
@@ -203,41 +244,13 @@ function UnitLines({ row }: { row: LedgerRow }) {
   if (row.target_label) {
     return (
       <>
-        <div className="mt-0.5 break-words text-xs text-muted">{row.target_label}</div>
+        <div className="mt-1 break-words text-xs opacity-80">{row.target_label}</div>
         {containerLine}
       </>
     );
   }
 
   return containerLine;
-}
-
-function SortableHeader({
-  label,
-  sortKey,
-  sort,
-  onSort,
-  align = "left",
-}: {
-  label: string;
-  sortKey: SortKey;
-  sort: { key: SortKey; direction: SortDirection };
-  onSort: (key: SortKey) => void;
-  align?: "left" | "right";
-}) {
-  const active = sort.key === sortKey;
-  return (
-    <th className={`whitespace-nowrap px-3 py-2 ${align === "right" ? "text-right" : "text-left"}`}>
-      <button
-        type="button"
-        className={`inline-flex items-center gap-1 hover:text-accent ${align === "right" ? "justify-end" : ""}`}
-        onClick={() => onSort(sortKey)}
-      >
-        {label}
-        <span className="text-[10px]">{active ? (sort.direction === "asc" ? "^" : "v") : "-"}</span>
-      </button>
-    </th>
-  );
 }
 
 function compareRows(a: LedgerRow, b: LedgerRow, key: SortKey, direction: SortDirection) {
@@ -265,8 +278,8 @@ function isOverdue(value: string | null, now: number) {
 }
 
 function formatDate(value: string | null) {
-  if (!value) return "\u2014";
+  if (!value) return "—";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "\u2014";
+  if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }

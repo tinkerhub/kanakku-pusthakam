@@ -30,7 +30,7 @@ export function BorrowRequestCard({
     <Card>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold tracking-wide text-accent-ink">
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
             Borrow Request
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ink">

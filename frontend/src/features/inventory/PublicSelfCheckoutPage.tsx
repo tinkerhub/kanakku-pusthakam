@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
+import { MakerspaceLocation } from "../../components/MakerspaceLocation";
 import { Card } from "../../components/ui/Card";
 import QrScanner from "../../components/ui/QrScanner";
 import { useTenant, useTenantPath } from "../../lib/tenant";
@@ -126,7 +127,7 @@ export function PublicSelfCheckoutPage() {
     <main className="desk-shell">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-screen-xl flex-col gap-4 px-5 py-6 sm:px-8">
-          <p className="text-sm font-semibold tracking-wide text-accent-ink">
+          <p className="text-sm font-semibold uppercase tracking-wide text-accent">
             Public Tool Checkout
           </p>
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -139,6 +140,11 @@ export function PublicSelfCheckoutPage() {
               <p className="mt-2 text-sm text-muted">
                 Scan a physical tool label to check it out or return it.
               </p>
+              <MakerspaceLocation
+                className="mt-2"
+                location={bootstrap?.makerspace.location}
+                mapUrl={bootstrap?.makerspace.map_url}
+              />
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Link className="desk-button" to={tenantPath()}>
@@ -163,7 +169,7 @@ export function PublicSelfCheckoutPage() {
         ) : null}
         {!bootstrapQuery.isLoading && !bootstrapQuery.isError && !enabled ? (
           <Card>
-            <p className="text-xs font-semibold tracking-wide text-accent-ink">
+            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
               Self-checkout
             </p>
             <h2 className="mt-2 text-xl font-semibold text-ink">

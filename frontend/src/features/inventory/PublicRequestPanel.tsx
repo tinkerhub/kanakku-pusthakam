@@ -93,32 +93,18 @@ export function PublicRequestPanel({
     setLookupValue(value);
   }
 
-  // Each tab carries its own palette tone - a touch of colour so the action row
-  // doesn't read as flat. Active = filled pastel (+ dark deep-tint); idle = neutral
-  // with a faint tone hover hint.
-  const tabTone: Record<ActiveTab, { active: string; idle: string }> = {
-    borrow: {
-      active:
-        "border-tone-blue bg-tone-blue text-tone-blue-ink dark:bg-[#0b2a38] dark:text-[#7dd3fc]",
-      idle: "hover:bg-tone-blue/40 hover:text-tone-blue-ink",
-    },
-    scan: {
-      active:
-        "border-tone-mint bg-tone-mint text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]",
-      idle: "hover:bg-tone-mint/40 hover:text-tone-mint-ink",
-    },
-    requests: {
-      active:
-        "border-tone-pink bg-tone-pink text-tone-pink-ink dark:bg-[#3a1326] dark:text-[#f9a8d4]",
-      idle: "hover:bg-tone-pink/40 hover:text-tone-pink-ink",
-    },
+  // Each tab wears its own fixed vibrant step colour (bright in both themes) so the
+  // active action reads as a filled brutalist box; idle is neutral with a hover hint.
+  const TAB_ACTIVE: Record<ActiveTab, string> = {
+    borrow: "status-box-step1",
+    scan: "status-box-step2",
+    requests: "status-box-step3",
   };
 
   function tabClass(tab: ActiveTab) {
-    const tone = tabTone[tab];
     return activeTab === tab
-      ? `status-box w-full py-2 shadow-soft ${tone.active}`
-      : `status-box w-full py-2 ${tone.idle}`;
+      ? `status-box ${TAB_ACTIVE[tab]} shadow-brutal-sm w-full py-2`
+      : "status-box w-full py-2 hover:bg-surface hover:text-ink";
   }
 
   const canSubmit =
@@ -134,7 +120,7 @@ export function PublicRequestPanel({
     <aside className="space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:flex lg:flex-col lg:overflow-hidden">
       {disabled ? (
         <Card>
-          <p className="text-xs font-semibold tracking-wide text-accent-ink">
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
             Requests
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ink">Unavailable</h2>
@@ -145,7 +131,7 @@ export function PublicRequestPanel({
       ) : (
         <>
           <Card className="shrink-0" padding="sm">
-            <p className="text-xs font-semibold tracking-wide text-accent-ink">
+            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
               Your Details
             </p>
             <label className="mt-3 block">
@@ -283,7 +269,7 @@ export function PublicRequestPanel({
                 <Card>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold tracking-wide text-accent-ink">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-accent">
                         My Requests
                       </p>
                       <h2 className="mt-2 text-xl font-semibold text-ink">
