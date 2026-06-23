@@ -2,6 +2,56 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — multi-agent Codex review + fixes for the 6-feature port (2026-06-23)
+
+Ran an 11-agent Codex review of the uncommitted 6-feature OSMM port (5 per-AREA reviewers —
+security/perf/UI/correctness/infra — plus 6 per-FEATURE reviewers spanning backend+frontend each),
+consolidated + Claude-verified the findings, then fixed all of them in 5 themed phases (baseline
+commit `fd76acc` = the reviewed port, then one commit per phase; **full suite 813 passing**, `tsc -b`
+clean). The runner installs backend deps on the host and talks to the published compose DB/MinIO.
+
+- **P1 security/correctness fixes.** Reports (`operations/views_reports.py` AnalyticsView +
+  ReportExportView) now gate on **`VIEW_AUDIT`** (new `_makerspace_for_report_view`), not
+  `VIEW_INVENTORY` — the readable requester labels added by the leaderboard feature are borrower PII,
+  and Guest Admins (handout-only, no `VIEW_AUDIT`) must not read/export them (matches lending-history;
+  frontend `StaffApp` reports tab gated `canViewAudit || canSeePrinting` so print managers keep their
+  printing report). `/control/` `EmailLogAdmin` no longer lists `text_body`/`html_body` (a `body_stored`
+  boolean replaces them — bodies never serialized to API **or** admin). `lifecycle.py` purge now deletes
+  `EmailLog` + `EmailNotificationMute` (was leaking orphan tenant email rows). CSV/XLSX report exports
+  neutralize spreadsheet formula injection (`_neutralize_formula`, leading `= + - @`).
+- **Correctness fixes.** `ledger._request_holder` → `fallback="Member"` (never surfaces the
+  `checkin_<hash>`). `reports._top_borrowers` groups by **stable account identity** (requester_id +
+  account fields) and surfaces the per-request Check-In username via `Max()` (a representative value,
+  not a GROUP BY key) — the per-request snapshot in the grouping fragmented one borrower into multiple
+  rows. `dispatch_email` fails closed when `persist_body=False and not sync` (async reloads a redacted
+  row → blank mail). Printer `image_key` is dropped when a printer moves makerspace (was a stale
+  cross-tenant image that also escaped purge).
+- **Infra / async fixes.** `render.yaml`: `env: docker` services use **`dockerCommand`** (not
+  `startCommand`, which Render ignores for Docker → worker would run gunicorn and never drain the queue,
+  web would skip collectstatic/$PORT); Redis gains `ipAllowList: []` + **`maxmemoryPolicy: noeviction`**
+  (allkeys-lru could evict queued jobs). Compose workers (dev+prod) get `restart: unless-stopped` +
+  `depends_on: backend service_healthy` (the backend runs `migrate` at start → no consuming against an
+  unmigrated schema). **`CELERY_TASK_ACKS_LATE=False`** (at-most-once): a worker crash mid-send can't
+  redeliver/double-send; the rare loss leaves the row visibly PENDING/FAILED for the Retry action.
+  `deliver_email_task` gains exponential backoff+jitter and `select_related("makerspace")` +
+  `select_for_update(of=("self",))` (makerspace is nullable → LEFT JOIN, can't `FOR UPDATE` the nullable
+  side). `EmailLog` gains a composite `(makerspace, status, -created_at)` index (migration
+  `integrations/0006`).
+- **UI fixes.** `EmailLogPanel` polls (`refetchInterval`) while any row is `pending`, shows a loading
+  state, and labels the status filter (`aria-label`). The aggregate "top requesters" chart is hidden in
+  superadmin aggregate mode (it only showed the first makerspace; the per-makerspace table is the source
+  of truth). Public stats render the **busiest printer's photo** (`image_url` was returned but unused).
+  Shared `ImageUploader` tracks a local preview so attach/clear updates immediately (the open printer
+  dialog passed a frozen `currentUrl`).
+- **Perf P3.** `staff_notifications` resolves muted roles via one `muted_targets()` call (was a
+  `role_muted()` query per role); `public_image_storage.object_size` does a single HEAD (dropped the
+  redundant `object_exists` probe).
+- **Known limitation (documented, not fixed).** Async email is now at-most-once: a hard worker crash
+  between SMTP handoff and the status write loses that one email (row stays PENDING/FAILED, recoverable
+  via Retry). This is the deliberate trade-off vs. acks_late double-send for lean-paid scale.
+- Tests: `tests/test_reports_pii_access.py`, `tests/test_review_fixes_phase2.py`,
+  `tests/test_review_fixes_phase3.py`.
+
 ## Recent batch — port 6 upstream OSMM backend features (no UI reskin) (2026-06-23)
 
 Ported the genuinely-missing backend features from upstream `Shaan-Shoukath/OSMM-Makerspace-Manager`

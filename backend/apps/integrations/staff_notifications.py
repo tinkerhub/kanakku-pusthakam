@@ -37,11 +37,10 @@ def staff_emails_for_stream(makerspace, stream, event=None) -> list[str]:
 
         muted_roles = set()
         if event is not None and notification_rules.is_event_mutable(stream, "staff", event):
-            muted_roles = {
-                role
-                for role in roles
-                if notification_rules.role_muted(makerspace, stream, event, role)
-            }
+            # One query for all muted targets, then intersect with this stream's staff
+            # roles (instead of a role_muted() query per role).
+            muted = notification_rules.muted_targets(makerspace, stream, event)
+            muted_roles = {role for role in roles if role.value in muted}
 
         memberships = (
             MakerspaceMembership.objects.filter(

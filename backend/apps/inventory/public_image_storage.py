@@ -89,9 +89,8 @@ def object_exists(object_key):
 
 
 def object_size(object_key):
-    if not object_exists(object_key):
-        return None
-
+    # Single HEAD: a missing object returns None (404), so callers don't need a separate
+    # object_exists() probe — that was a redundant second round-trip to the store.
     try:
         response = _client().head_object(
             Bucket=settings.PUBLIC_IMAGE_BUCKET,
