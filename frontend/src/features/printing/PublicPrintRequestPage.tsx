@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
 import { Card } from "../../components/ui/Card";
@@ -26,6 +26,7 @@ import {
 } from "./publicApi";
 
 export function PublicPrintRequestPage() {
+  const queryClient = useQueryClient();
   const { slug } = useParams();
   const tenant = useTenant();
   const makerspaceSlug = tenant.mode === "single" ? tenant.slug : slug ?? "";
@@ -144,6 +145,8 @@ export function PublicPrintRequestPage() {
       });
     },
     onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ["public-print-spools", makerspaceSlug] });
+      queryClient.invalidateQueries({ queryKey: ["public-print-status"] });
       setUploadProgress("");
       setSubmittedToken(response.public_token);
       setActiveStatusToken(response.public_token);
