@@ -1,39 +1,42 @@
 from django.db import IntegrityError, transaction
-from django.shortcuts import get_object_or_404
-from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
-from rest_framework.response import Response
 
 from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.audit import services as audit
+from apps.boxes.access import locked_qr_for_action, target_for_rebind
+from apps.boxes.exceptions import Conflict
+from apps.boxes.asset_rebind import move_asset_across_makerspaces
 from apps.boxes.models import QrCode, QrScanEvent
-from apps.boxes.serializers import QrCodeSerializer, qr_target_payload
+from apps.boxes.rebind_results import QrRebindResult
 from apps.hardware_requests.self_checkout_workflow import qr_has_active_loan
-from apps.inventory.models import InventoryAsset, InventoryProduct
 from apps.makerspaces.guards import require_module
 
 
 def rebind_qr_target(user, qr_id, data):
-    qr = get_object_or_404(QrCode.objects.select_for_update(), pk=qr_id)
+    qr = locked_qr_for_action(user, rbac.Action.MANAGE_QR, pk=qr_id)
     if qr.status != QrCode.Status.ACTIVE:
         raise ValidationError("QR code is not active.")
     require_module(qr.makerspace, "qr_management")
-    if qr_has_active_loan(qr.makerspace, qr):
-        return Response(
-            {"detail": "Cannot rebind a QR with an outstanding loan."},
-            status=status.HTTP_409_CONFLICT,
+    asset_move = data.get("destination_makerspace_id") and qr.target_type == QrCode.TargetType.ASSET
+    if asset_move:
+        return move_asset_across_makerspaces(
+            user,
+            qr,
+            data["destination_makerspace_id"],
+            data.get("destination_product_id"),
+            data.get("new_name", ""),
+            request_target_id=data.get("target_id"),
         )
+    if qr_has_active_loan(qr.makerspace, qr):
+        raise Conflict("Cannot rebind a QR with an outstanding loan.")
 
     target_type = data["target_type"]
-    target = _locked_target(target_type, data["target_id"])
+    target = _locked_target(user, target_type, data["target_id"])
     cross = target.makerspace_id != qr.makerspace_id
-    _require_rebind_permission(user, qr, target, target_type, cross)
+    _require_rebind_permission(user, qr, target, target_type, cross, asset_move=False)
     if _target_has_qr(qr, target, target_type):
-        return Response(
-            {"detail": "Target already has an active QR code."},
-            status=status.HTTP_409_CONFLICT,
-        )
+        raise Conflict("Target already has an active QR code.")
 
     old_meta = {
         "old_makerspace_id": qr.makerspace_id,
@@ -48,10 +51,7 @@ def rebind_qr_target(user, qr_id, data):
         with transaction.atomic():
             qr.save(update_fields=["makerspace", "target_type", "target_id", "updated_at"])
     except IntegrityError:
-        return Response(
-            {"detail": "Target already has an active QR code."},
-            status=status.HTTP_409_CONFLICT,
-        )
+        raise Conflict("Target already has an active QR code.")
 
     new_name = data.get("new_name", "").strip()
     if new_name:
@@ -75,16 +75,14 @@ def rebind_qr_target(user, qr_id, data):
             "new_name": new_name,
         },
     )
-    return Response({"qr": QrCodeSerializer(qr).data, "target": qr_target_payload(qr)})
+    return QrRebindResult(qr=qr)
 
 
-def _locked_target(target_type, target_id):
-    if target_type == QrCode.TargetType.PRODUCT:
-        return get_object_or_404(InventoryProduct.objects.select_for_update(), pk=target_id)
-    return get_object_or_404(InventoryAsset.objects.select_for_update(), pk=target_id)
+def _locked_target(user, target_type, target_id):
+    return target_for_rebind(user, target_type, target_id)
 
 
-def _require_rebind_permission(user, qr, target, target_type, cross):
+def _require_rebind_permission(user, qr, target, target_type, cross, asset_move=False):
     if user.access_status != User.AccessStatus.ACTIVE:
         raise PermissionDenied()
     if cross:
@@ -93,7 +91,7 @@ def _require_rebind_permission(user, qr, target, target_type, cross):
             and rbac.can(user, rbac.Action.TRANSFER_STOCK, target.makerspace_id)
         ):
             raise PermissionDenied()
-        if (
+        if not asset_move and (
             qr.target_type != QrCode.TargetType.PRODUCT
             or target_type != QrCode.TargetType.PRODUCT
         ):
