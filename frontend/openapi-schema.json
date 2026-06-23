@@ -1,7 +1,7 @@
 {
     "openapi": "3.0.3",
     "info": {
-        "title": "Kanakku Pusthakam API",
+        "title": "OSMM API",
         "version": "0.1.0",
         "description": "Multi-tenant makerspace hardware loan system.\n\nPublic flow: browse inventory, search with `q`, page with `page`, verify Check-In, submit a borrow request, then track it by public token or verified Check-In identifier.\n\nAdmin flow: authenticate with JWT, manage makerspaces, inventory, staff, QR labels, bulk imports, request review, issue, and return.\n\nAuthentication: staff/admin endpoints use `Authorization: Bearer <access>`. Public browser endpoints can use `X-Publishable-Key` when public key hardening is enabled."
     },
@@ -2476,6 +2476,15 @@
                         "schema": {
                             "type": "integer"
                         }
+                    },
+                    {
+                        "name": "page_size",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return per page.",
+                        "schema": {
+                            "type": "integer"
+                        }
                     }
                 ],
                 "tags": [
@@ -2889,111 +2898,6 @@
                 }
             }
         },
-        "/api/v1/admin/makerspace/{makerspace_id}/email-layout": {
-            "get": {
-                "operationId": "api_v1_admin_makerspace_email_layout_retrieve",
-                "summary": "Retrieve or update the email base layout",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "makerspace_id",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Email templates"
-                ],
-                "security": [
-                    {
-                        "jwtAuth": []
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/EmailLayout"
-                                }
-                            }
-                        },
-                        "description": ""
-                    },
-                    "403": {
-                        "description": "Permission denied."
-                    },
-                    "404": {
-                        "description": "Not found."
-                    }
-                }
-            },
-            "put": {
-                "operationId": "api_v1_admin_makerspace_email_layout_update",
-                "summary": "Retrieve or update the email base layout",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "makerspace_id",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Email templates"
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/EmailLayout"
-                            }
-                        },
-                        "application/x-www-form-urlencoded": {
-                            "schema": {
-                                "$ref": "#/components/schemas/EmailLayout"
-                            }
-                        },
-                        "multipart/form-data": {
-                            "schema": {
-                                "$ref": "#/components/schemas/EmailLayout"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "security": [
-                    {
-                        "jwtAuth": []
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/EmailLayout"
-                                }
-                            }
-                        },
-                        "description": ""
-                    },
-                    "400": {
-                        "description": "Invalid email layout."
-                    },
-                    "403": {
-                        "description": "Permission denied."
-                    },
-                    "404": {
-                        "description": "Not found."
-                    }
-                }
-            }
-        },
         "/api/v1/admin/makerspace/{makerspace_id}/email-logs": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_email_logs_list",
@@ -3105,7 +3009,6 @@
         "/api/v1/admin/makerspace/{makerspace_id}/email-templates": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_email_templates_list",
-                "summary": "List editable email templates",
                 "parameters": [
                     {
                         "in": "path",
@@ -3131,27 +3034,28 @@
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/components/schemas/EmailTemplateRow"
+                                        "$ref": "#/components/schemas/EmailTemplateListItem"
                                     }
                                 }
                             }
                         },
                         "description": ""
-                    },
-                    "403": {
-                        "description": "Permission denied."
-                    },
-                    "404": {
-                        "description": "Not found."
                     }
                 }
             }
         },
-        "/api/v1/admin/makerspace/{makerspace_id}/email-templates/{key}": {
+        "/api/v1/admin/makerspace/{makerspace_id}/email-templates/{stream}/{audience}/{key}": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_email_templates_retrieve",
-                "summary": "Retrieve, update, or reset an email template",
                 "parameters": [
+                    {
+                        "in": "path",
+                        "name": "audience",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
                     {
                         "in": "path",
                         "name": "key",
@@ -3165,6 +3069,14 @@
                         "name": "makerspace_id",
                         "schema": {
                             "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "stream",
+                        "schema": {
+                            "type": "string"
                         },
                         "required": true
                     }
@@ -3182,24 +3094,25 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/EmailTemplateRow"
+                                    "$ref": "#/components/schemas/EmailTemplateDetail"
                                 }
                             }
                         },
                         "description": ""
-                    },
-                    "403": {
-                        "description": "Permission denied."
-                    },
-                    "404": {
-                        "description": "Not found."
                     }
                 }
             },
-            "put": {
-                "operationId": "api_v1_admin_makerspace_email_templates_update",
-                "summary": "Retrieve, update, or reset an email template",
+            "patch": {
+                "operationId": "api_v1_admin_makerspace_email_templates_partial_update",
                 "parameters": [
+                    {
+                        "in": "path",
+                        "name": "audience",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
                     {
                         "in": "path",
                         "name": "key",
@@ -3208,6 +3121,127 @@
                         },
                         "required": true
                     },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "stream",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedEmailTemplateUpdate"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedEmailTemplateUpdate"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedEmailTemplateUpdate"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailTemplateDetail"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/email-templates/{stream}/{audience}/{key}/reset": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_email_templates_reset_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "audience",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "stream",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailTemplateDetail"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/email-templates/preview": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_email_templates_preview_create",
+                "parameters": [
                     {
                         "in": "path",
                         "name": "makerspace_id",
@@ -3224,17 +3258,17 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/EmailTemplateWrite"
+                                "$ref": "#/components/schemas/EmailTemplatePreviewRequest"
                             }
                         },
                         "application/x-www-form-urlencoded": {
                             "schema": {
-                                "$ref": "#/components/schemas/EmailTemplateWrite"
+                                "$ref": "#/components/schemas/EmailTemplatePreviewRequest"
                             }
                         },
                         "multipart/form-data": {
                             "schema": {
-                                "$ref": "#/components/schemas/EmailTemplateWrite"
+                                "$ref": "#/components/schemas/EmailTemplatePreviewRequest"
                             }
                         }
                     },
@@ -3250,130 +3284,11 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/EmailTemplateRow"
+                                    "$ref": "#/components/schemas/EmailTemplatePreviewResponse"
                                 }
                             }
                         },
                         "description": ""
-                    },
-                    "400": {
-                        "description": "Invalid email template."
-                    },
-                    "403": {
-                        "description": "Permission denied."
-                    },
-                    "404": {
-                        "description": "Not found."
-                    }
-                }
-            },
-            "delete": {
-                "operationId": "api_v1_admin_makerspace_email_templates_destroy",
-                "summary": "Retrieve, update, or reset an email template",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "key",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    },
-                    {
-                        "in": "path",
-                        "name": "makerspace_id",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Email templates"
-                ],
-                "security": [
-                    {
-                        "jwtAuth": []
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No response body"
-                    },
-                    "403": {
-                        "description": "Permission denied."
-                    },
-                    "404": {
-                        "description": "Not found."
-                    }
-                }
-            }
-        },
-        "/api/v1/admin/makerspace/{makerspace_id}/email-templates/{key}/preview": {
-            "post": {
-                "operationId": "api_v1_admin_makerspace_email_templates_preview_create",
-                "summary": "Preview an email template",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "key",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    },
-                    {
-                        "in": "path",
-                        "name": "makerspace_id",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Email templates"
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/EmailPreviewRequest"
-                            }
-                        },
-                        "application/x-www-form-urlencoded": {
-                            "schema": {
-                                "$ref": "#/components/schemas/EmailPreviewRequest"
-                            }
-                        },
-                        "multipart/form-data": {
-                            "schema": {
-                                "$ref": "#/components/schemas/EmailPreviewRequest"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "jwtAuth": []
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/EmailRendered"
-                                }
-                            }
-                        },
-                        "description": ""
-                    },
-                    "403": {
-                        "description": "Permission denied."
-                    },
-                    "404": {
-                        "description": "Not found."
                     }
                 }
             }
@@ -7806,7 +7721,43 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PrintFileUrlResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Storage is unavailable."
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
                     }
                 }
             }
@@ -10453,7 +10404,7 @@
                             "examples": {
                                 "SubmitPublicEquipmentRequest": {
                                     "value": {
-                                        "identifier": "shaans@example.com",
+                                        "requester_name": "Shaan Shoukath",
                                         "contact_email": "shaans@example.com",
                                         "contact_phone": "+919876543210",
                                         "requested_for": "Electronics workshop diagnostics",
@@ -10741,26 +10692,28 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/PublicToolScan"
+                                "$ref": "#/components/schemas/PublicToolCheckout"
                             },
                             "examples": {
-                                "PublicQRToolScan": {
+                                "PublicQRToolCheckout": {
                                     "value": {
-                                        "identifier": "shaans@example.com",
-                                        "payload": "BOX-ABC123"
+                                        "payload": "BOX-ABC123",
+                                        "requester_name": "Shaan Shoukath",
+                                        "contact_email": "shaans@example.com",
+                                        "contact_phone": "+919876543210"
                                     },
-                                    "summary": "Public QR tool scan"
+                                    "summary": "Public QR tool checkout"
                                 }
                             }
                         },
                         "application/x-www-form-urlencoded": {
                             "schema": {
-                                "$ref": "#/components/schemas/PublicToolScan"
+                                "$ref": "#/components/schemas/PublicToolCheckout"
                             }
                         },
                         "multipart/form-data": {
                             "schema": {
-                                "$ref": "#/components/schemas/PublicToolScan"
+                                "$ref": "#/components/schemas/PublicToolCheckout"
                             }
                         }
                     },
@@ -10852,12 +10805,12 @@
                                 "$ref": "#/components/schemas/PublicToolScan"
                             },
                             "examples": {
-                                "PublicQRToolScan": {
+                                "PublicQRToolReturnScan": {
                                     "value": {
                                         "identifier": "shaans@example.com",
                                         "payload": "BOX-ABC123"
                                     },
-                                    "summary": "Public QR tool scan"
+                                    "summary": "Public QR tool return scan"
                                 }
                             }
                         },
@@ -11072,6 +11025,10 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "requester_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "requester_display": {
                         "type": "string",
                         "readOnly": true
@@ -11190,6 +11147,7 @@
                     "requester_contact_email",
                     "requester_contact_phone",
                     "requester_display",
+                    "requester_name",
                     "requester_username",
                     "return_due_at",
                     "return_evidence_ids",
@@ -12068,14 +12026,6 @@
                         "type": "string",
                         "readOnly": true
                     },
-                    "target_type": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "target_label": {
-                        "type": "string",
-                        "readOnly": true
-                    },
                     "items": {
                         "type": "array",
                         "items": {
@@ -12087,12 +12037,21 @@
                         "type": "integer",
                         "readOnly": true
                     },
+                    "target_type": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "target_label": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "container_id": {
                         "type": "integer",
                         "readOnly": true
                     },
                     "container_label": {
                         "type": "string",
+                        "nullable": true,
                         "readOnly": true
                     },
                     "due_at": {
@@ -12143,8 +12102,17 @@
             "DirectLoanIssue": {
                 "type": "object",
                 "properties": {
-                    "identifier": {
-                        "type": "string"
+                    "requester_name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "contact_email": {
+                        "type": "string",
+                        "format": "email"
+                    },
+                    "contact_phone": {
+                        "type": "string",
+                        "maxLength": 32
                     },
                     "container_id": {
                         "type": "integer",
@@ -12153,8 +12121,10 @@
                     "qr_payloads": {
                         "type": "array",
                         "items": {
-                            "type": "string"
-                        }
+                            "type": "string",
+                            "maxLength": 64
+                        },
+                        "maxItems": 50
                     },
                     "items": {
                         "type": "array",
@@ -12164,7 +12134,9 @@
                     }
                 },
                 "required": [
-                    "identifier"
+                    "contact_email",
+                    "contact_phone",
+                    "requester_name"
                 ]
             },
             "DirectLoanItem": {
@@ -12224,26 +12196,6 @@
                 "type": "string",
                 "description": "* `needs_fix` - needs_fix\n* `remove` - remove"
             },
-            "EmailLayout": {
-                "type": "object",
-                "properties": {
-                    "html": {
-                        "type": "string"
-                    },
-                    "is_active": {
-                        "type": "boolean",
-                        "default": true
-                    },
-                    "is_default": {
-                        "type": "boolean",
-                        "readOnly": true
-                    }
-                },
-                "required": [
-                    "html",
-                    "is_default"
-                ]
-            },
             "EmailLog": {
                 "type": "object",
                 "properties": {
@@ -12297,16 +12249,11 @@
                         "format": "date-time",
                         "readOnly": true,
                         "nullable": true
-                    },
-                    "can_retry": {
-                        "type": "boolean",
-                        "readOnly": true
                     }
                 },
                 "required": [
                     "attempts",
                     "audience",
-                    "can_retry",
                     "created_at",
                     "error",
                     "event",
@@ -12328,134 +12275,178 @@
                 "type": "string",
                 "description": "* `pending` - Pending\n* `sending` - Sending\n* `sent` - Sent\n* `failed` - Failed"
             },
-            "EmailPreviewRequest": {
+            "EmailTemplateDetail": {
                 "type": "object",
                 "properties": {
+                    "stream": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "audience": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "key": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "fields": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "readOnly": true
+                    },
                     "subject": {
-                        "type": "string"
+                        "type": "string",
+                        "readOnly": true
                     },
                     "text_body": {
-                        "type": "string"
+                        "type": "string",
+                        "readOnly": true
                     },
                     "html_body": {
-                        "type": "string"
-                    }
-                }
-            },
-            "EmailRendered": {
-                "type": "object",
-                "properties": {
-                    "subject": {
-                        "type": "string"
+                        "type": "string",
+                        "readOnly": true
                     },
-                    "text_body": {
-                        "type": "string"
+                    "is_active": {
+                        "type": "boolean",
+                        "readOnly": true
                     },
-                    "html_body": {
-                        "type": "string"
+                    "is_overridden": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "default_subject": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "default_text": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "default_html": {
+                        "type": "string",
+                        "readOnly": true
                     }
                 },
                 "required": [
+                    "audience",
+                    "default_html",
+                    "default_subject",
+                    "default_text",
+                    "description",
+                    "fields",
                     "html_body",
+                    "is_active",
+                    "is_overridden",
+                    "key",
+                    "label",
+                    "stream",
                     "subject",
                     "text_body"
                 ]
             },
-            "EmailTemplateRow": {
+            "EmailTemplateListItem": {
                 "type": "object",
                 "properties": {
-                    "key": {
-                        "type": "string"
+                    "stream": {
+                        "type": "string",
+                        "readOnly": true
                     },
-                    "family": {
+                    "audience": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "key": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "is_overridden": {
+                        "type": "boolean",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "audience",
+                    "is_active",
+                    "is_overridden",
+                    "key",
+                    "label",
+                    "stream"
+                ]
+            },
+            "EmailTemplatePreviewRequest": {
+                "type": "object",
+                "properties": {
+                    "stream": {
                         "type": "string"
                     },
                     "audience": {
                         "type": "string"
                     },
-                    "label": {
+                    "key": {
                         "type": "string"
-                    },
-                    "variables": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/EmailVariable"
-                        }
                     },
                     "subject": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 200
                     },
                     "text_body": {
                         "type": "string"
                     },
                     "html_body": {
                         "type": "string"
-                    },
-                    "is_active": {
-                        "type": "boolean"
-                    },
-                    "is_customized": {
-                        "type": "boolean"
                     }
                 },
                 "required": [
                     "audience",
-                    "family",
                     "html_body",
-                    "is_active",
-                    "is_customized",
                     "key",
-                    "label",
-                    "subject",
-                    "text_body",
-                    "variables"
-                ]
-            },
-            "EmailTemplateWrite": {
-                "type": "object",
-                "properties": {
-                    "subject": {
-                        "type": "string",
-                        "maxLength": 255
-                    },
-                    "text_body": {
-                        "type": "string"
-                    },
-                    "html_body": {
-                        "type": "string",
-                        "default": ""
-                    },
-                    "is_active": {
-                        "type": "boolean",
-                        "default": true
-                    }
-                },
-                "required": [
+                    "stream",
                     "subject",
                     "text_body"
                 ]
             },
-            "EmailVariable": {
+            "EmailTemplatePreviewResponse": {
                 "type": "object",
                 "properties": {
-                    "name": {
-                        "type": "string"
+                    "subject": {
+                        "type": "string",
+                        "readOnly": true
                     },
-                    "description": {
-                        "type": "string"
+                    "text_body": {
+                        "type": "string",
+                        "readOnly": true
                     },
-                    "sample": {
-                        "type": "string"
-                    },
-                    "trusted_html": {
-                        "type": "boolean"
+                    "html_body": {
+                        "type": "string",
+                        "readOnly": true
                     }
                 },
                 "required": [
-                    "description",
-                    "name",
-                    "sample",
-                    "trusted_html"
+                    "html_body",
+                    "subject",
+                    "text_body"
                 ]
             },
             "Error": {
@@ -13148,17 +13139,6 @@
                     "evidence_id"
                 ]
             },
-            "LedgerContainer": {
-                "type": "object",
-                "properties": {
-                    "label": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "label"
-                ]
-            },
             "LedgerResponse": {
                 "type": "object",
                 "properties": {
@@ -13186,6 +13166,10 @@
                     "item_name": {
                         "type": "string"
                     },
+                    "container": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "holder": {
                         "type": "string"
                     },
@@ -13197,14 +13181,6 @@
                         "items": {
                             "$ref": "#/components/schemas/LedgerUnit"
                         }
-                    },
-                    "container": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/LedgerContainer"
-                            }
-                        ],
-                        "nullable": true
                     },
                     "target_label": {
                         "type": "string",
@@ -13409,21 +13385,10 @@
                         "type": "string",
                         "maxLength": 200
                     },
-                    "latitude": {
-                        "type": "string",
-                        "format": "decimal",
-                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
-                        "nullable": true
-                    },
-                    "longitude": {
-                        "type": "string",
-                        "format": "decimal",
-                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
-                        "nullable": true
-                    },
                     "map_url": {
                         "type": "string",
-                        "readOnly": true
+                        "format": "uri",
+                        "maxLength": 200
                     },
                     "public_inventory_enabled": {
                         "type": "boolean"
@@ -13540,7 +13505,6 @@
                     "id",
                     "logo_key",
                     "logo_url",
-                    "map_url",
                     "name",
                     "public_api_key",
                     "slug",
@@ -13643,13 +13607,16 @@
                         "readOnly": true
                     },
                     "files": {
-                        "type": "string",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PrintRequestFileSummary"
+                        },
                         "readOnly": true
                     },
                     "status": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/Status073Enum"
+                                "$ref": "#/components/schemas/PrintRequestStatusEnum"
                             }
                         ],
                         "readOnly": true
@@ -13869,6 +13836,7 @@
                     },
                     "spool_label": {
                         "type": "string",
+                        "nullable": true,
                         "readOnly": true
                     },
                     "logged_by_username": {
@@ -14873,6 +14841,24 @@
                     }
                 }
             },
+            "PatchedEmailTemplateUpdate": {
+                "type": "object",
+                "properties": {
+                    "subject": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "text_body": {
+                        "type": "string"
+                    },
+                    "html_body": {
+                        "type": "string"
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    }
+                }
+            },
             "PatchedFilamentSpool": {
                 "type": "object",
                 "properties": {
@@ -15060,21 +15046,10 @@
                         "type": "string",
                         "maxLength": 200
                     },
-                    "latitude": {
-                        "type": "string",
-                        "format": "decimal",
-                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
-                        "nullable": true
-                    },
-                    "longitude": {
-                        "type": "string",
-                        "format": "decimal",
-                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
-                        "nullable": true
-                    },
                     "map_url": {
                         "type": "string",
-                        "readOnly": true
+                        "format": "uri",
+                        "maxLength": 200
                     },
                     "public_inventory_enabled": {
                         "type": "boolean"
@@ -15517,12 +15492,13 @@
             "PrintCheckinVerifyRequest": {
                 "type": "object",
                 "properties": {
-                    "identifier": {
-                        "type": "string"
+                    "contact_email": {
+                        "type": "string",
+                        "format": "email"
                     }
                 },
                 "required": [
-                    "identifier"
+                    "contact_email"
                 ]
             },
             "PrintCheckinVerifyResponse": {
@@ -15536,11 +15512,24 @@
                     "username"
                 ]
             },
+            "PrintFileUrlResponse": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    }
+                },
+                "required": [
+                    "url"
+                ]
+            },
             "PrintPresignRequest": {
                 "type": "object",
                 "properties": {
-                    "identifier": {
-                        "type": "string"
+                    "contact_email": {
+                        "type": "string",
+                        "format": "email"
                     },
                     "kind": {
                         "$ref": "#/components/schemas/PrintPresignRequestKindEnum"
@@ -15555,8 +15544,8 @@
                     }
                 },
                 "required": [
+                    "contact_email",
                     "filename",
-                    "identifier",
                     "kind"
                 ]
             },
@@ -15769,13 +15758,16 @@
                         "readOnly": true
                     },
                     "files": {
-                        "type": "string",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PrintRequestFileSummary"
+                        },
                         "readOnly": true
                     },
                     "status": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/Status073Enum"
+                                "$ref": "#/components/schemas/PrintRequestStatusEnum"
                             }
                         ],
                         "readOnly": true
@@ -15962,13 +15954,46 @@
                     "title"
                 ]
             },
+            "PrintRequestFileSummary": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "kind": {
+                        "type": "string"
+                    },
+                    "content_type": {
+                        "type": "string"
+                    },
+                    "size_bytes": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "content_type",
+                    "id",
+                    "kind",
+                    "size_bytes"
+                ]
+            },
+            "PrintRequestStatusEnum": {
+                "enum": [
+                    "pending",
+                    "accepted",
+                    "printing",
+                    "completed",
+                    "collected",
+                    "rejected",
+                    "failed"
+                ],
+                "type": "string",
+                "description": "* `pending` - Pending\n* `accepted` - Accepted\n* `printing` - Printing\n* `completed` - Completed\n* `collected` - Collected\n* `rejected` - Rejected\n* `failed` - Failed"
+            },
             "PrintRequestSubmit": {
                 "type": "object",
                 "properties": {
                     "website": {
-                        "type": "string"
-                    },
-                    "identifier": {
                         "type": "string"
                     },
                     "bucket_id": {
@@ -16031,7 +16056,9 @@
                     }
                 },
                 "required": [
-                    "identifier",
+                    "contact_email",
+                    "contact_phone",
+                    "requester_name",
                     "title"
                 ]
             },
@@ -16476,18 +16503,12 @@
                     },
                     "color": {
                         "type": "string"
-                    },
-                    "remaining_weight_grams": {
-                        "type": "string",
-                        "format": "decimal",
-                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$"
                     }
                 },
                 "required": [
                     "color",
                     "id",
-                    "material",
-                    "remaining_weight_grams"
+                    "material"
                 ]
             },
             "PublicImageAttachRequest": {
@@ -17328,6 +17349,33 @@
                     "quantity_out"
                 ]
             },
+            "PublicToolCheckout": {
+                "type": "object",
+                "properties": {
+                    "payload": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "requester_name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "contact_email": {
+                        "type": "string",
+                        "format": "email"
+                    },
+                    "contact_phone": {
+                        "type": "string",
+                        "maxLength": 32
+                    }
+                },
+                "required": [
+                    "contact_email",
+                    "contact_phone",
+                    "payload",
+                    "requester_name"
+                ]
+            },
             "PublicToolLoan": {
                 "type": "object",
                 "properties": {
@@ -17337,14 +17385,6 @@
                         "readOnly": true
                     },
                     "status": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "target_type": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "target_label": {
                         "type": "string",
                         "readOnly": true
                     },
@@ -17359,9 +17399,7 @@
                 "required": [
                     "items",
                     "public_token",
-                    "status",
-                    "target_label",
-                    "target_type"
+                    "status"
                 ]
             },
             "PublicToolLoanItem": {
@@ -17383,10 +17421,12 @@
                 "type": "object",
                 "properties": {
                     "identifier": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 254
                     },
                     "payload": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 64
                     }
                 },
                 "required": [
@@ -17486,7 +17526,7 @@
                         "maxLength": 200
                     },
                     "status": {
-                        "$ref": "#/components/schemas/Status438Enum"
+                        "$ref": "#/components/schemas/QrPrintBatchStatusEnum"
                     },
                     "created_by": {
                         "type": "integer",
@@ -17536,7 +17576,7 @@
                         "maxLength": 200
                     },
                     "status": {
-                        "$ref": "#/components/schemas/Status438Enum"
+                        "$ref": "#/components/schemas/QrPrintBatchStatusEnum"
                     },
                     "created_by": {
                         "type": "integer",
@@ -17639,6 +17679,15 @@
                     "id"
                 ]
             },
+            "QrPrintBatchStatusEnum": {
+                "enum": [
+                    "draft",
+                    "printed",
+                    "archived"
+                ],
+                "type": "string",
+                "description": "* `draft` - Draft\n* `printed` - Printed\n* `archived` - Archived"
+            },
             "QrRebindResult": {
                 "type": "object",
                 "properties": {
@@ -17663,6 +17712,14 @@
                     },
                     "target_id": {
                         "type": "integer"
+                    },
+                    "destination_makerspace_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "destination_product_id": {
+                        "type": "integer",
+                        "nullable": true
                     },
                     "new_name": {
                         "type": "string",
@@ -17835,17 +17892,16 @@
                         "type": "string",
                         "writeOnly": true
                     },
-                    "identifier": {
-                        "type": "string"
+                    "requester_name": {
+                        "type": "string",
+                        "maxLength": 120
                     },
                     "contact_email": {
                         "type": "string",
-                        "format": "email",
-                        "default": ""
+                        "format": "email"
                     },
                     "contact_phone": {
                         "type": "string",
-                        "default": "",
                         "maxLength": 32
                     },
                     "requested_for": {
@@ -17860,8 +17916,10 @@
                     }
                 },
                 "required": [
-                    "identifier",
-                    "items"
+                    "contact_email",
+                    "contact_phone",
+                    "items",
+                    "requester_name"
                 ]
             },
             "RequestSubmitResponse": {
@@ -18147,28 +18205,6 @@
                 ],
                 "type": "string",
                 "description": "* `space_manager` - Space Manager\n* `guest_admin` - Guest Admin\n* `inventory_manager` - Inventory Manager\n* `print_manager` - Print Manager"
-            },
-            "Status073Enum": {
-                "enum": [
-                    "pending",
-                    "accepted",
-                    "printing",
-                    "completed",
-                    "collected",
-                    "rejected",
-                    "failed"
-                ],
-                "type": "string",
-                "description": "* `pending` - Pending\n* `accepted` - Accepted\n* `printing` - Printing\n* `completed` - Completed\n* `collected` - Collected\n* `rejected` - Rejected\n* `failed` - Failed"
-            },
-            "Status438Enum": {
-                "enum": [
-                    "draft",
-                    "printed",
-                    "archived"
-                ],
-                "type": "string",
-                "description": "* `draft` - Draft\n* `printed` - Printed\n* `archived` - Archived"
             },
             "StockTransfer": {
                 "type": "object",
@@ -18499,7 +18535,7 @@
                     },
                     "message": {
                         "type": "string",
-                        "default": "Kanakku Pusthakam test alert."
+                        "default": "OSMM test alert."
                     }
                 },
                 "required": [
