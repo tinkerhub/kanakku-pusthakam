@@ -11265,12 +11265,18 @@
                     "needs_fix_quantity": {
                         "type": "integer",
                         "readOnly": true
+                    },
+                    "issued_assets": {
+                        "type": "array",
+                        "items": {},
+                        "readOnly": true
                     }
                 },
                 "required": [
                     "accepted_quantity",
                     "damaged_quantity",
                     "id",
+                    "issued_assets",
                     "issued_quantity",
                     "missing_quantity",
                     "needs_fix_quantity",
@@ -14047,6 +14053,15 @@
                     "catalog",
                     "mutes"
                 ]
+            },
+            "OutcomeEnum": {
+                "enum": [
+                    "returned",
+                    "damaged",
+                    "missing"
+                ],
+                "type": "string",
+                "description": "* `returned` - returned\n* `damaged` - damaged\n* `missing` - missing"
             },
             "PaginatedAdminRequestList": {
                 "type": "object",
@@ -17940,6 +17955,21 @@
                 "type": "string",
                 "description": "* `restricted` - restricted\n* `suspended` - suspended"
             },
+            "ReturnAssetResolution": {
+                "type": "object",
+                "properties": {
+                    "asset_id": {
+                        "type": "integer"
+                    },
+                    "outcome": {
+                        "$ref": "#/components/schemas/OutcomeEnum"
+                    }
+                },
+                "required": [
+                    "asset_id",
+                    "outcome"
+                ]
+            },
             "ReturnDue": {
                 "type": "object",
                 "properties": {
@@ -17973,6 +18003,12 @@
                         "type": "integer",
                         "minimum": 0,
                         "default": 0
+                    },
+                    "assets": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ReturnAssetResolution"
+                        }
                     }
                 },
                 "required": [
