@@ -124,6 +124,8 @@ UNFOLD = {
                     _item("Platform email", "mail", "admin:integrations_platformemailsettings_changelist"),
                     _item("Email templates", "mail", "admin:integrations_emailtemplate_changelist"),
                     _item("Email layouts", "mail", "admin:integrations_emaillayout_changelist"),
+                    _item("Email logs", "mark_email_read", "admin:integrations_emaillog_changelist"),
+                    _item("Email mutes", "notifications_off", "admin:integrations_emailnotificationmute_changelist"),
                 ],
             },
             {

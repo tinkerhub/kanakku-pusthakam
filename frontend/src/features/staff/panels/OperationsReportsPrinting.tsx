@@ -38,6 +38,7 @@ export type PrintingReport = {
   top_requesters: {
     requester_id: number;
     requester: string;
+    grams: number;
     requests: number;
     items: number;
     makerspace_id?: number;
@@ -213,21 +214,21 @@ export function PrintingReportSection({ makerspace, aggregate }: { makerspace: M
               />
             </div>
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-ink">Top requesters</h3>
+              <h3 className="mb-2 text-sm font-semibold text-ink">Top requesters (by filament)</h3>
               <BarChart
-                rows={(printing.data?.top_requesters ?? []).slice(0, 8).map((row) => ({ label: row.requester, value: row.requests }))}
-                valueLabel=" reqs"
+                rows={(printing.data?.top_requesters ?? []).slice(0, 8).map((row) => ({ label: row.requester, value: row.grams }))}
+                valueLabel="g"
               />
               <ReportTable
                 data={{
                   rows: [
                     aggregate
-                      ? ["makerspace_id", "requester", "requests", "items"]
-                      : ["requester", "requests", "items"],
+                      ? ["makerspace_id", "requester", "grams", "requests", "items"]
+                      : ["requester", "grams", "requests", "items"],
                     ...(printing.data?.top_requesters ?? []).map((row) =>
                       aggregate
-                        ? [row.makerspace_id ?? "", row.requester, row.requests, row.items]
-                        : [row.requester, row.requests, row.items],
+                        ? [row.makerspace_id ?? "", row.requester, row.grams, row.requests, row.items]
+                        : [row.requester, row.grams, row.requests, row.items],
                     ),
                   ],
                 }}

@@ -24,7 +24,7 @@ import { useTenant } from "../../lib/tenant";
 
 const ALL_TABS = [
   "dashboard", "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
-  "stocktake", "containers", "ledger", "reports", "bulk", "qr", "scanner", "api", "emails", "settings", "users", "platform", "audit",
+  "stocktake", "containers", "ledger", "reports", "bulk", "qr", "scanner", "api", "emails", "email-logs", "settings", "users", "platform", "audit",
 ] as const;
 // Membership roles that get the full staff console. Anything else (print_manager,
 // or an unknown role) is failed closed to the 3D-printing surfaces only.
@@ -56,6 +56,7 @@ const TAB_LABELS: Record<string, string> = {
   settings: "Settings",
   api: "API access",
   emails: "Email templates",
+  "email-logs": "Email log",
   platform: "Platform email",
 };
 
@@ -71,7 +72,7 @@ const TAB_GROUPS: { label: string; tabs: string[] }[] = [
   { label: "3D Printing", tabs: ["printing"] },
   { label: "Insights", tabs: ["reports", "audit"] },
   // Rarely-used admin tabs collapsed behind one expander by default.
-  { label: "Admin", tabs: ["users", "settings", "api", "emails", "platform"] },
+  { label: "Admin", tabs: ["users", "settings", "api", "emails", "email-logs", "platform"] },
 ];
 
 export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
@@ -312,6 +313,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     if (tabName === "users") return canManageMakerspace;
     if (tabName === "settings") return canManageMakerspace;
     if (tabName === "emails") return canEditInventory || canSeePrinting || canManageMakerspace;
+    if (tabName === "email-logs") return canManageMakerspace;
     if (tabName === "platform") return isSuperadmin && !singleTenantLocked;
     if (tabName === "printing") return canSeePrinting; // hide printer/spool mgmt from inventory managers
     if (tabName === "requests") return canSeeHardware || canSeePrinting;

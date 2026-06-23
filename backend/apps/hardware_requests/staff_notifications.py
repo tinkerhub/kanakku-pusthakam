@@ -10,7 +10,7 @@ from apps.integrations.staff_notifications import staff_emails_for_stream
 logger = logging.getLogger(__name__)
 
 
-def send_staff_hardware_email(request, event) -> bool:
+def send_staff_hardware_email(request, event, *, sync=False) -> bool:
     """Send the staff-facing hardware notification. Returns True iff at least one staff
     email was actually delivered (used by notify_return_due to avoid re-sending the staff
     reminder on every cron run when the borrower has no reachable email)."""
@@ -24,7 +24,11 @@ def send_staff_hardware_email(request, event) -> bool:
             .prefetch_related("items__product")
             .get(pk=request.pk)
         )
-        recipients = staff_emails_for_stream(staff_request.makerspace, "hardware")
+        recipients = staff_emails_for_stream(
+            staff_request.makerspace,
+            "hardware",
+            event=event,
+        )
         if not recipients:
             return False
 
@@ -45,6 +49,10 @@ def send_staff_hardware_email(request, event) -> bool:
                 rendered["text_body"],
                 recipients,
                 html_body=rendered["html_body"],
+                stream="hardware",
+                event=event,
+                audience="staff",
+                sync=sync,
             )
         )
     except Exception:

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from apps.makerspaces.secrets import decrypt_value, encrypt_value
@@ -26,6 +27,83 @@ class PlatformEmailSettings(models.Model):
 
     def __str__(self):
         return "Platform email settings"
+
+
+class EmailLog(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        SENT = "sent", "Sent"
+        FAILED = "failed", "Failed"
+
+    makerspace = models.ForeignKey(
+        "makerspaces.Makerspace",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="email_logs",
+    )
+    to_email = models.CharField(max_length=255)
+    subject = models.CharField(max_length=255)
+    text_body = models.TextField(blank=True)
+    html_body = models.TextField(blank=True)
+    stream = models.CharField(max_length=32, blank=True)
+    event = models.CharField(max_length=64, blank=True)
+    audience = models.CharField(max_length=16, blank=True)
+    connection_kind = models.CharField(max_length=16, default="makerspace")
+    status = models.CharField(
+        max_length=8,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    error = models.TextField(blank=True)
+    attempts = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["makerspace", "-created_at"]),
+            models.Index(fields=["status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.to_email} {self.subject} [{self.status}]"
+
+
+class EmailNotificationMute(models.Model):
+    makerspace = models.ForeignKey(
+        "makerspaces.Makerspace",
+        on_delete=models.CASCADE,
+        related_name="email_mutes",
+    )
+    target = models.CharField(max_length=32)
+    stream = models.CharField(max_length=16)
+    event = models.CharField(max_length=64)
+    audience = models.CharField(max_length=16)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["makerspace", "target", "stream", "event"],
+                name="uniq_email_mute_row",
+            )
+        ]
+        ordering = ["makerspace__name", "stream", "event"]
+        indexes = [
+            models.Index(fields=["makerspace", "stream", "audience"]),
+        ]
+
+    def __str__(self):
+        return f"{self.makerspace}:{self.target}:{self.stream}/{self.event} muted"
 
 
 from apps.integrations.email_models import EmailTemplate, EmailLayout  # noqa: F401,E402

@@ -6,6 +6,7 @@ import { staffRequest } from "../../lib/api";
 import { ImageUploader } from "./ImageUploader";
 import { LocationSettings } from "./LocationSettings";
 import { MakerspaceEmailSettings } from "./MakerspaceEmailSettings";
+import { NotificationMuteMatrix } from "./NotificationMuteMatrix";
 import { Panel, type Makerspace, useStaffGet } from "./StaffPanels";
 
 type Props = {
@@ -320,6 +321,10 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
               <p className="text-sm text-danger">{updateCustomDomain.error.message}</p>
             ) : null}
           </form>
+        </div>
+        <div className="rounded-md border border-line bg-bg p-4">
+          <h3 className="text-base font-semibold text-ink">Email notifications: mute matrix</h3>
+          <NotificationMuteMatrix makerspaceId={makerspace.id} />
         </div>
       </div>
     </Panel>

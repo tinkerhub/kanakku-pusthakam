@@ -184,6 +184,7 @@ _MODEL_LOOKUPS = {
     "qr-print-batch-download": ("operations.QrPrintBatch", "makerspace_id"),
     "direct-loan-return": ("hardware_requests.PublicToolLoan", "makerspace_id"),
     "managed-printer-detail": ("printing.PrintPrinter", "makerspace_id"),
+    "admin-printer-image": ("printing.PrintPrinter", "makerspace_id"),
     "managed-spool-detail": ("printing.FilamentSpool", "makerspace_id"),
     "managed-file-url": ("printing.PrintRequestFile", "makerspace_id"),
     "to-buy-detail": ("procurement.ToBuyItem", "makerspace_id"),

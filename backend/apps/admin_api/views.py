@@ -4,6 +4,11 @@ from apps.admin_api.views_bulk import (
     _rows_from_upload,
 )
 from apps.admin_api.views_categories import CategoryDetailView, CategoryListCreateView
+from apps.admin_api.views_email_logs import (
+    EmailLogListView,
+    EmailLogPagination,
+    EmailLogRetryView,
+)
 from apps.admin_api.views_inventory import (
     InventoryDetailView,
     InventoryListCreateView,
@@ -44,6 +49,9 @@ __all__ = [
     "BulkImportPreviewView",
     "CategoryDetailView",
     "CategoryListCreateView",
+    "EmailLogListView",
+    "EmailLogPagination",
+    "EmailLogRetryView",
     "InventoryDetailView",
     "InventoryLendingHistoryView",
     "InventoryListCreateView",

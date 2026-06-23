@@ -1,7 +1,7 @@
 import logging
 
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives, get_connection
+from django.core.mail import get_connection
 
 logger = logging.getLogger(__name__)
 
@@ -83,36 +83,60 @@ def email_enabled() -> bool:
 
 
 def send_password_reset_email(recipient, reset_url):
-    connection, from_email = platform_mail_connection()
+    from apps.integrations.dispatch import dispatch_email
+
     subject = "Reset your password"
     body = (
         "We received a request to reset your password.\n\n"
         f"Reset it here:\n{reset_url}\n\n"
         "If you did not request this, you can ignore this email."
     )
-    msg = EmailMultiAlternatives(
+    log = dispatch_email(
+        to_email=recipient,
         subject=subject,
-        body=body,
-        from_email=from_email,
-        to=[recipient],
-        connection=connection,
+        text_body=body,
+        makerspace=None,
+        connection="platform",
+        persist_body=False,
+        stream="account",
+        event="password_reset",
+        audience="user",
+        sync=True,
     )
-    return msg.send()
+    return 1 if log.status == log.Status.SENT else 0
 
 
-def send_makerspace_email(makerspace, subject, body, recipients, html_body=None):
+def send_makerspace_email(
+    makerspace,
+    subject,
+    body,
+    recipients,
+    html_body=None,
+    *,
+    stream="",
+    event="",
+    audience="",
+    sync=False,
+):
+    from apps.integrations.dispatch import dispatch_email
+
     recipients = [recipient for recipient in recipients if recipient]
     if not recipients:
         return 0
 
-    connection, from_email = makerspace_mail_connection(makerspace)
-    message = EmailMultiAlternatives(
-        subject=subject,
-        body=body,
-        from_email=from_email,
-        to=recipients,
-        connection=connection,
-    )
-    if html_body:
-        message.attach_alternative(html_body, "text/html")
-    return message.send()
+    sent = 0
+    for recipient in recipients:
+        log = dispatch_email(
+            to_email=recipient,
+            subject=subject,
+            text_body=body,
+            html_body=html_body or "",
+            makerspace=makerspace,
+            connection="makerspace",
+            stream=stream,
+            event=event,
+            audience=audience,
+            sync=sync,
+        )
+        sent += 1 if log.status == log.Status.SENT else 0
+    return sent

@@ -34,6 +34,7 @@ export type HardwareRequest = {
   id: number;
   status: string;
   requester_username: string;
+  requester_display?: string;
   requester_contact_email?: string;
   requester_contact_phone?: string;
   rejection_reason?: string;

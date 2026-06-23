@@ -3,6 +3,7 @@ import logging
 from django.utils.html import escape
 
 from apps.hardware_requests.staff_notifications import send_staff_hardware_email
+from apps.integrations import notification_rules
 from apps.integrations.email import send_makerspace_email
 from apps.integrations.email_render import render_email_template
 from apps.integrations.telegram import TelegramDeliveryError, send_message
@@ -93,8 +94,8 @@ def notify_return_due(request):
             "status": request.status,
         },
     )
-    sent = _send_templated_email(request, "return_reminder")
-    staff_sent = _send_staff_email(request, "return_reminder")
+    sent = _send_templated_email(request, "return_reminder", sync=True)
+    staff_sent = _send_staff_email(request, "return_reminder", sync=True)
     # Mark the reminder cycle complete if the borrower OR staff was actually reminded.
     # Returning the borrower-only result would leave return_reminder_sent_at null whenever
     # the borrower has no reachable email (blank contact / persistent bounce), so the cron
@@ -160,7 +161,10 @@ def _clamp(text, limit):
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
-def _send_templated_email(request, key):
+def _send_templated_email(request, key, *, sync=False):
+    if notification_rules.is_requester_muted(request.makerspace, "hardware", key):
+        return False
+
     recipient = request.requester_contact_email
     if not recipient:
         return False
@@ -177,6 +181,10 @@ def _send_templated_email(request, key):
             rendered["text_body"],
             [recipient],
             html_body=rendered["html_body"],
+            stream="hardware",
+            event=key,
+            audience="requester",
+            sync=sync,
         )
         return bool(sent)
     except Exception:
@@ -219,5 +227,5 @@ def _item_list_html(request):
     return "<ul>" + "".join(lines) + "</ul>"
 
 
-def _send_staff_email(request, event) -> bool:
-    return send_staff_hardware_email(request, event)
+def _send_staff_email(request, event, *, sync=False) -> bool:
+    return send_staff_hardware_email(request, event, sync=sync)

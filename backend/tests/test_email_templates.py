@@ -194,7 +194,9 @@ def test_renderer_uses_defaults_and_active_makerspace_overrides_only():
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-def test_hardware_requester_email_uses_renderer_and_template_override():
+def test_hardware_requester_email_uses_renderer_and_template_override(
+    django_capture_on_commit_callbacks,
+):
     reset_outbox()
     makerspace = make_space("template-hw-requester")
     product = make_product(makerspace)
@@ -202,7 +204,8 @@ def test_hardware_requester_email_uses_renderer_and_template_override():
         makerspace, product, contact_email="hw-requester@example.com"
     )
 
-    notifications.notify_request_accepted(hardware_request)
+    with django_capture_on_commit_callbacks(execute=True):
+        notifications.notify_request_accepted(hardware_request)
     assert mail.outbox[0].to == ["hw-requester@example.com"]
     assert mail.outbox[0].subject == f"{makerspace.name} request approved"
     assert "has been approved" in mail.outbox[0].body
@@ -215,7 +218,8 @@ def test_hardware_requester_email_uses_renderer_and_template_override():
     )
     reset_outbox()
 
-    notifications.notify_request_accepted(hardware_request)
+    with django_capture_on_commit_callbacks(execute=True):
+        notifications.notify_request_accepted(hardware_request)
 
     assert mail.outbox[0].subject == f"Custom accepted {hardware_request.id}"
     assert "Custom accepted body" in mail.outbox[0].body
@@ -231,14 +235,20 @@ def test_hardware_staff_email_has_html_alternative():
     )
     hardware_request = make_hardware_request(makerspace, make_product(makerspace))
 
-    assert staff_notifications.send_staff_hardware_email(hardware_request, "submitted")
+    # sync=True delivers inline so the return count is truthful and the message
+    # lands in the outbox immediately (no transaction-commit hook needed).
+    assert staff_notifications.send_staff_hardware_email(
+        hardware_request, "submitted", sync=True
+    )
 
     assert len(mail.outbox) == 1
     message_html(mail.outbox[0])
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-def test_print_requester_recipient_prefers_contact_email_then_requester_email():
+def test_print_requester_recipient_prefers_contact_email_then_requester_email(
+    django_capture_on_commit_callbacks,
+):
     reset_outbox()
     makerspace = make_space("template-print-recipient")
     bucket = make_bucket(makerspace)
@@ -248,8 +258,9 @@ def test_print_requester_recipient_prefers_contact_email_then_requester_email():
     with_contact.save(update_fields=["contact_email", "updated_at"])
     without_contact = make_print_request(bucket, requester)
 
-    print_emails.send_print_email("submitted", with_contact)
-    print_emails.send_print_email("submitted", without_contact)
+    with django_capture_on_commit_callbacks(execute=True):
+        print_emails.send_print_email("submitted", with_contact)
+        print_emails.send_print_email("submitted", without_contact)
 
     assert [message.to for message in mail.outbox] == [
         ["buyer@example.com"],
@@ -286,7 +297,9 @@ def test_authenticated_print_submit_emails_requester_and_staff(
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-def test_print_price_privacy_is_unchanged_in_requester_email():
+def test_print_price_privacy_is_unchanged_in_requester_email(
+    django_capture_on_commit_callbacks,
+):
     reset_outbox()
     makerspace = make_space("template-print-cash")
     bucket = make_bucket(makerspace)
@@ -297,7 +310,8 @@ def test_print_price_privacy_is_unchanged_in_requester_email():
     print_request.refresh_from_db()
     reset_outbox()
 
-    print_emails.send_print_email("accepted", print_request)
+    with django_capture_on_commit_callbacks(execute=True):
+        print_emails.send_print_email("accepted", print_request)
 
     rendered = "\n".join(
         [mail.outbox[0].subject, mail.outbox[0].body, message_html(mail.outbox[0])]

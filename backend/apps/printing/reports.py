@@ -1,10 +1,12 @@
 from decimal import Decimal
 
-from django.db.models import Count, Sum
-from django.db.models.functions import TruncDay, TruncHour, TruncMonth
+from django.db.models import Count, Q, Sum
+from django.db.models.functions import Coalesce, TruncDay, TruncHour, TruncMonth
 
 from apps.accounts import rbac
-from apps.printing.models import FilamentSpool, ManualPrintLog, PrintRequest
+from apps.hardware_requests.display import requester_label_for_user
+from apps.inventory import public_image_storage
+from apps.printing.models import FilamentSpool, ManualPrintLog, PrintPrinter, PrintRequest
 
 
 STATUS_KEYS = {
@@ -37,20 +39,24 @@ def build_printing_report(makerspace_id=None, *, include_makerspace=False):
             spools = spools.exclude(makerspace_id__in=excluded)
             manual_logs = manual_logs.exclude(makerspace_id__in=excluded)
 
+    printer_hours = _printer_hours(requests, include_makerspace, manual_logs)
+    printer_outcomes = _printer_outcomes(
+        requests,
+        include_makerspace,
+        manual_logs,
+    )
+    _attach_printer_image_urls(printer_hours, printer_outcomes)
+
     return {
         "totals": _totals(requests),
         # Printer hours combine completed-request estimated minutes AND manual-log
         # durations so ad-hoc prints logged manually are not missing from the hours.
-        "printer_hours": _printer_hours(requests, include_makerspace, manual_logs),
+        "printer_hours": printer_hours,
         # Per-printer activity axis: completed request grams are estimate-based
         # because workflow.complete reconciles filament_grams_used from
         # estimated_filament_grams. ManualPrintLog grams are added here as
         # printer activity, not as another spool-delta source.
-        "printer_outcomes": _printer_outcomes(
-            requests,
-            include_makerspace,
-            manual_logs,
-        ),
+        "printer_outcomes": printer_outcomes,
         # Per-spool inventory axis: grams are initial-minus-remaining deltas.
         # Manual logs already affect this when they decrement remaining weight.
         "filament_used": _filament_used(spools, include_makerspace),
@@ -141,6 +147,24 @@ def _printer_hours(requests, include_makerspace, manual_logs=None):
     for item in data:
         item["hours"] = round(item.pop("_minutes") / 60, 1)
     return data
+
+
+def _attach_printer_image_urls(*row_groups):
+    printer_ids = {
+        row.get("printer_id")
+        for rows in row_groups
+        for row in rows
+        if row.get("printer_id")
+    }
+    if not printer_ids:
+        return
+    urls = {
+        printer.id: public_image_storage.public_url(printer.image_key) or None
+        for printer in PrintPrinter.objects.filter(id__in=printer_ids).only("id", "image_key")
+    }
+    for rows in row_groups:
+        for row in rows:
+            row["image_url"] = urls.get(row.get("printer_id"))
 
 
 def _printer_outcomes(requests, include_makerspace, manual_logs=None):
@@ -245,22 +269,42 @@ def _filament_by_brand(spools):
 
 
 def _top_requesters(requests, include_makerspace):
-    # Who submits the most 3D-print jobs: request count + total quantity per requester,
-    # ranked high-to-low. In aggregate mode each row is per requester+makerspace
-    # (mirrors printer_hours/filament_used).
-    values = ["requester_id", "requester__username"]
+    # Top printers by FILAMENT GRAMS: total estimated grams printed per requester,
+    # ranked high-to-low (the requester who printed the most grams wins). Grams are
+    # the operator slicer estimate, summed over completed/collected jobs only.
+    # In aggregate mode rows are ordered per makerspace first so the frontend can
+    # present a separate ranking per makerspace (not one blended cross-OSMM list).
+    values = ["requester_id", "requester__username", "requester__external_checkin_user_id"]
     if include_makerspace:
         values.append("bucket__makerspace_id")
+    order = ["-grams", "-request_count", "-items"]
+    if include_makerspace:
+        order = ["bucket__makerspace_id", *order]
     rows = (
         requests.values(*values)
-        .annotate(request_count=Count("id"), items=Sum("quantity"))
-        .order_by("-request_count", "-items")
+        .annotate(
+            request_count=Count("id"),
+            items=Sum("quantity"),
+            grams=Coalesce(
+                Sum(
+                    "estimated_filament_grams",
+                    filter=Q(status__in=COMPLETED_STATUSES),
+                ),
+                Decimal("0"),
+            ),
+        )
+        .order_by(*order)
     )
     data = []
     for row in rows:
         item = {
             "requester_id": row["requester_id"],
-            "requester": row["requester__username"],
+            # Readable label, never the internal checkin_<hash> username.
+            "requester": requester_label_for_user(
+                username=row["requester__username"],
+                external_checkin_user_id=row["requester__external_checkin_user_id"],
+            ),
+            "grams": _decimal_to_float(row["grams"]),
             "requests": row["request_count"],
             "items": row["items"] or 0,
         }

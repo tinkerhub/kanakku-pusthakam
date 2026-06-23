@@ -7,9 +7,12 @@ from apps.admin_api.views_email_templates import (
     EmailTemplateListView,
     EmailTemplatePreviewView,
 )
+from apps.admin_api.views_email_logs import EmailLogListView, EmailLogRetryView
 from apps.admin_api.views_notification_recipients import NotificationRecipientsView
+from apps.admin_api.views_notification_rules import NotificationRulesView
 from apps.admin_api.views_platform import PlatformEmailSettingsView
 from apps.makerspaces.models import MakerspaceMembership
+from apps.printing.views_printer_image import PrinterImageView
 
 urlpatterns = [
     path(
@@ -111,6 +114,21 @@ urlpatterns = [
         name="admin-email-layout",
     ),
     path(
+        "makerspace/<int:makerspace_id>/email-logs",
+        EmailLogListView.as_view(),
+        name="admin-email-logs",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/email-logs/<int:pk>/retry",
+        EmailLogRetryView.as_view(),
+        name="admin-email-log-retry",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/notification-rules",
+        NotificationRulesView.as_view(),
+        name="admin-notification-rules",
+    ),
+    path(
         "makerspace/<int:makerspace_id>/email-templates/<str:key>/preview",
         EmailTemplatePreviewView.as_view(),
         name="admin-email-template-preview",
@@ -166,4 +184,9 @@ urlpatterns = [
         name="user-restore-access",
     ),
     path("audit-logs", views.AuditLogListView.as_view(), name="admin-audit-logs"),
+    path(
+        "printing/printers/<int:pk>/image",
+        PrinterImageView.as_view(),
+        name="admin-printer-image",
+    ),
 ]

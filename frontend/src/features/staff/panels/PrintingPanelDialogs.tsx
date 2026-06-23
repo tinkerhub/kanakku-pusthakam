@@ -1,6 +1,8 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { Modal } from "../../../components/ui/Modal";
+import { ImageUploader } from "../ImageUploader";
 import {
   ErrorText,
   type FilamentSpool,
@@ -23,6 +25,7 @@ export function PrinterEditDialog({
   onClose: () => void;
   onSubmit: (payload: PrinterPayload) => void;
 }) {
+  const queryClient = useQueryClient();
   const [form, setForm] = useState<PrinterPayload>({ name: "", model: "", status: "active", is_active: true });
   useEffect(() => {
     if (printer) setForm({ name: printer.name, model: printer.model, status: printer.status, is_active: printer.is_active });
@@ -30,6 +33,14 @@ export function PrinterEditDialog({
   return (
     <Modal open={Boolean(printer)} onClose={onClose} title="Edit printer" footer={<DialogActions pending={pending} disabled={!form.name.trim()} submitLabel="Save printer" onCancel={onClose} onSubmit={() => onSubmit(form)} />}>
       <PrinterFields form={form} onChange={setForm} />
+      {printer ? (
+        <ImageUploader
+          endpoint={`/admin/printing/printers/${printer.id}/image`}
+          currentUrl={printer.image_url}
+          label="Printer photo"
+          onChanged={() => queryClient.invalidateQueries({ queryKey: ["print-printers", printer.makerspace] })}
+        />
+      ) : null}
       <ErrorText message={error} />
     </Modal>
   );

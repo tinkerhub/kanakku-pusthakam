@@ -2,6 +2,67 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — port 6 upstream OSMM backend features (no UI reskin) (2026-06-23)
+
+Ported the genuinely-missing backend features from upstream `Shaan-Shoukath/OSMM-Makerspace-Manager`
+(this repo is a fork; the two diverged at merge-base `3ac8cc8` and independently rewrote the email
+files). Brought in **backend + a minimal React surface each**, NOT upstream's pastel UI reskin /
+rebrand. Manual per-feature graft (email send files were grafted, never merged, since ours route
+through `send_makerspace_email`/`render_email_template`). Stage-1 Codex plan-review was unavailable
+(it kept reviewing a stale in-repo plan), so the plan was verified directly + via parallel recon
+agents that read the actual upstream commits; Stage-4 Codex review run over the diff. **Backend
+798 passing with `API_CLIENT_ENC_KEY` set** (the lone `test_global_csp_img_src_does_not_allow_s3_public_origin`
+failure is the documented dev-container env artifact); frontend `tsc -b` clean; OpenAPI snapshot +
+TS client regenerated. Plan (gitignored): `docs/superpowers/specs/2026-06-22-port-osmm-backend-features-plan.md`.
+
+- **Human-readable requester labels** (upstream `a8253d6`). New `apps/hardware_requests/display.py`
+  (`requester_label`/`label_from_candidates`/`requester_label_for_user`): resolves a readable
+  Check-In email/phone, never the internal `checkin_<sha256>` hash, generic `"Member"` fallback —
+  STAFF-only (RBAC-gated, tenant-scoped). `operations/ledger.py` `_request_holder` delegates to it
+  (deleted the duplicated local helpers); `AdminRequestSerializer` + `ManagedPrintRequestSerializer`
+  gain `requester_display`; `views_lending_history.py` shows the label (+ `request__requester`
+  select_related). Frontend: queues/print rows render `requester_display || …`. No migration.
+- **Per-makerspace report leaderboards** (backend of `47b71a9`; needs `display.py`).
+  `operations/reports.py` `_top_borrowers` groups by requester + readable label, orders per
+  makerspace first in aggregate mode (`_request_row` helper for active-loans/returns).
+  `printing/reports.py` `_top_requesters` re-ranked by **filament grams** (`Coalesce(Sum(
+  estimated_filament_grams, filter=completed))`), readable label, `grams` field; serializer +
+  `OperationsReportsPrinting.tsx` show the grams column. No migration.
+- **Printer images** (subset of `a71a196`; SKIPS the Django-admin upload path which needs
+  `inventory/admin_image_uploads.py` we don't have). `PrintPrinter.image_key` (migration
+  `printing/0014`), `public_image_storage.build_object_key` now accepts a `"printers"` kind, new
+  `printing/views_printer_image.py` REST upload (`MANAGE_PRINTING`, presign/attach/clear, reuses the
+  existing public-image presign + `EvidencePhoto`-style finalize), serializer `image_url`,
+  reports `_attach_printer_image_urls` (printer_hours/outcomes), public-stats `per_printer` +
+  `image_url` (+ the `PublicStatsPrinterSerializer` whitelist field). `lifecycle.py` purge now
+  collects printer image keys. Frontend mounts the existing `ImageUploader` in the printer edit dialog.
+- **EmailLog + single dispatch choke point** (`fa834b1`). New `EmailLog` model (migration
+  `integrations/0004`; mutable operational outbox, explicitly NOT append-only) + `integrations/dispatch.py`
+  (`dispatch_email` → `_deliver`, fail-safe, `update_fields` excludes the body so a `persist_body=False`
+  password-reset never persists the live token). EVERY send routes through it: `email.py`
+  `send_makerspace_email` (per-recipient) + `send_password_reset_email`, and all 4 domain send paths
+  pass `stream/event/audience`. Staff REST `…/email-logs` (list, bodies never serialized,
+  `MANAGE_MAKERSPACE`, archived/hidden → 404), read-only `/control/` admin, unfold nav, minimal React
+  `EmailLogPanel` (new "Email log" tab, MANAGE_MAKERSPACE).
+- **Email mute-matrix** (`e0a0700`+`dc42b1f`). `EmailNotificationMute` model (migration
+  `integrations/0005`) + `integrations/notification_rules.py` — **`EVENT_CATALOG` rewritten to derive
+  from OUR prefixed registry** (`HARDWARE_TEMPLATES`/`PRINTING_TEMPLATES`, stripping `hw_`/`hw_staff_`/
+  `print_`/`print_staff_` to the bare event names the send sites pass; `return_reminder` is `ALWAYS_ON`,
+  never mutable). The mute check sits **before** dispatch (a muted email produces NO EmailLog row):
+  requester guards at the top of `_send_templated_email`/`send_print_email`; staff roles excluded in
+  `staff_emails_for_stream(…, event=…)`. `…/notification-rules` GET/PATCH API (atomic, audited),
+  read-only admin, unfold nav, minimal React `NotificationMuteMatrix` card in makerspace settings.
+- **Celery + Redis async email + retry** (`e660109`). `config/celery.py` + `integrations/tasks.py`
+  (`deliver_email_task`, `select_for_update`, bounded retry). `dispatch_email(sync=False)` default now
+  `transaction.on_commit(_enqueue)`; **`CELERY_TASK_ALWAYS_EAGER` defaults True when `CELERY_BROKER_URL`
+  is unset** — so runserver / lean-paid deploys stay synchronous with zero new infra. `_enqueue` is
+  fail-safe (broker down → mark FAILED, never 500). Password-reset + return-reminder force `sync=True`
+  (they depend on a real delivered-count). Retry endpoint `…/email-logs/<pk>/retry` (FAILED-only,
+  audited `email.retried`) + Retry button on `EmailLogPanel`. `requirements.txt` (+`celery[redis]`,
+  `redis`), docker-compose dev+prod (redis + `worker` via `&backend-env` anchor), `render.yaml`
+  (redis + worker), `docs/deploy-production.md` cost note. Tests force `CELERY_TASK_ALWAYS_EAGER`
+  (conftest) and wrap on-commit email assertions in `django_capture_on_commit_callbacks`.
+
 ## Recent batch — lend an empty container on its own (2026-06-22)
 
 Follow-up to the Ledger-container feature. Staff can now hand out an **empty carrier container by
