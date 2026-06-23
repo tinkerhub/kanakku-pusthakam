@@ -59,7 +59,7 @@ export function BarChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
   if (!rows.length || maxValue <= 0) return <p className="text-sm text-muted">No chart data.</p>;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" aria-label={`Bar chart of ${valueLabel ?? "values"}`} role="img">
       {rows.map((row, index) => {
         const width = `${Math.max((row.value / maxValue) * 100, 4)}%`;
         return (
@@ -123,8 +123,9 @@ export function PieChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
 
   return (
     <div className="flex flex-wrap items-center gap-4">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0" role="img" aria-label="Pie chart">
-        <g transform={`rotate(-90 ${center} ${center})`}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0" role="img" aria-label={`Pie chart of ${valueLabel ?? "values"}`}>
+        <g transform={`rotate(-90 ${center} ${center})`} aria-hidden="true">
+          <circle cx={center} cy={center} r={radius} fill="none" stroke="rgb(var(--color-line))" strokeWidth={strokeWidth} />
           {segments.map((segment, index) => (
             <circle
               key={`${segment.label}-${index}`}
@@ -149,7 +150,7 @@ export function PieChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
             </span>
             <span className="ml-auto whitespace-nowrap text-xs text-muted">
               {formatNumber(segment.value)}
-              {valueLabel ?? ""} · {segment.pct.toFixed(0)}%
+              {valueLabel ?? ""} - {segment.pct.toFixed(0)}%
             </span>
           </li>
         ))}

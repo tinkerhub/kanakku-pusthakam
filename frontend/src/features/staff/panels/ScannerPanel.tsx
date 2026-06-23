@@ -130,7 +130,7 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
   const hasRebindPermissions = isSuperadmin || ["space_manager", "inventory_manager"].includes(rebindRole ?? "");
   // Rebind UI only targets PRODUCT QRs (the cross-makerspace quantity-product
   // transfer scenario). The form always submits target_type "product", so offering
-  // it for an asset QR would silently convert that QR's type — disallow it here.
+  // it for an asset QR would silently convert that QR's type - disallow it here.
   const canRebind = Boolean(resolved && target && target.type === "product" && hasRebindPermissions);
 
   return (
@@ -138,6 +138,7 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
       <p className="mb-3 text-sm text-muted">Scan or paste a QR payload to resolve a box, product, or asset and act on it.</p>
       <div className="flex flex-wrap gap-2">
         <input
+          aria-label="QR payload"
           className="desk-input pill flex-1 font-mono"
           placeholder="QR payload"
           value={payload}
@@ -157,9 +158,9 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
           <p className="text-sm font-semibold text-ink">
             {target.type === "box" ? `Box: ${target.label} (${target.code})`
               : target.type === "product" ? `Product: ${target.name}`
-              : `Asset: ${target.asset_tag} — ${target.product} (${target.status})`}
+              : `Asset: ${target.asset_tag} - ${target.product} (${target.status})`}
           </p>
-          <p className="mt-1 text-xs text-muted">QR #{resolved.qr.id} · {resolved.qr.status}</p>
+          <p className="mt-1 text-xs text-muted">QR #{resolved.qr.id} - {resolved.qr.status}</p>
           <div className="desk-actions mt-3 flex flex-wrap gap-2 text-sm">
             {actions.includes("contents") && target.type === "box" ? (
               <button className="desk-button" type="button" disabled={loadContents.isPending} onClick={() => loadContents.mutate(target.id)}>View contents</button>
@@ -206,6 +207,7 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
               </label>
               <input
                 className="desk-input"
+                aria-label="Rename target"
                 placeholder="Rename (optional)"
                 value={newName}
                 onChange={(event) => setNewName(event.target.value)}
@@ -222,7 +224,7 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
           ) : null}
           {actions.some((action) => ["checkout", "return", "direct_handout"].includes(action)) ? (
             <p className="mt-2 text-xs text-muted">
-              This item supports {actions.filter((a) => ["checkout", "return", "direct_handout"].includes(a)).join(" / ")} —
+              This item supports {actions.filter((a) => ["checkout", "return", "direct_handout"].includes(a)).join(" / ")} -
               use the Direct handout tab (or the public self-checkout page) which collect the borrower identity.
             </p>
           ) : null}
@@ -230,7 +232,7 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
           {contents ? (
             <div className="mt-3 rounded-xl border border-ink bg-bg p-2 text-xs text-muted">
               <p className="font-semibold text-ink">Contents</p>
-              {contents.products.map((product) => <p key={`p-${product.id}`}>{product.name} — {product.available_quantity} available</p>)}
+              {contents.products.map((product) => <p key={`p-${product.id}`}>{product.name} - {product.available_quantity} available</p>)}
               {contents.assets.map((asset) => <p key={`a-${asset.id}`}>{asset.asset_tag} ({asset.status})</p>)}
               {!contents.products.length && !contents.assets.length ? <p>Empty.</p> : null}
             </div>
