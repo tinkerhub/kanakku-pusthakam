@@ -43,7 +43,7 @@ def checkout_tool(makerspace, identifier, payload):
         if qr_has_active_loan(makerspace, qr):
             raise InvalidTransition("This QR code is already checked out.")
 
-        target_label, product_quantities, asset_ids = _checkout_target(qr)
+        target_label, product_quantities, asset_ids, container = _checkout_target(qr)
         hardware_request = _issued_request(
             makerspace,
             requester,
@@ -54,6 +54,7 @@ def checkout_tool(makerspace, identifier, payload):
             makerspace=makerspace,
             qr_code=qr,
             qr_ids=[qr.id],
+            container=container,
             request=hardware_request,
             requester=requester,
             target_type=qr.target_type,
