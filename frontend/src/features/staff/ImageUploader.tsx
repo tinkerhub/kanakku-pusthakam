@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { staffRequest } from "../../lib/api";
 
@@ -45,6 +45,11 @@ export function ImageUploader({
   const previewBox = shape === "wide" ? "h-20 w-44" : "h-20 w-20";
   const [status, setStatus] = useState<"idle" | "uploading" | "error">("idle");
   const [error, setError] = useState("");
+  // Local preview so attach/clear updates immediately, even though the parent passes a
+  // frozen `currentUrl` (e.g. an open edit dialog whose printer object isn't re-read
+  // until close/reopen). Re-sync whenever the parent's currentUrl actually changes.
+  const [preview, setPreview] = useState<string | null | undefined>(currentUrl);
+  useEffect(() => setPreview(currentUrl), [currentUrl]);
 
   async function handleFile(file: File) {
     setStatus("uploading");
@@ -75,10 +80,15 @@ export function ImageUploader({
         if (!res.ok) throw new Error(`Storage upload failed (${res.status})`);
       }
 
-      await staffRequest(endpoint, {
+      const updated = await staffRequest<Record<string, unknown>>(endpoint, {
         method: "PUT",
         body: JSON.stringify({ object_key: presigned.object_key }),
       });
+      // The attach response is the owner serializer; its public URL lives under
+      // image_url (items/printers) or logo_url/cover_image_url (makerspace).
+      const newUrl =
+        (updated.image_url ?? updated.logo_url ?? updated.cover_image_url) as string | null | undefined;
+      setPreview(newUrl ?? null);
       setStatus("idle");
       onChanged();
     } catch (err) {
@@ -92,6 +102,7 @@ export function ImageUploader({
     setError("");
     try {
       await staffRequest(endpoint, { method: "DELETE" });
+      setPreview(null);
       setStatus("idle");
       onChanged();
     } catch (err) {
@@ -105,9 +116,9 @@ export function ImageUploader({
       <p className="font-mono text-xs uppercase tracking-tight text-muted">{label}</p>
       <div className="flex items-center gap-3 rounded-2xl border border-dashed border-ink bg-bg p-3">
         <div className={`${previewBox} shrink-0 overflow-hidden rounded-xl border border-ink bg-surface shadow-brutal-sm`}>
-          {currentUrl ? (
+          {preview ? (
             <img
-              src={currentUrl}
+              src={preview}
               alt={label}
               className={`h-full w-full ${fit === "contain" ? "object-contain" : "object-cover"}`}
             />
@@ -128,7 +139,7 @@ export function ImageUploader({
             }}
             className="block w-full text-sm text-muted file:mr-3 file:rounded-full file:border file:border-ink file:bg-accent file:px-3 file:py-1.5 file:font-mono file:text-xs file:font-semibold file:uppercase file:text-on-accent"
           />
-          {currentUrl ? (
+          {preview ? (
             <button
               type="button"
               className="desk-button mt-1"

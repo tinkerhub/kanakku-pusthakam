@@ -215,10 +215,17 @@ export function PrintingReportSection({ makerspace, aggregate }: { makerspace: M
             </div>
             <div>
               <h3 className="mb-2 text-sm font-semibold text-ink">Top requesters (by filament)</h3>
-              <BarChart
-                rows={(printing.data?.top_requesters ?? []).slice(0, 8).map((row) => ({ label: row.requester, value: row.grams }))}
-                valueLabel="g"
-              />
+              {aggregate ? (
+                // The aggregate list is ordered per makerspace, so a single top-8 bar chart
+                // would only show the first makerspace. The per-makerspace table below is
+                // the source of truth in aggregate mode.
+                <p className="mb-2 text-xs text-muted">Per-makerspace ranking shown in the table below.</p>
+              ) : (
+                <BarChart
+                  rows={(printing.data?.top_requesters ?? []).slice(0, 8).map((row) => ({ label: row.requester, value: row.grams }))}
+                  valueLabel="g"
+                />
+              )}
               <ReportTable
                 data={{
                   rows: [

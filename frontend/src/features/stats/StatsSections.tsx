@@ -47,6 +47,13 @@ export function PrintingSection({ printing }: { printing: PublicStatsPrinting })
           </h3>
           {printing.busiest_printer ? (
             <div className="mt-3 space-y-2 text-sm">
+              {printing.busiest_printer.image_url ? (
+                <img
+                  src={printing.busiest_printer.image_url}
+                  alt={printing.busiest_printer.name}
+                  className="h-28 w-full rounded-md border border-ink object-cover"
+                />
+              ) : null}
               <p className="text-xl font-bold text-ink">
                 {printing.busiest_printer.name}
               </p>

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Panel, useStaffGet, type Makerspace } from "./shared";
+import { Panel, type Makerspace } from "./shared";
 import { staffRequest } from "../../../lib/api";
 
 type EmailLogStatus = "" | "sent" | "failed" | "pending";
@@ -35,10 +35,16 @@ export function EmailLogPanel({ makerspace }: { makerspace: Makerspace }) {
   if (status) params.set("status", status);
   params.set("page", String(page));
   const query = params.toString();
-  const logs = useStaffGet<EmailLogResponse>(
-    ["email-logs", makerspace.id, query],
-    `/admin/makerspace/${makerspace.id}/email-logs?${query}`,
-  );
+  const logs = useQuery<EmailLogResponse>({
+    queryKey: ["email-logs", makerspace.id, query],
+    queryFn: () => staffRequest<EmailLogResponse>(`/admin/makerspace/${makerspace.id}/email-logs?${query}`),
+    // Async (Celery) delivery returns a row as `pending`; poll while any visible row is
+    // still pending so the status (sent/failed) updates without a manual refresh.
+    refetchInterval: (q) => {
+      const data = q.state.data as EmailLogResponse | undefined;
+      return data?.results.some((row) => row.status === "pending") ? 4000 : false;
+    },
+  });
   const retry = useMutation({
     mutationFn: (id: number) =>
       staffRequest<EmailLogEntry>(`/admin/makerspace/${makerspace.id}/email-logs/${id}/retry`, {
@@ -59,6 +65,7 @@ export function EmailLogPanel({ makerspace }: { makerspace: Makerspace }) {
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <select
           className="desk-input w-full sm:w-48"
+          aria-label="Filter email logs by status"
           value={status}
           onChange={(event) => updateStatus(event.target.value as EmailLogStatus)}
         >
@@ -116,6 +123,9 @@ export function EmailLogPanel({ makerspace }: { makerspace: Makerspace }) {
             ))}
           </tbody>
         </table>
+        {logs.isLoading ? (
+          <p className="py-4 text-sm text-muted">Loading email logs…</p>
+        ) : null}
         {logs.data && logs.data.results.length === 0 ? (
           <p className="py-4 text-sm text-muted">No email logs.</p>
         ) : null}
