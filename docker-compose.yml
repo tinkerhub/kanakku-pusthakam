@@ -133,10 +133,15 @@ services:
     container_name: kanakku-pusthakam-worker
     environment: *backend-env
     command: celery -A config worker -l info
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      # Gate on the backend being healthy: it runs `migrate` at start, so the worker
+      # never consumes tasks against an unmigrated schema.
+      backend:
         condition: service_healthy
 
   frontend:

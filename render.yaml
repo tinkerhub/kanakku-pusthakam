@@ -76,7 +76,11 @@ services:
   - type: redis
     name: makerspace-redis
     plan: starter
-    maxmemoryPolicy: allkeys-lru
+    # noeviction (not allkeys-lru): this Redis is the Celery broker — under memory
+    # pressure allkeys-lru would silently EVICT queued email jobs. ipAllowList: []
+    # keeps it private (Render requires the field for Key Value / Redis services).
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
 
   - type: web
     name: makerspace-backend
@@ -91,7 +95,10 @@ services:
     # here; migrations are NOT run at start (they are a one-off against the direct/session
     # pooler — see docs/deploy-production.md), because the runtime DATABASE_URL is the
     # transaction pooler which can't run migration prepared statements.
-    startCommand: python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 60
+    # env: docker services override the Dockerfile CMD via dockerCommand (startCommand is
+    # ignored for Docker, which would leave the Dockerfile's bare gunicorn-on-8000 CMD
+    # running without collectstatic / $PORT binding).
+    dockerCommand: python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 60
     envVars:
       - fromGroup: makerspace-prod
       - key: CELERY_BROKER_URL
@@ -106,7 +113,10 @@ services:
     plan: starter
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    startCommand: celery -A config worker -l info
+    # dockerCommand (not startCommand): for env: docker, startCommand is ignored, so the
+    # worker would run the Dockerfile's gunicorn CMD instead of Celery and the email
+    # queue would never drain.
+    dockerCommand: celery -A config worker -l info
     envVars:
       - fromGroup: makerspace-prod
       - key: CELERY_BROKER_URL

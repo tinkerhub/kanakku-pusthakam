@@ -230,7 +230,12 @@ CELERY_TASK_ALWAYS_EAGER = env.bool(
 CELERY_BROKER_URL = _celery_broker or "redis://redis:6379/0"
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="") or None
 CELERY_TASK_EAGER_PROPAGATES = True
-CELERY_TASK_ACKS_LATE = True
+# at-most-once delivery: the broker acks on receipt, so a worker crash mid-send cannot
+# redeliver and double-send the same email. The rare loss on a hard crash leaves the
+# EmailLog row visibly PENDING/FAILED, recoverable via the Email-log Retry action.
+# (acks_late=True would re-run the task after a crash -> duplicate mail, since SMTP
+# handoff isn't transactional.) Password-reset / return-reminder are sync, never queued.
+CELERY_TASK_ACKS_LATE = False
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"

@@ -65,7 +65,9 @@ class EmailLog(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["makerspace", "-created_at"]),
-            models.Index(fields=["status"]),
+            # The status-filtered list page queries makerspace + status ordered by
+            # -created_at; a composite index serves the filter and the sort together.
+            models.Index(fields=["makerspace", "status", "-created_at"]),
         ]
 
     def __str__(self):
