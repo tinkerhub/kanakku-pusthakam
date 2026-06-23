@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Card } from "../../components/ui/Card";
 import QrScanner from "../../components/ui/QrScanner";
 import type { PublicToolLoan } from "../../types/inventory";
+import { invalidatePublicInventory } from "../staff/queryInvalidation";
 import { publicToolCheckout, publicToolReturn } from "./api";
+import { PublicEvidenceUpload } from "./PublicEvidenceUpload";
 
 type PublicToolScanPanelProps = {
   requesterName: string;
@@ -17,7 +19,7 @@ function LoanResult({ loan }: { loan: PublicToolLoan }) {
   return (
     <div className="rounded-xl border border-tone-mint bg-tone-mint px-3 py-2 text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
       <p className="text-sm font-semibold capitalize">
-        {loan.status.replace(/_/g, " ")}: {loan.target_label}
+        {loan.status.replace(/_/g, " ")}: {loan.items.map((item) => item.product_name).join(", ") || "Tool loan"}
       </p>
       <p className="mt-1 break-all text-xs">{loan.public_token}</p>
       <div className="mt-2 space-y-1">
@@ -38,12 +40,14 @@ export function PublicToolScanPanel({
   contactPhone,
   makerspaceSlug,
 }: PublicToolScanPanelProps) {
-  const [payload, setPayload] = useState("");
-  // A camera-scanned token is held here, NOT shown in the visible input — the QR
-  // payload is an opaque physical-possession token, not something to render.
+  const queryClient = useQueryClient();
   const [scannedToken, setScannedToken] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
-  const effectivePayload = (scannedToken || payload).trim();
+  const [issueEvidenceId, setIssueEvidenceId] = useState<number | null>(null);
+  const [returnEvidenceId, setReturnEvidenceId] = useState<number | null>(null);
+  const [returnRemark, setReturnRemark] = useState("");
+  const [uploadKey, setUploadKey] = useState(0);
+  const effectivePayload = scannedToken.trim();
   const checkout = useMutation({
     mutationFn: () =>
       publicToolCheckout(makerspaceSlug, {
@@ -51,21 +55,40 @@ export function PublicToolScanPanel({
         requester_name: requesterName.trim(),
         contact_email: contactEmail.trim(),
         contact_phone: contactPhone.trim(),
+        evidence_id: issueEvidenceId as number,
       }),
+    onSuccess: () => {
+      invalidatePublicInventory(queryClient, makerspaceSlug);
+      setIssueEvidenceId(null);
+      setUploadKey((key) => key + 1);
+    },
   });
   const returnTool = useMutation({
     mutationFn: () =>
       publicToolReturn(makerspaceSlug, {
         identifier: contactEmail.trim(),
         payload: effectivePayload,
+        evidence_id: returnEvidenceId as number,
+        remark: returnRemark.trim(),
       }),
+    onSuccess: () => {
+      invalidatePublicInventory(queryClient, makerspaceSlug);
+      setReturnEvidenceId(null);
+      setReturnRemark("");
+      setUploadKey((key) => key + 1);
+    },
   });
   const checkoutDisabled =
     !requesterName.trim() ||
     !contactEmail.trim() ||
     !contactPhone.trim() ||
-    !effectivePayload;
-  const returnDisabled = !contactEmail.trim() || !effectivePayload;
+    !effectivePayload ||
+    issueEvidenceId === null;
+  const returnDisabled =
+    !contactEmail.trim() ||
+    !effectivePayload ||
+    returnEvidenceId === null ||
+    !returnRemark.trim();
   const error = checkout.error?.message ?? returnTool.error?.message;
   const result = checkout.data ?? returnTool.data;
 
@@ -76,7 +99,7 @@ export function PublicToolScanPanel({
       </p>
       <h2 className="mt-2 text-xl font-semibold text-ink">Scan public tool</h2>
       <p className="mt-2 text-sm leading-6 text-muted">
-        Use your email above, then scan or paste the tool QR payload.
+        Use your email above, upload the required photo, then scan the tool QR with your camera.
       </p>
       <button
         className="desk-button mt-4 w-full"
@@ -86,9 +109,9 @@ export function PublicToolScanPanel({
       >
         Scan QR with camera
       </button>
-      {scannedToken && !payload ? (
+      {scannedToken ? (
         <p className="mt-2 inline-flex items-center gap-2 rounded-lg border border-tone-mint bg-tone-mint px-3 py-1 text-sm font-semibold text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
-          Scanned ✓
+          Scanned OK
           <button
             type="button"
             className="text-xs font-normal underline"
@@ -98,32 +121,59 @@ export function PublicToolScanPanel({
           </button>
         </p>
       ) : null}
-      <input
-        className="desk-input mt-2 w-full"
-        placeholder="…or paste a tool, asset, or box QR payload"
-        value={payload}
-        onChange={(event) => {
-          setPayload(event.target.value);
-          setScannedToken("");
-        }}
-      />
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <button
-          className="desk-button-primary disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={checkoutDisabled || checkout.isPending}
-          type="button"
-          onClick={() => checkout.mutate()}
-        >
-          {checkout.isPending ? "Checking out..." : "Check out"}
-        </button>
-        <button
-          className="desk-button"
-          disabled={returnDisabled || returnTool.isPending}
-          type="button"
-          onClick={() => returnTool.mutate()}
-        >
-          {returnTool.isPending ? "Returning..." : "Return"}
-        </button>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <section className="rounded-lg border border-line p-3">
+          <h3 className="text-sm font-semibold text-ink">Check out</h3>
+          <div className="mt-3">
+            <PublicEvidenceUpload
+              key={`issue-${uploadKey}`}
+              slug={makerspaceSlug}
+              identifier={contactEmail}
+              evidenceType="issue"
+              disabled={!contactEmail.trim() || checkout.isPending}
+              onUploaded={setIssueEvidenceId}
+            />
+          </div>
+          <button
+            className="desk-button-primary mt-3 w-full disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={checkoutDisabled || checkout.isPending}
+            type="button"
+            onClick={() => checkout.mutate()}
+          >
+            {checkout.isPending ? "Checking out..." : "Check out"}
+          </button>
+        </section>
+        <section className="rounded-lg border border-line p-3">
+          <h3 className="text-sm font-semibold text-ink">Return</h3>
+          <div className="mt-3">
+            <PublicEvidenceUpload
+              key={`return-${uploadKey}`}
+              slug={makerspaceSlug}
+              identifier={contactEmail}
+              evidenceType="return"
+              disabled={!contactEmail.trim() || returnTool.isPending}
+              onUploaded={setReturnEvidenceId}
+            />
+          </div>
+          <label className="mt-3 block">
+            <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
+              Return condition notes
+            </span>
+            <textarea
+              className="desk-input min-h-20 w-full"
+              value={returnRemark}
+              onChange={(event) => setReturnRemark(event.target.value)}
+            />
+          </label>
+          <button
+            className="desk-button mt-3 w-full disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={returnDisabled || returnTool.isPending}
+            type="button"
+            onClick={() => returnTool.mutate()}
+          >
+            {returnTool.isPending ? "Returning..." : "Return"}
+          </button>
+        </section>
       </div>
       {error ? (
         <p className="mt-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -140,7 +190,6 @@ export function PublicToolScanPanel({
           onClose={() => setScannerOpen(false)}
           onScan={(scanned) => {
             setScannedToken(scanned);
-            setPayload("");
             setScannerOpen(false);
           }}
         />

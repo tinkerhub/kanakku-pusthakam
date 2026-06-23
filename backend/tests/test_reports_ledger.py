@@ -13,8 +13,19 @@ from apps.hardware_requests.models import (
 )
 from apps.inventory.models import InventoryAsset, TrackingMode
 from tests.return_helpers import authenticated_client, make_member, make_product, make_space, make_user
+from tests.return_helpers import (
+    authenticated_client,
+    make_member,
+    make_product,
+    make_return_evidence,
+    make_issue_evidence,
+    make_space,
+    make_user,
+)
 
 pytestmark = pytest.mark.django_db
+
+_current_direct_makerspace = None
 
 
 def _request_loan(
@@ -106,6 +117,42 @@ def _container_only_direct_loan(makerspace, username, label="Container Loan"):
     loan.checked_out_at = issued_at
     loan.save(update_fields=["checked_out_at"])
     return loan
+def _direct_url(makerspace):
+    global _current_direct_makerspace
+    _current_direct_makerspace = makerspace
+    return f"/api/v1/admin/makerspace/{makerspace.id}/direct-loans"
+
+
+def _direct_payload(**overrides):
+    payload = {
+        "requester_name": "Ledger Holder",
+        "contact_email": "ledger-holder@example.com",
+        "contact_phone": "+15550101010",
+    }
+    payload.update(overrides)
+    if "evidence_id" not in payload and _current_direct_makerspace_is_live():
+        payload["evidence_id"] = _direct_issue_evidence().id
+    return payload
+
+def _current_direct_makerspace_is_live():
+    return _current_direct_makerspace is not None and _current_direct_makerspace.__class__.objects.filter(pk=_current_direct_makerspace.pk).exists()
+
+def _direct_issue_evidence():
+    assert _current_direct_makerspace is not None
+    actor = User.objects.filter(makerspace_memberships__makerspace=_current_direct_makerspace).first()
+    if actor is None:
+        actor = make_user(
+            f"evidence-{_current_direct_makerspace.slug}",
+            access_status=User.AccessStatus.ACTIVE,
+        )
+    return make_issue_evidence(_current_direct_makerspace, actor)
+
+def _direct_return_url(loan):
+    return f"/api/v1/admin/direct-loans/{loan.id}/return"
+
+
+def _return_body(evidence, notes="Container returned."):
+    return {"evidence_id": evidence.id, "notes": notes}
 
 
 def test_ledger_returns_outstanding_request_and_self_checkout_scoped_to_makerspace():

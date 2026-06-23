@@ -1,15 +1,16 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
-import { OsmmBadge } from "../../components/OsmmLogo";
 import { Card } from "../../components/ui/Card";
 import QrScanner from "../../components/ui/QrScanner";
 import { useTenant, useTenantPath } from "../../lib/tenant";
 import { formatSlug } from "./PublicInventoryParts";
+import { PublicEvidenceUpload } from "./PublicEvidenceUpload";
 import { checkoutTool, returnTool } from "./selfCheckoutApi";
 import type { PublicToolLoanResult } from "./selfCheckoutApi";
+import { invalidatePublicInventory } from "../staff/queryInvalidation";
 import { useTenantBootstrap } from "./usePublicInventory";
 
 type Mode = "checkout" | "return";
@@ -48,6 +49,7 @@ function ResultCard({ result }: { result: PublicToolLoanResult }) {
 }
 
 export function PublicSelfCheckoutPage() {
+  const queryClient = useQueryClient();
   const { slug } = useParams();
   const tenant = useTenant();
   const makerspaceSlug = tenant.mode === "single" ? tenant.slug : slug ?? "";
@@ -56,6 +58,10 @@ export function PublicSelfCheckoutPage() {
   const [requesterName, setRequesterName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [issueEvidenceId, setIssueEvidenceId] = useState<number | null>(null);
+  const [returnEvidenceId, setReturnEvidenceId] = useState<number | null>(null);
+  const [returnRemark, setReturnRemark] = useState("");
+  const [uploadKey, setUploadKey] = useState(0);
   const [scannerOpen, setScannerOpen] = useState(false);
 
   const bootstrapQuery = useTenantBootstrap(makerspaceSlug, tenant.mode === "central");
@@ -79,15 +85,34 @@ export function PublicSelfCheckoutPage() {
             requester_name: requesterName.trim(),
             contact_email: contactEmail.trim(),
             contact_phone: contactPhone.trim(),
+            evidence_id: issueEvidenceId as number,
           })
-        : returnTool(makerspaceSlug, contactEmail.trim(), payload),
+        : returnTool(makerspaceSlug, {
+            identifier: contactEmail.trim(),
+            payload,
+            evidence_id: returnEvidenceId as number,
+            remark: returnRemark.trim(),
+          }),
+    onSuccess: () => {
+      invalidatePublicInventory(queryClient, makerspaceSlug);
+      if (mode === "checkout") {
+        setIssueEvidenceId(null);
+      } else {
+        setReturnEvidenceId(null);
+        setReturnRemark("");
+      }
+      setUploadKey((key) => key + 1);
+    },
   });
   const canScan =
     mode === "checkout"
       ? requesterName.trim().length > 0 &&
         contactEmail.trim().length > 0 &&
-        contactPhone.trim().length > 0
-      : contactEmail.trim().length > 0;
+        contactPhone.trim().length > 0 &&
+        issueEvidenceId !== null
+      : contactEmail.trim().length > 0 &&
+        returnEvidenceId !== null &&
+        returnRemark.trim().length > 0;
 
   function scanTool(payload: string) {
     if (!canScan) {
@@ -116,7 +141,6 @@ export function PublicSelfCheckoutPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <OsmmBadge />
               <Link className="desk-button" to={tenantPath()}>
                 Back to inventory
               </Link>
@@ -132,7 +156,12 @@ export function PublicSelfCheckoutPage() {
           </Card>
         ) : null}
 
-        {!bootstrapQuery.isLoading && !enabled ? (
+        {bootstrapQuery.isError ? (
+          <Card>
+            <p className="text-sm text-danger">Could not load checkout access. Try again in a moment.</p>
+          </Card>
+        ) : null}
+        {!bootstrapQuery.isLoading && !bootstrapQuery.isError && !enabled ? (
           <Card>
             <p className="text-xs font-semibold tracking-wide text-accent-ink">
               Self-checkout
@@ -146,30 +175,27 @@ export function PublicSelfCheckoutPage() {
           </Card>
         ) : null}
 
-        {!bootstrapQuery.isLoading && enabled ? (
+        {!bootstrapQuery.isLoading && !bootstrapQuery.isError && enabled ? (
           <Card>
             <div
               aria-label="Checkout mode"
               className="desk-panel mt-4 flex gap-1 p-1"
-              role="tablist"
             >
               <button
-                aria-selected={mode === "checkout"}
+                aria-pressed={mode === "checkout"}
                 className={
                   mode === "checkout" ? "desk-tab desk-tab-active" : "desk-tab"
                 }
-                role="tab"
                 type="button"
                 onClick={() => setMode("checkout")}
               >
                 Use (check out)
               </button>
               <button
-                aria-selected={mode === "return"}
+                aria-pressed={mode === "return"}
                 className={
                   mode === "return" ? "desk-tab desk-tab-active" : "desk-tab"
                 }
-                role="tab"
                 type="button"
                 onClick={() => setMode("return")}
               >
@@ -221,6 +247,41 @@ export function PublicSelfCheckoutPage() {
                 />
               </label>
             ) : null}
+
+            <div className="mt-4">
+              {mode === "checkout" ? (
+                <PublicEvidenceUpload
+                  key={`issue-${uploadKey}`}
+                  slug={makerspaceSlug}
+                  identifier={contactEmail}
+                  evidenceType="issue"
+                  disabled={!contactEmail.trim() || loanMutation.isPending}
+                  onUploaded={setIssueEvidenceId}
+                />
+              ) : (
+                <>
+                  <PublicEvidenceUpload
+                    key={`return-${uploadKey}`}
+                    slug={makerspaceSlug}
+                    identifier={contactEmail}
+                    evidenceType="return"
+                    disabled={!contactEmail.trim() || loanMutation.isPending}
+                    onUploaded={setReturnEvidenceId}
+                  />
+                  <label className="mt-3 block">
+                    <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
+                      Return condition notes
+                    </span>
+                    <textarea
+                      className="desk-input min-h-24 w-full"
+                      required
+                      value={returnRemark}
+                      onChange={(event) => setReturnRemark(event.target.value)}
+                    />
+                  </label>
+                </>
+              )}
+            </div>
 
             <button
               className="desk-button-primary mt-4 w-full disabled:cursor-not-allowed disabled:opacity-50"

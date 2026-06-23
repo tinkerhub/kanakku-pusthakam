@@ -60,7 +60,7 @@ export function StockTransferPanel({
 
   const products = useStaffGet<ListResponse<Product>>(
     ["inventory", sourceMakerspaceId],
-    `/admin/makerspace/${sourceMakerspaceId}/inventory`,
+    `/admin/makerspace/${sourceMakerspaceId}/inventory?page_size=1000`,
     canCreate,
   );
   const transfers = useStaffGet<ListResponse<Transfer>>(
@@ -69,12 +69,12 @@ export function StockTransferPanel({
   );
   const sourceContainers = useStaffGet<ListResponse<Container>>(
     ["containers", sourceMakerspaceId],
-    `/admin/makerspace/${sourceMakerspaceId}/containers`,
+    `/admin/makerspace/${sourceMakerspaceId}/containers?page_size=1000`,
     canCreate,
   );
   const destinationContainers = useStaffGet<ListResponse<Container>>(
     ["containers", destinationMakerspaceId],
-    `/admin/makerspace/${destinationMakerspaceId}/containers`,
+    `/admin/makerspace/${destinationMakerspaceId}/containers?page_size=1000`,
     canCreate,
   );
 

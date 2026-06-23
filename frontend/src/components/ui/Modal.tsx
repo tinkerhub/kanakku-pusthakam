@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useId, useRef } from "react";
+import { focusFirstDialogElement, trapDialogFocus } from "./dialogFocus";
 
 type ModalProps = {
   open: boolean;
@@ -12,20 +13,30 @@ type ModalProps = {
 export function Modal({ open, onClose, title, children, footer }: ModalProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  // Keep onClose in a ref so the focus effect depends only on `open`. Callers pass a
+  // fresh inline onClose every render; if it were in the dep array, every keystroke
+  // (which re-renders the parent) would re-run this effect and steal focus back to the
+  // first field. The ref lets Escape always call the latest onClose without that churn.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
-    panelRef.current?.focus();
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const panel = panelRef.current;
+    if (panel) focusFirstDialogElement(panel);
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
+      if (event.key === "Escape") onCloseRef.current();
+      if (panel) trapDialogFocus(event, panel);
     };
 
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, open]);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previousFocus?.focus();
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -44,15 +55,15 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="desk-panel flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-ink bg-panel shadow-brutal outline-none sm:max-h-[calc(100dvh-2rem)]"
+        className="desk-panel flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden outline-none sm:max-h-[calc(100dvh-2rem)]"
       >
-        <div className="shrink-0 border-b border-ink px-4 py-3">
-          <h2 id={titleId} className="text-sm font-semibold uppercase tracking-wide text-muted">
+        <div className="shrink-0 border-b border-line px-4 py-3">
+          <h2 id={titleId} className="text-sm font-semibold tracking-wide text-muted">
             {title}
           </h2>
         </div>
-        <div className="desk-panel-body overflow-y-auto p-4">{children}</div>
-        {footer ? <div className="shrink-0 border-t border-ink px-4 py-3">{footer}</div> : null}
+        <div className="desk-panel-body overflow-y-auto overflow-x-hidden min-w-0 p-4">{children}</div>
+        {footer ? <div className="shrink-0 border-t border-line px-4 py-3">{footer}</div> : null}
       </div>
     </div>
   );

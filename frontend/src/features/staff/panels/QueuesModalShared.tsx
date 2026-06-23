@@ -13,7 +13,7 @@ export function BoxCodeField({ value, onChange, makerspaceId, pending }: { value
 
   useEffect(() => {
     let cancelled = false;
-    staffRequest<{ results: ContainerOption[] }>(`/admin/makerspace/${makerspaceId}/containers`)
+    staffRequest<{ results: ContainerOption[] }>(`/admin/makerspace/${makerspaceId}/containers?page_size=1000`)
       .then((res) => {
         if (!cancelled) setContainers((res.results ?? []).filter((c) => c.is_active !== false && c.code));
       })

@@ -4,8 +4,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import QrScanner from "../../components/ui/QrScanner";
 import { staffRequest } from "../../lib/api";
 import { DirectLoanList, type DirectLoan } from "./DirectLoanList";
+import { invalidateInventoryViews } from "./queryInvalidation";
 import { DirectLoanReturnModal } from "./DirectLoanReturnModal";
 import { Panel, type Makerspace, useStaffGet } from "./StaffPanels";
+import { EvidenceUpload } from "./panels/EvidenceUpload";
 
 type ProductOption = {
   id: number;
@@ -48,6 +50,9 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   const [verifiedIdentifier, setVerifiedIdentifier] = useState("");
   const [verifiedUsername, setVerifiedUsername] = useState("");
   const [returningLoan, setReturningLoan] = useState<DirectLoan | null>(null);
+  const [issueEvidenceId, setIssueEvidenceId] = useState<number | null>(null);
+  const [issueRemark, setIssueRemark] = useState("Issued from direct handout.");
+  const [issueUploadKey, setIssueUploadKey] = useState(0);
   const [returnEvidenceId, setReturnEvidenceId] = useState<number | null>(null);
   const [returnNotes, setReturnNotes] = useState("");
   useEffect(() => {
@@ -65,6 +70,9 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     setVerifiedIdentifier("");
     setVerifiedUsername("");
     setReturningLoan(null);
+    setIssueEvidenceId(null);
+    setIssueRemark("Issued from direct handout.");
+    setIssueUploadKey((key) => key + 1);
     setReturnEvidenceId(null);
     setReturnNotes("");
   }, [makerspace.id]);
@@ -117,22 +125,20 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
           requester_name: requesterName.trim(),
           contact_email: contactEmail.trim(),
           contact_phone: contactPhone.trim(),
+          evidence_id: issueEvidenceId as number,
+          remark: issueRemark.trim(),
           container_id: containerId ? Number(containerId) : null,
           qr_payloads: Array.from(new Set([
             ...scanned.map((item) => item.payload),
-            ...qrPayloads.split("\n").map((value) => value.trim()).filter(Boolean),
+            ...pastedQrPayloads,
           ])),
-          items: lineRows
-            .filter((line) => line.productId)
+          items: validManualLines
             .map((line) => ({ product_id: Number(line.productId), quantity: Number(line.quantity) })),
         }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["direct-loans", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["inventory-all", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["inventory", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["ledger", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["ledger", "all"] });
+      invalidateInventoryViews(queryClient, makerspace.id, makerspace.slug);
       setLineRows([{ key: 1, productId: "", quantity: "1" }]);
       setNextLineKey(2);
       setScanned([]);
@@ -140,13 +146,24 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
       setContainerId("");
       setShowContainerScanner(false);
       setContainerScanError("");
+      setIssueEvidenceId(null);
+      setIssueRemark("Issued from direct handout.");
+      setIssueUploadKey((key) => key + 1);
     },
   });
+  const pastedQrPayloads = qrPayloads.split("\n").map((value) => value.trim()).filter(Boolean);
+  const validManualLines = lineRows.filter(
+    (line) => line.productId && Number(line.quantity) > 0,
+  );
+  const hasIssueContent =
+    validManualLines.length > 0 || scanned.length > 0 || pastedQrPayloads.length > 0 || Boolean(containerId);
   const canIssue =
     isVerified &&
     requesterName.trim().length > 0 &&
     contactEmail.trim().length > 0 &&
     contactPhone.trim().length > 0 &&
+    hasIssueContent &&
+    issueEvidenceId !== null &&
     !issue.isPending;
   const returnLoan = useMutation({
     mutationFn: ({ loanId, evidenceId, notes }: ReturnLoanPayload) =>
@@ -156,8 +173,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["direct-loans", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["ledger", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["ledger", "all"] });
+      invalidateInventoryViews(queryClient, makerspace.id, makerspace.slug);
       resetReturnState();
     },
   });
@@ -314,16 +330,16 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
           <div className="grid gap-2">
             {lineRows.map((line) => (
               <div key={line.key} className="grid gap-2 md:grid-cols-[1fr_120px_auto]">
-                <select className="desk-input" value={line.productId} disabled={products.isLoading} onChange={(e) => updateLine(line.key, { productId: e.target.value })}>
+                <select aria-label="Product" className="desk-input" value={line.productId} disabled={products.isLoading} onChange={(e) => updateLine(line.key, { productId: e.target.value })}>
                   <option value="">Product</option>
                   {eligibleProducts.map((product) => (
                     <option key={product.id} value={product.id}>
                       {product.name} ({product.available_quantity} available)
-                      {product.storage_location ? ` — Shelf: ${product.storage_location}` : ""}
+                      {product.storage_location ? ` - Shelf: ${product.storage_location}` : ""}
                     </option>
                   ))}
                 </select>
-                <input className="desk-input" min={1} inputMode="numeric" type="number" value={line.quantity} onChange={(e) => updateLine(line.key, { quantity: e.target.value })} />
+                <input aria-label="Quantity" className="desk-input" min={1} inputMode="numeric" type="number" value={line.quantity} onChange={(e) => updateLine(line.key, { quantity: e.target.value })} />
                 <button className="desk-button" type="button" onClick={() => removeLine(line.key)}>Remove</button>
               </div>
             ))}
@@ -346,11 +362,33 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
           ) : null}
         </div>
         <textarea
+          aria-label="QR payloads"
           className="desk-input mt-3 h-24 w-full font-mono text-sm"
           placeholder="Optional QR payloads, one per line"
           value={qrPayloads}
           onChange={(e) => setQrPayloads(e.target.value)}
         />
+        <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr]">
+          <EvidenceUpload
+            key={issueUploadKey}
+            makerspaceId={makerspace.id}
+            evidenceType="issue"
+            disabled={issue.isPending}
+            onUploaded={setIssueEvidenceId}
+          />
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
+              Issue remark
+            </span>
+            <textarea
+              className="desk-input min-h-20 w-full"
+              value={issueRemark}
+              onChange={(event) => setIssueRemark(event.target.value)}
+            />
+          </label>
+        </div>
+        {issueEvidenceId === null ? <p className="mt-3 text-sm text-muted">Upload an issue photo before issuing.</p> : null}
+        {!hasIssueContent ? <p className="mt-3 text-sm text-muted">Add at least one item, QR payload, or container before issuing.</p> : null}
         <button className="desk-button-primary mt-3" disabled={!canIssue} onClick={() => issue.mutate()}>
           Issue direct handout
         </button>
