@@ -18,6 +18,7 @@ type EmailLogEntry = {
   attempts: number;
   created_at: string;
   sent_at: string | null;
+  can_retry: boolean;
 };
 
 type EmailLogResponse = {
@@ -42,7 +43,9 @@ export function EmailLogPanel({ makerspace }: { makerspace: Makerspace }) {
     // still pending so the status (sent/failed) updates without a manual refresh.
     refetchInterval: (q) => {
       const data = q.state.data as EmailLogResponse | undefined;
-      return data?.results.some((row) => row.status === "pending") ? 4000 : false;
+      // Poll only while a row is freshly pending; a stalled pending row (can_retry) won't
+      // change on its own, so stop polling and surface its Retry action instead.
+      return data?.results.some((row) => row.status === "pending" && !row.can_retry) ? 4000 : false;
     },
   });
   const retry = useMutation({
@@ -109,7 +112,7 @@ export function EmailLogPanel({ makerspace }: { makerspace: Makerspace }) {
                   {log.status === "failed" ? truncate(log.error) : ""}
                 </td>
                 <td className="whitespace-nowrap px-2 py-2">
-                  {log.status === "failed" ? (
+                  {log.can_retry ? (
                     <button
                       className="desk-button"
                       disabled={retry.isPending}

@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import serializers, status
 from rest_framework.pagination import PageNumberPagination
@@ -13,28 +16,52 @@ from apps.integrations.dispatch import _enqueue
 from apps.integrations.models import EmailLog
 from apps.makerspaces.models import Makerspace
 
+# Under at-most-once delivery (CELERY_TASK_ACKS_LATE=False) a worker that dies mid-send
+# leaves the row PENDING with no further progress. A PENDING row whose updated_at hasn't
+# advanced past this window is treated as stalled and becomes retryable (alongside FAILED),
+# so a stranded email is recoverable instead of polling forever with no action.
+STALE_PENDING_AFTER = timedelta(minutes=10)
+
+
+def _can_retry(log):
+    if not (log.text_body or log.html_body):
+        return False
+    if log.status == EmailLog.Status.FAILED:
+        return True
+    if log.status == EmailLog.Status.PENDING:
+        return log.updated_at < timezone.now() - STALE_PENDING_AFTER
+    return False
+
+
+_EMAIL_LOG_FIELDS = (
+    "id",
+    "to_email",
+    "subject",
+    "stream",
+    "event",
+    "audience",
+    "status",
+    "error",
+    "attempts",
+    "created_at",
+    "sent_at",
+)
+
 
 class EmailLogPagination(PageNumberPagination):
     page_size = 24
 
 
 class EmailLogSerializer(serializers.ModelSerializer):
+    can_retry = serializers.SerializerMethodField()
+
     class Meta:
         model = EmailLog
-        fields = (
-            "id",
-            "to_email",
-            "subject",
-            "stream",
-            "event",
-            "audience",
-            "status",
-            "error",
-            "attempts",
-            "created_at",
-            "sent_at",
-        )
-        read_only_fields = fields
+        fields = (*_EMAIL_LOG_FIELDS, "can_retry")
+        read_only_fields = _EMAIL_LOG_FIELDS
+
+    def get_can_retry(self, obj) -> bool:
+        return _can_retry(obj)
 
 
 @extend_schema(
@@ -103,14 +130,16 @@ class EmailLogRetryView(APIView):
         # The makerspace_id path segment gives the origin-scope guard tenant context
         # (so tenant-domain admins aren't 403'd); also pins the log to that makerspace.
         log = get_object_or_404(queryset, pk=pk, makerspace_id=makerspace_id)
-        if log.status != EmailLog.Status.FAILED:
-            return Response(
-                {"detail": "Only failed emails can be retried."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         if not log.text_body and not log.html_body:
             return Response(
                 {"detail": "This email cannot be retried (no stored content)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not _can_retry(log):
+            # FAILED, or a PENDING row stalled past STALE_PENDING_AFTER (a crashed
+            # at-most-once delivery). A fresh PENDING / already-SENT row is not retryable.
+            return Response(
+                {"detail": "Only failed or stalled emails can be retried."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         log.status = EmailLog.Status.PENDING

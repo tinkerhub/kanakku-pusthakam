@@ -197,3 +197,57 @@ def test_email_log_api_returns_404_for_cross_tenant_hidden_and_archived():
     assert manager_client.get(log_url(other_space)).status_code == 404
     assert manager_client.get(log_url(archived_space)).status_code == 404
     assert authenticated_client(superadmin).get(log_url(hidden_space)).status_code == 404
+
+
+def test_can_retry_covers_failed_and_stalled_pending():
+    from datetime import timedelta
+
+    from apps.admin_api.views_email_logs import STALE_PENDING_AFTER, _can_retry
+
+    makerspace = make_space("email-log-canretry")
+    base = dict(makerspace=makerspace, to_email="x@y.com", subject="s", text_body="body")
+    failed = EmailLog.objects.create(**base, status=EmailLog.Status.FAILED)
+    sent = EmailLog.objects.create(**base, status=EmailLog.Status.SENT)
+    fresh_pending = EmailLog.objects.create(**base, status=EmailLog.Status.PENDING)
+    no_body = EmailLog.objects.create(
+        makerspace=makerspace, to_email="x@y.com", subject="s", status=EmailLog.Status.FAILED
+    )
+
+    assert _can_retry(failed) is True
+    assert _can_retry(sent) is False
+    assert _can_retry(fresh_pending) is False  # not yet stalled
+    assert _can_retry(no_body) is False  # nothing to resend
+
+    # Age the pending row past the stall window -> retryable.
+    EmailLog.objects.filter(pk=fresh_pending.pk).update(
+        updated_at=timezone.now() - STALE_PENDING_AFTER - timedelta(minutes=1)
+    )
+    fresh_pending.refresh_from_db()
+    assert _can_retry(fresh_pending) is True
+
+
+def test_retry_endpoint_allows_stalled_pending_but_not_fresh():
+    from datetime import timedelta
+
+    from apps.admin_api.views_email_logs import STALE_PENDING_AFTER
+
+    makerspace = make_space("email-log-retry-stale")
+    manager = make_member("email-log-retry-mgr", makerspace)
+    client = authenticated_client(manager)
+    log = EmailLog.objects.create(
+        makerspace=makerspace,
+        to_email="x@y.com",
+        subject="s",
+        text_body="body",
+        status=EmailLog.Status.PENDING,
+    )
+    retry_url = f"{log_url(makerspace)}/{log.id}/retry"
+
+    # Fresh pending is not retryable (it may still be in flight).
+    assert client.post(retry_url).status_code == 400
+
+    EmailLog.objects.filter(pk=log.pk).update(
+        updated_at=timezone.now() - STALE_PENDING_AFTER - timedelta(minutes=1)
+    )
+    # Stalled pending (crashed at-most-once delivery) is recoverable.
+    assert client.post(retry_url).status_code == 200

@@ -12293,11 +12293,16 @@
                         "format": "date-time",
                         "readOnly": true,
                         "nullable": true
+                    },
+                    "can_retry": {
+                        "type": "boolean",
+                        "readOnly": true
                     }
                 },
                 "required": [
                     "attempts",
                     "audience",
+                    "can_retry",
                     "created_at",
                     "error",
                     "event",
