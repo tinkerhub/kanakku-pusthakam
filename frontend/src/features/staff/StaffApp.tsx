@@ -310,6 +310,10 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     if (tabName === "qr") return canManageQr;
     if (tabName === "scanner") return canManageQr;
     if (tabName === "audit") return canViewAudit;
+    // Reports surface borrower PII (readable Check-In email/phone via requester labels),
+    // so they're VIEW_AUDIT-gated on the backend. Guest admins (handout-only) lose the
+    // tab; print managers keep it for their printing report (separate MANAGE_PRINTING data).
+    if (tabName === "reports") return canViewAudit || canSeePrinting;
     if (tabName === "users") return canManageMakerspace;
     if (tabName === "settings") return canManageMakerspace;
     if (tabName === "emails") return canEditInventory || canSeePrinting || canManageMakerspace;

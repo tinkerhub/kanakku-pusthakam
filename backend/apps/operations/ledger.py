@@ -228,7 +228,7 @@ def _source(loan):
 
 
 def _request_holder(request):
-    # Delegates to the shared readable-label resolver. ``allow_internal_fallback``
-    # + empty fallback reproduce this function's original last-resort behaviour
-    # exactly (return the raw value, even the privacy hash, before giving up).
-    return requester_label(request, fallback="", allow_internal_fallback=True)
+    # Delegates to the shared readable-label resolver. The internal checkin_<hash>
+    # username is never a useful holder label, so we never fall back to it — a
+    # hash-only requester resolves to "Member" (matches the requester-label invariant).
+    return requester_label(request, fallback="Member")

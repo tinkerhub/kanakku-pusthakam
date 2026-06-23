@@ -10,12 +10,13 @@ class EmailLogAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     list_display = ("created_at", "to_email", "stream", "event", "status", "makerspace")
     list_filter = ("status", "stream", "makerspace")
     search_fields = ("to_email", "subject", "event", "error", "makerspace__name")
+    # Bodies (text_body/html_body) are deliberately NOT exposed here: a body can carry
+    # PII and, for non-persisted sends, a live recovery token. Same rule the REST
+    # serializer follows — bodies never serialized to API or admin — applies to /control/.
     readonly_fields = (
         "makerspace",
         "to_email",
         "subject",
-        "text_body",
-        "html_body",
         "stream",
         "event",
         "audience",
@@ -23,11 +24,16 @@ class EmailLogAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "status",
         "error",
         "attempts",
+        "body_stored",
         "created_at",
         "updated_at",
         "sent_at",
     )
     fields = readonly_fields
+
+    @admin.display(boolean=True, description="Body stored")
+    def body_stored(self, obj):
+        return bool(obj.text_body or obj.html_body)
 
     def has_add_permission(self, request):
         return False

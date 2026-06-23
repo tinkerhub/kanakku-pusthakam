@@ -56,8 +56,8 @@ class AnalyticsView(APIView):
 
     @extend_schema(tags=["Analytics"], summary="Get analytics report", request=None, responses={200: OpenApiTypes.OBJECT})
     def get(self, request, makerspace_id, report_key="summary", *args, **kwargs):
-        makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
-        require_action(request.user, rbac.Action.VIEW_INVENTORY, makerspace.id)
+        makerspace = _makerspace_for_report_view(request.user, makerspace_id)
+        require_action(request.user, rbac.Action.VIEW_AUDIT, makerspace.id)
         require_module(makerspace, "reports")
         return Response(reports.report_data(report_key, makerspace.id))
 
@@ -98,8 +98,8 @@ class ReportExportView(APIView):
         },
     )
     def get(self, request, makerspace_id, report_key, *args, **kwargs):
-        makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
-        require_action(request.user, rbac.Action.VIEW_INVENTORY, makerspace.id)
+        makerspace = _makerspace_for_report_view(request.user, makerspace_id)
+        require_action(request.user, rbac.Action.VIEW_AUDIT, makerspace.id)
         require_module(makerspace, "reports")
         fmt = request.query_params.get("format", "csv")
         rows = reports.report_rows(report_key, makerspace.id)
@@ -155,6 +155,16 @@ def _makerspace_for_inventory_view(user, makerspace_id):
     return get_object_or_404(queryset, pk=makerspace_id)
 
 
+def _makerspace_for_report_view(user, makerspace_id):
+    # Reports surface borrower identities (readable Check-In email/phone via the
+    # requester labels). That is audit-grade PII, so reports are VIEW_AUDIT-gated —
+    # Guest Admins (handout-only, no VIEW_AUDIT) get 404-before-403, matching the
+    # lending-history endpoint. Scope by the same action so the makerspace lookup 404s.
+    queryset = rbac.scope_by_action(user, rbac.Action.VIEW_AUDIT, Makerspace.objects.all(), field="id")
+    queryset = rbac.hide_from_superadmin(user, queryset, field="id")
+    return get_object_or_404(queryset, pk=makerspace_id)
+
+
 def _require_superadmin(user):
     if not (user.is_superuser or user.role == user.Role.SUPERADMIN):
         raise PermissionDenied()
@@ -165,10 +175,20 @@ def _ledger_payload(rows):
     return serializer.data
 
 
+def _neutralize_formula(value):
+    # Spreadsheet formula-injection guard: a requester-supplied label like "=HYPERLINK(..)"
+    # or "+cmd" executes when the export is opened in Excel/Sheets. Prefix a leading
+    # apostrophe so the cell is treated as text. Only touches strings starting with the
+    # dangerous lead characters; numbers/datetimes pass through untouched.
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + value
+    return value
+
+
 def _csv_response(rows, filename):
     buffer = StringIO()
     writer = csv.writer(buffer)
-    writer.writerows(rows)
+    writer.writerows([_neutralize_formula(v) for v in row] for row in rows)
     response = HttpResponse(buffer.getvalue(), content_type="text/csv")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
@@ -194,4 +214,4 @@ def _xlsx_cell(value):
 
     if isinstance(value, _dt) and value.tzinfo is not None:
         return value.replace(tzinfo=None)
-    return value
+    return _neutralize_formula(value)
