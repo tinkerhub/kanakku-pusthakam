@@ -10,6 +10,7 @@ export type PublicFilamentSpool = {
   id: number;
   material: string;
   color: string;
+  remaining_weight_grams?: string;
 };
 
 export type PrintStatus = {

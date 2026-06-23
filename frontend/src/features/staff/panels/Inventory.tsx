@@ -182,7 +182,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
             </>
           )}
         />
-        <DataTable<AdminProduct> columns={columns} data={rows} getRowId={(row) => row.id} selectedIds={selectedIds} onSelectionChange={setSelectedIds} loading={products.isLoading} emptyTitle="No inventory" skeletonCols={columns.length + 1} />
+        <DataTable<AdminProduct> columns={columns} data={rows} getRowId={(row) => row.id} selectedIds={selectedIds} onSelectionChange={setSelectedIds} loading={products.isLoading} emptyTitle="No inventory" />
         {toBuyMessage ? <p className="text-sm text-muted">{toBuyMessage}</p> : null}
         {bulkQrMessage ? <p className="text-sm text-muted">{bulkQrMessage}</p> : null}
       </div>

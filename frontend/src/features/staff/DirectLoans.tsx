@@ -164,6 +164,230 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     contactPhone.trim().length > 0 &&
     hasIssueContent &&
     issueEvidenceId !== null &&
+    !issue.isPending;
+  const returnLoan = useMutation({
+    mutationFn: ({ loanId, evidenceId, notes }: ReturnLoanPayload) =>
+      staffRequest(`/admin/direct-loans/${loanId}/return`, {
+        method: "POST",
+        body: JSON.stringify({ evidence_id: evidenceId, notes }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["direct-loans", makerspace.id] });
+      invalidateInventoryViews(queryClient, makerspace.id, makerspace.slug);
+      resetReturnState();
+    },
+  });
+  const resetReturnState = () => {
+    setReturningLoan(null);
+    setReturnEvidenceId(null);
+    setReturnNotes("");
+  };
+  const openReturnModal = (loan: DirectLoan) => {
+    returnLoan.reset();
+    setReturningLoan(loan);
+    setReturnEvidenceId(null);
+    setReturnNotes("");
+  };
+  const closeReturnModal = () => {
+    if (returnLoan.isPending) return;
+    returnLoan.reset();
+    resetReturnState();
+  };
+  const submitReturn = () => {
+    if (!returningLoan || returnEvidenceId === null || !returnNotes.trim()) return;
+    returnLoan.mutate({
+      loanId: returningLoan.id,
+      evidenceId: returnEvidenceId,
+      notes: returnNotes.trim(),
+    });
+  };
+  const addLine = () => {
+    setLineRows((rows) => [...rows, { key: nextLineKey, productId: "", quantity: "1" }]);
+    setNextLineKey((key) => key + 1);
+  };
+  const updateLine = (key: number, patch: Partial<LineDraft>) => {
+    setLineRows((rows) => rows.map((line) => (line.key === key ? { ...line, ...patch } : line)));
+  };
+  const removeLine = (key: number) => {
+    setLineRows((rows) => rows.filter((line) => line.key !== key));
+  };
+  const removeScanned = (payload: string) => {
+    setScanned((items) => items.filter((item) => item.payload !== payload));
+  };
+  const updateContactEmail = (value: string) => {
+    setContactEmail(value);
+    setVerifiedIdentifier("");
+    setVerifiedUsername("");
+    verify.reset();
+  };
+  const handleScan = async (payload: string) => {
+    const cleanPayload = payload.trim();
+    if (!cleanPayload || scanned.some((item) => item.payload === cleanPayload)) return;
+    let label = cleanPayload;
+    try {
+      const result = await staffRequest<QrResolveResponse>("/admin/qr/resolve", {
+        method: "POST",
+        body: JSON.stringify({ payload: cleanPayload }),
+      });
+      label = labelForTarget(result.target, cleanPayload);
+    } catch {
+      label = cleanPayload;
+    }
+    setScanned((items) =>
+      items.some((item) => item.payload === cleanPayload)
+        ? items
+        : [...items, { payload: cleanPayload, label }],
+    );
+  };
+  const handleContainerScan = async (payload: string) => {
+    try {
+      const result = await staffRequest<QrResolveResponse>("/admin/qr/resolve", {
+        method: "POST",
+        body: JSON.stringify({ payload }),
+      });
+      const target = result.target;
+      if (target.type !== "box") {
+        setContainerScanError("Scanned QR is not a container.");
+        return;
+      }
+      if (!containerOptions.some((container) => container.id === target.id)) {
+        setContainerScanError("That container isn't available for handout (inactive or not found).");
+        return;
+      }
+      setContainerId(String(target.id));
+      setContainerScanError("");
+    } catch {
+      setContainerScanError("Could not resolve the scanned QR.");
+    } finally {
+      setShowContainerScanner(false);
+    }
+  };
+
+  return (
+    <div className="grid gap-4">
+      <Panel title="Direct handout">
+        <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+          <input
+            className="desk-input"
+            placeholder="Borrower name"
+            required
+            value={requesterName}
+            onChange={(e) => setRequesterName(e.target.value)}
+          />
+          <input
+            className="desk-input"
+            placeholder="Borrower email"
+            required
+            type="email"
+            value={contactEmail}
+            onChange={(e) => updateContactEmail(e.target.value)}
+          />
+          <button className="desk-button" type="button" disabled={!contactEmail.trim() || verify.isPending} onClick={() => verify.mutate(contactEmail.trim())}>
+            Verify check-in
+          </button>
+        </div>
+        <input
+          className="desk-input mt-2 w-full"
+          placeholder="Borrower phone"
+          required
+          type="tel"
+          value={contactPhone}
+          onChange={(e) => setContactPhone(e.target.value)}
+        />
+        {isVerified && verifiedUsername ? <p className="mt-2 text-sm text-success-ink">Verified as {verifiedUsername}</p> : null}
+        {verify.error ? <p className="mt-2 text-sm text-danger">{verify.error.message}</p> : null}
+        <label className="mt-4 block text-sm font-medium text-ink" htmlFor="direct-loan-container">Container (optional)</label>
+        <div className="mt-1 flex flex-col gap-2 md:flex-row">
+          <select
+            id="direct-loan-container"
+            className="desk-input w-full"
+            value={containerId}
+            disabled={containers.isLoading}
+            onChange={(e) => setContainerId(e.target.value)}
+          >
+            <option value="">No container</option>
+            {containerOptions.map((container) => (
+              <option key={container.id} value={container.id}>{container.label}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="desk-button"
+            onClick={() => {
+              setContainerScanError("");
+              setShowContainerScanner(true);
+            }}
+          >
+            Scan container
+          </button>
+        </div>
+        {containerScanError ? <p className="mt-1 text-sm text-danger">{containerScanError}</p> : null}
+        <div className="mt-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold text-ink">Items</h3>
+            <button className="desk-button" type="button" onClick={addLine}>Add item</button>
+          </div>
+          <div className="grid gap-2">
+            {lineRows.map((line) => (
+              <div key={line.key} className="grid gap-2 md:grid-cols-[1fr_120px_auto]">
+                <select aria-label="Product" className="desk-input" value={line.productId} disabled={products.isLoading} onChange={(e) => updateLine(line.key, { productId: e.target.value })}>
+                  <option value="">Product</option>
+                  {eligibleProducts.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} ({product.available_quantity} available)
+                      {product.storage_location ? ` - Shelf: ${product.storage_location}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <input aria-label="Quantity" className="desk-input" min={1} inputMode="numeric" type="number" value={line.quantity} onChange={(e) => updateLine(line.key, { quantity: e.target.value })} />
+                <button className="desk-button" type="button" onClick={() => removeLine(line.key)}>Remove</button>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold text-ink">QR payloads</h3>
+            <button className="desk-button" type="button" onClick={() => setShowScanner(true)}>Scan QR</button>
+          </div>
+          {scanned.length ? (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {scanned.map((item) => (
+                <span key={item.payload} className="inline-flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-1 text-sm text-ink">
+                  {item.label}
+                  <button className="text-muted hover:text-danger" type="button" onClick={() => removeScanned(item.payload)}>Remove</button>
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        <textarea
+          aria-label="QR payloads"
+          className="desk-input mt-3 h-24 w-full font-mono text-sm"
+          placeholder="Optional QR payloads, one per line"
+          value={qrPayloads}
+          onChange={(e) => setQrPayloads(e.target.value)}
+        />
+        <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr]">
+          <EvidenceUpload
+            key={issueUploadKey}
+            makerspaceId={makerspace.id}
+            evidenceType="issue"
+            disabled={issue.isPending}
+            onUploaded={setIssueEvidenceId}
+          />
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
+              Issue remark
+            </span>
+            <textarea
+              className="desk-input min-h-20 w-full"
+              value={issueRemark}
+              onChange={(event) => setIssueRemark(event.target.value)}
+            />
+          </label>
+        </div>
+        {issueEvidenceId === null ? <p className="mt-3 text-sm text-muted">Upload an issue photo before issuing.</p> : null}
         {!hasIssueContent ? <p className="mt-3 text-sm text-muted">Add at least one item, QR payload, or container before issuing.</p> : null}
         <button className="desk-button-primary mt-3" disabled={!canIssue} onClick={() => issue.mutate()}>
           Issue direct handout

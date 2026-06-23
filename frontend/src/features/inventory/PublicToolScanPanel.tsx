@@ -41,7 +41,8 @@ export function PublicToolScanPanel({
   makerspaceSlug,
 }: PublicToolScanPanelProps) {
   const queryClient = useQueryClient();
-  // A camera-scanned token is held here, NOT shown in the visible input - the QR payload is an opaque physical-possession token.`r`n  const [scannedToken, setScannedToken] = useState("");
+  // A camera-scanned token is held here, NOT shown in the visible input - the QR payload is an opaque physical-possession token.
+  const [scannedToken, setScannedToken] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
   const [issueEvidenceId, setIssueEvidenceId] = useState<number | null>(null);
   const [returnEvidenceId, setReturnEvidenceId] = useState<number | null>(null);

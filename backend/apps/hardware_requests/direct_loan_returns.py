@@ -7,7 +7,7 @@ from apps.evidence import storage
 from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.direct_loan_audit import record_item_logs
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan, ReturnEvent
-from apps.hardware_requests.self_checkout_workflow import _return_request_items
+from apps.hardware_requests.self_checkout_helpers import _return_request_items
 from apps.hardware_requests.workflow_errors import (
     EvidenceNotUploaded,
     InvalidTransition,
