@@ -23,6 +23,12 @@ def dispatch_email(
     persist_body=True,
     sync=False,
 ):
+    # A redacted (persist_body=False) row has no stored body, so the async path — which
+    # reloads the row from the DB inside the worker — would deliver an EMPTY email. The
+    # real body lives only on the in-memory instance, which exists solely in the sync
+    # path. Fail closed rather than silently send blank mail.
+    if not persist_body and not sync:
+        raise ValueError("persist_body=False requires sync=True (async would send an empty body)")
     # persist_body=False keeps the rendered body OUT of the stored row (e.g. password
     # reset emails embed a live recovery token in the body — persisting it would leave a
     # usable token in the DB + Django admin until expiry). We still deliver the real body:

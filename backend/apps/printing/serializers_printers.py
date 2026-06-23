@@ -67,7 +67,15 @@ class PrintPrinterSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         if "makerspace_id" in validated_data:
-            instance.makerspace_id = validated_data.pop("makerspace_id")
+            new_makerspace_id = validated_data.pop("makerspace_id")
+            if new_makerspace_id != instance.makerspace_id and instance.image_key:
+                # The image object lives under printers/<old_makerspace>/...; a
+                # cross-makerspace move would leave it pointing at the previous tenant's
+                # path (a stale cross-tenant image that also escapes that tenant's purge).
+                # Drop the image on move; the new owner re-uploads.
+                public_image_storage.delete_object(instance.image_key)
+                instance.image_key = ""
+            instance.makerspace_id = new_makerspace_id
         return super().update(instance, validated_data)
 
     def get_image_url(self, obj) -> str | None:

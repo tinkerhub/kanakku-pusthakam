@@ -1,4 +1,4 @@
-from django.db.models import Count, Sum
+from django.db.models import Count, Max, Sum
 
 from apps.accounts import rbac
 from apps.boxes.models import QrScanEvent
@@ -166,13 +166,13 @@ def _most_lent(makerspace_id, aggregate):
 def _top_borrowers(makerspace_id, aggregate):
     # Group by the requester (PROTECT, non-nullable, so never collapses NULLs) and
     # resolve a readable holder label — never the internal checkin_<hash> username.
+    # Group by STABLE account-level identity (requester_id + account fields, all constant
+    # per requester). The readable per-request Check-In username is a per-request snapshot,
+    # so it is surfaced via Max() below (a representative value) rather than as a GROUP BY
+    # key — putting it in the grouping fragments one borrower into multiple rows when the
+    # snapshot differs across their requests.
     values = [
         "request__requester_id",
-        # Request-level Check-In username (from the Check-In service, stable per
-        # account) is the most readable holder label — prefer it over the account's
-        # hashed username / external id. Grouping by it alongside requester_id does
-        # not fragment counts because it is constant for a given Check-In account.
-        "request__requester_username",
         "request__requester__username",
         "request__requester__external_checkin_user_id",
     ]
@@ -187,6 +187,7 @@ def _top_borrowers(makerspace_id, aggregate):
         .annotate(
             requests=Count("request_id", distinct=True),
             items_borrowed=Sum("issued_quantity"),
+            label_username=Max("request__requester_username"),
         )
         # In aggregate mode order per makerspace first so each makerspace gets its
         # own ranking (the frontend renders a separate section per makerspace),
@@ -201,7 +202,7 @@ def _top_borrowers(makerspace_id, aggregate):
     rows = []
     for row in qs:
         holder = label_from_candidates(
-            row["request__requester_username"],
+            row["label_username"],
             row["request__requester__external_checkin_user_id"],
             row["request__requester__username"],
         )
