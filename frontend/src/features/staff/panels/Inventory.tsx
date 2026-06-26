@@ -8,6 +8,7 @@ import { downloadStaffFile, staffRequest } from "../../../lib/api";
 import { useDebouncedValue } from "../../../lib/useDebouncedValue";
 import { readStorage, writeStorage } from "../../../lib/safeStorage";
 import { ImageUploader } from "../ImageUploader";
+import { QrHistory } from "./QrHistory";
 import { invalidateInventoryViews } from "../queryInvalidation";
 import { categoryResults, Panel, type Category, type CategoryListResponse, type Makerspace, type Product, useStaffGet } from "./shared";
 
@@ -207,6 +208,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
       <ItemModal title={editing?.name ?? "Edit item"} open={Boolean(editing)} onClose={() => setEditing(null)} form={form} setForm={setForm} categories={categoryRows} pending={update.isPending} error={update.error?.message} onSubmit={() => update.mutate()}>
         {editing ? <div className="border-t border-line pt-3"><ImageUploader endpoint={`/admin/inventory/${editing.id}/image`} currentUrl={editing.image_url} label="Item photo" onChanged={invalidate} /></div> : null}
         {editing ? <QuantityAdjust product={editing} form={adjustForm} setForm={setAdjustForm} pending={adjust.isPending} error={adjust.error?.message} onSubmit={() => adjust.mutate()} /> : null}
+        {editing && canViewAudit ? <QrHistory productId={editing.id} /> : null}
         {editing && canViewAudit ? <LendingHistory productId={editing.id} /> : null}
       </ItemModal>
       {canUseToBuy ? (
@@ -241,7 +243,7 @@ function ItemModal({ title, open, onClose, form, setForm, categories, includeQua
         {includeQuantities ? <div className="grid gap-2 sm:grid-cols-2"><Field label="Total quantity"><input className="desk-input" type="number" min="0" value={form.total_quantity} onChange={(e) => setForm((c) => ({ ...c, total_quantity: e.target.value }))} /></Field><Field label="Available quantity"><input className="desk-input" type="number" min="0" value={form.available_quantity} onChange={(e) => setForm((c) => ({ ...c, available_quantity: e.target.value }))} /></Field></div> : null}
         <div className="grid gap-2 sm:grid-cols-3"><label className="inline-flex items-center gap-2"><input type="checkbox" checked={form.is_public} onChange={(e) => setForm((c) => ({ ...c, is_public: e.target.checked }))} /> Public</label><label className="inline-flex items-center gap-2"><input type="checkbox" checked={form.public_self_checkout_enabled} onChange={(e) => setForm((c) => ({ ...c, public_self_checkout_enabled: e.target.checked }))} /> Self checkout</label><label className="inline-flex items-center gap-2"><input type="checkbox" checked={form.show_public_count} onChange={(e) => setForm((c) => ({ ...c, show_public_count: e.target.checked }))} /> Show count</label></div>
         <Field label="Public visibility"><select className="desk-input" value={form.public_availability_mode} onChange={(e) => setForm((c) => ({ ...c, public_availability_mode: e.target.value }))}><option value="status_only">Status only</option><option value="exact_count">Exact count</option><option value="hidden">Hidden</option></select></Field>
-        {includeQuantities ? <p className="text-xs text-muted">A photo can be added after saving — the item opens for editing so you can upload one.</p> : null}
+        {includeQuantities ? <p className="text-xs text-muted">A photo can be added after saving - the item opens for editing so you can upload one.</p> : null}
         {children}
         {error ? <p className="text-sm text-danger">{error}</p> : null}
       </div>
@@ -254,7 +256,7 @@ function QuantityAdjust({ product, form, setForm, pending, error, onSubmit }: { 
     <div className="grid gap-3 border-t border-line pt-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">Adjust quantities</p>
       <div className="grid gap-2 sm:grid-cols-3"><InventoryMetric label="Available" value={product.available_quantity} /><InventoryMetric label="Damaged" value={product.damaged_quantity} /><InventoryMetric label="Lost" value={product.lost_quantity} /></div>
-      <div className="grid gap-2 sm:grid-cols-3"><Field label="± Available"><input className="desk-input" type="number" value={form.delta_available} onChange={(e) => setForm((c) => ({ ...c, delta_available: e.target.value }))} /></Field><Field label="± Damaged"><input className="desk-input" type="number" value={form.delta_damaged} onChange={(e) => setForm((c) => ({ ...c, delta_damaged: e.target.value }))} /></Field><Field label="± Lost"><input className="desk-input" type="number" value={form.delta_lost} onChange={(e) => setForm((c) => ({ ...c, delta_lost: e.target.value }))} /></Field></div>
+      <div className="grid gap-2 sm:grid-cols-3"><Field label="+/- Available"><input className="desk-input" type="number" value={form.delta_available} onChange={(e) => setForm((c) => ({ ...c, delta_available: e.target.value }))} /></Field><Field label="+/- Damaged"><input className="desk-input" type="number" value={form.delta_damaged} onChange={(e) => setForm((c) => ({ ...c, delta_damaged: e.target.value }))} /></Field><Field label="+/- Lost"><input className="desk-input" type="number" value={form.delta_lost} onChange={(e) => setForm((c) => ({ ...c, delta_lost: e.target.value }))} /></Field></div>
       <input className="desk-input" placeholder="Adjustment reason" value={form.reason} onChange={(e) => setForm((c) => ({ ...c, reason: e.target.value }))} />
       <div className="desk-actions flex justify-end"><button className="desk-button" type="button" disabled={pending || !form.reason.trim()} onClick={onSubmit}>Apply adjustment</button></div>
       {error ? <p className="text-sm text-danger">{error}</p> : null}
@@ -282,7 +284,7 @@ function LendingHistory({ productId }: { productId: number }) {
         <ul className="grid gap-1 text-sm text-muted">
           {recent.map((entry) => (
             <li key={entry.id}>
-              {entry.username} â€” {entry.quantity} on {formatDate(entry.issued_at)}
+              {entry.username} - {entry.quantity} on {formatDate(entry.issued_at)}
               <AttributionLine acceptedBy={entry.accepted_by} issuedBy={entry.issued_by} />
             </li>
           ))}

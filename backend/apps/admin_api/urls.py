@@ -1,4 +1,4 @@
-from django.urls import path
+﻿from django.urls import path
 
 from apps.admin_api import api_client_views, views
 from apps.admin_api.views_email_templates import (
@@ -48,6 +48,7 @@ urlpatterns = [
         name="admin-inventory-export",
     ),
     path("inventory/<int:pk>", views.InventoryDetailView.as_view(), name="admin-inventory-detail"),
+    path("inventory/<int:pk>/qr-history", views.ProductQrHistoryView.as_view(), name="admin-inventory-qr-history"),
     path(
         "inventory/<int:pk>/image",
         views.InventoryProductImageView.as_view(),
@@ -68,6 +69,7 @@ urlpatterns = [
         views.InventoryLendingHistoryView.as_view(),
         name="admin-inventory-lending-history",
     ),
+    path("assets/<int:pk>/qr-history", views.AssetQrHistoryView.as_view(), name="admin-inventory-asset-qr-history"),
     path(
         "inventory/<int:pk>/adjust-quantity",
         views.InventoryQuantityAdjustmentView.as_view(),
@@ -205,3 +207,7 @@ urlpatterns = [
         name="admin-printer-image",
     ),
 ]
+
+
+
+

@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { staffRequest } from "../../../lib/api";
 import { invalidateContainerViews } from "../queryInvalidation";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
+import { QrHistory } from "./QrHistory";
 import { QrImage } from "./QrImage";
 
 type Container = { id: number; code?: string; label: string; location?: string; is_active?: boolean };
@@ -17,7 +18,7 @@ type History = { scans: { id: number; context: string; actor: number | null; cre
 // Containers had list + create (in QR tools) but no edit/move/contents/history surface in
 // React - they were only manageable in the Django admin. This panel wires the operations
 // container endpoints (MANAGE_QR for edit/move, VIEW_INVENTORY for contents/history).
-export function ContainersPanel({ makerspace }: { makerspace: Makerspace }) {
+export function ContainersPanel({ makerspace, canViewAudit = false }: { makerspace: Makerspace; canViewAudit?: boolean }) {
   const containers = useStaffGet<{ results: Container[] }>(["containers", makerspace.id], `/admin/makerspace/${makerspace.id}/containers?page_size=1000`);
   return (
     <Panel title="Containers">
@@ -25,7 +26,7 @@ export function ContainersPanel({ makerspace }: { makerspace: Makerspace }) {
       {containers.error instanceof Error ? <p className="text-sm text-danger">{containers.error.message}</p> : null}
       <div className="grid gap-2">
         {containers.data?.results?.map((container) => (
-          <ContainerRow key={container.id} container={container} makerspaceId={makerspace.id} />
+          <ContainerRow key={container.id} container={container} makerspaceId={makerspace.id} canViewAudit={canViewAudit} />
         ))}
         {!containers.isLoading && !containers.error && !containers.data?.results?.length ? (
           <p className="text-sm text-muted">No containers yet. Create one in QR tools.</p>
@@ -35,7 +36,7 @@ export function ContainersPanel({ makerspace }: { makerspace: Makerspace }) {
   );
 }
 
-function ContainerRow({ container, makerspaceId }: { container: Container; makerspaceId: number }) {
+function ContainerRow({ container, makerspaceId, canViewAudit }: { container: Container; makerspaceId: number; canViewAudit: boolean }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [panel, setPanel] = useState<"contents" | "history" | null>(null);
@@ -93,7 +94,7 @@ function ContainerRow({ container, makerspaceId }: { container: Container; maker
           )) : !contents.isLoading && !contents.error ? <p className="text-xs text-muted">None</p> : null}
           <p className="mt-1 text-xs font-semibold text-ink">Asset units</p>
           {!contents.isLoading && !contents.error && contents.data?.assets.length ? contents.data.assets.map((asset) => (
-            <AssetQrRow key={asset.id} asset={asset} />
+            <AssetQrRow key={asset.id} asset={asset} canViewAudit={canViewAudit} />
           )) : !contents.isLoading && !contents.error ? <p className="text-xs text-muted">None</p> : null}
           {contents.data?.children.length ? (
             <p className="mt-1 text-xs text-muted">Sub-containers: {contents.data.children.map((child) => child.label).join(", ")}</p>
@@ -116,7 +117,7 @@ function ContainerRow({ container, makerspaceId }: { container: Container; maker
 
 // Reprint a single unit's QR without rebuilding a whole batch: POST asset/<id>/qr is a
 // get_or_create, so it returns the existing active QR (or makes one) and we render it.
-function AssetQrRow({ asset }: { asset: { id: number; asset_tag: string; product: string; status: string } }) {
+function AssetQrRow({ asset, canViewAudit }: { asset: { id: number; asset_tag: string; product: string; status: string }; canViewAudit: boolean }) {
   const [qrId, setQrId] = useState<number | null>(null);
   const show = useMutation({
     mutationFn: () => staffRequest<{ id: number }>(`/admin/assets/${asset.id}/qr`, { method: "POST", body: JSON.stringify({}) }),
@@ -127,6 +128,7 @@ function AssetQrRow({ asset }: { asset: { id: number; asset_tag: string; product
       <span>{asset.asset_tag} ({asset.status})</span>
       <button type="button" className="desk-button" disabled={show.isPending} onClick={() => show.mutate()}>{qrId ? "QR shown" : "Show QR"}</button>
       {qrId ? <QrImage qrId={qrId} label={asset.asset_tag} /> : null}
+      {canViewAudit ? <QrHistory assetId={asset.id} className="grid w-full gap-2 pt-2" /> : null}
       {show.error instanceof Error ? <span className="text-danger">{show.error.message}</span> : null}
     </div>
   );

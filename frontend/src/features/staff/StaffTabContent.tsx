@@ -114,7 +114,7 @@ export function StaffTabContent({
         />
       ) : null}
       {activeTab === "stocktake" && canEditInventory ? <StocktakePanel key={makerspaceKey} makerspace={activeMakerspace} isSuperadmin={isSuperadmin} /> : null}
-      {activeTab === "containers" && canManageQr ? <ContainersPanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "containers" && canManageQr ? <ContainersPanel key={makerspaceKey} makerspace={activeMakerspace} canViewAudit={canViewAudit} /> : null}
       {activeTab === "ledger" ? (
         <Ledger
           key={makerspaceKey}

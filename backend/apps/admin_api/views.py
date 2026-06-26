@@ -1,4 +1,4 @@
-from apps.admin_api.views_bulk import (
+﻿from apps.admin_api.views_bulk import (
     BulkImportApplyView,
     BulkImportJobDetailView,
     BulkImportJobListCreateView,
@@ -21,6 +21,7 @@ from apps.admin_api.views_inventory import (
 )
 from apps.admin_api.views_inventory_export import InventoryExportView
 from apps.admin_api.views_lending_history import InventoryLendingHistoryView
+from apps.admin_api.views_qr_history import AssetQrHistoryView, ProductQrHistoryView
 from apps.admin_api.views_needs_fix import (
     NeedsFixActionView,
     NeedsFixShelfListView,
@@ -48,6 +49,7 @@ from apps.admin_api.views_users import (
 __all__ = [
     "AuditLogListView",
     "AuditLogPagination",
+    "AssetQrHistoryView",
     "BulkImportApplyView",
     "BulkImportJobDetailView",
     "BulkImportJobListCreateView",
@@ -62,6 +64,7 @@ __all__ = [
     "InventoryLendingHistoryView",
     "InventoryListCreateView",
     "InventoryProductImageView",
+    "ProductQrHistoryView",
     "InventoryQuantityAdjustmentView",
     "MakerspaceCoverImageView",
     "NeedsFixShelfListView",
@@ -80,3 +83,5 @@ __all__ = [
     "_global_role_for_membership",
     "_rows_from_upload",
 ]
+
+
