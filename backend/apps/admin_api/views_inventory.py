@@ -16,6 +16,7 @@ class InventoryPagination(PageNumberPagination):
     max_page_size = 1000
 
 from apps.accounts import rbac
+from apps.admin_api.inventory_filters import apply_inventory_list_filters
 from apps.admin_api.permissions import IsActiveStaff, require_action
 from apps.admin_api.serializers_inventory import (
     InventoryProductAdminCreateSerializer,
@@ -50,7 +51,8 @@ class InventoryListCreateView(generics.ListCreateAPIView):
         makerspace_id = self.kwargs["makerspace_id"]
         require_module(makerspace_id, "staff_admin")
         require_action(self.request.user, rbac.Action.VIEW_INVENTORY, makerspace_id)
-        return InventoryProduct.objects.filter(makerspace_id=makerspace_id).order_by("name")
+        qs = InventoryProduct.objects.filter(makerspace_id=makerspace_id).order_by("name")
+        return apply_inventory_list_filters(qs, self.request.query_params)
 
     def perform_create(self, serializer):
         makerspace_id = self.kwargs["makerspace_id"]

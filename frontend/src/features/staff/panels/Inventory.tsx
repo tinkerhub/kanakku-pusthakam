@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { ConfirmDialog, DataTable, FilterBar, Modal, StatusBadge } from "../../../components/ui";
 import type { DataTableColumn } from "../../../components/ui";
-import { staffRequest } from "../../../lib/api";
+import { downloadStaffFile, staffRequest } from "../../../lib/api";
 import { useDebouncedValue } from "../../../lib/useDebouncedValue";
 import { readStorage, writeStorage } from "../../../lib/safeStorage";
 import { ImageUploader } from "../ImageUploader";
@@ -33,7 +33,7 @@ const emptyForm: ItemForm = {
 };
 const emptyAdjust: AdjustmentForm = { delta_available: "0", delta_damaged: "0", delta_lost: "0", reason: "" };
 
-export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = false }: { makerspace: Makerspace; canViewAudit?: boolean; canUseToBuy?: boolean }) {
+export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = false, canEditInventory = false }: { makerspace: Makerspace; canViewAudit?: boolean; canUseToBuy?: boolean; canEditInventory?: boolean }) {
   const queryClient = useQueryClient();
   const storageKey = `inventory.view.${makerspace.id}`;
   const [search, setSearch] = useState(() => readStorage(storageKey));
@@ -48,6 +48,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
   const [archiveTarget, setArchiveTarget] = useState<AdminProduct | null>(null);
   const [qrConfirm, setQrConfirm] = useState<boolean | null>(null);
   const [bulkQrMessage, setBulkQrMessage] = useState("");
+  const [showLowStock, setShowLowStock] = useState(false);
   const debouncedSearch = useDebouncedValue(search);
   useEffect(() => {
     setSearch(readStorage(`inventory.view.${makerspace.id}`));
@@ -62,8 +63,11 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
     setArchiveTarget(null);
     setQrConfirm(null);
     setBulkQrMessage("");
+    setShowLowStock(false);
   }, [makerspace.id]);
-  const products = useStaffGet<{ results: AdminProduct[] }>(["inventory", makerspace.id], `/admin/makerspace/${makerspace.id}/inventory`);
+  const lowStockParam = showLowStock ? "&low_stock=true" : "";
+  const inventoryQuery = `/admin/makerspace/${makerspace.id}/inventory?page_size=1000&q=${encodeURIComponent(debouncedSearch)}${lowStockParam}`;
+  const products = useStaffGet<{ results: AdminProduct[] }>(["inventory", makerspace.id, showLowStock ? "low" : "all", debouncedSearch], inventoryQuery);
   const categories = useStaffGet<CategoryListResponse>(["categories", makerspace.id], `/admin/makerspace/${makerspace.id}/categories`);
   const invalidate = () => {
     invalidateInventoryViews(queryClient, makerspace.id, makerspace.slug);
@@ -109,6 +113,15 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
       setQrConfirm(null);
       setBulkQrMessage(`${result.succeeded} of ${result.total} items updated. ${result.failed} failed.`);
       invalidate();
+    },
+  });
+  const exportInventory = useMutation({
+    mutationFn: (format: "csv" | "xlsx") => {
+      const base = `/admin/makerspace/${makerspace.id}/inventory/export?format=${format}`;
+      const query = selectedIds.length
+        ? `${base}&ids=${selectedIds.map((id) => String(id)).join(",")}`
+        : `${base}&q=${encodeURIComponent(debouncedSearch)}${lowStockParam}`;
+      return downloadStaffFile(query, `inventory-${makerspace.slug}.${format}`);
     },
   });
   const openToBuy = (product: AdminProduct) => {
@@ -176,15 +189,19 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
           actions={(
             <>
               <button className="desk-button" type="button" onClick={() => { setForm(emptyForm); setAddOpen(true); }}>Add item</button>
+              <button className="desk-button" type="button" onClick={() => setShowLowStock((value) => !value)}>{showLowStock ? "All stock" : "Low stock"}</button>
               <button className="desk-button" type="button" onClick={() => writeStorage(storageKey, search)}>Save view</button>
               <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => { setBulkQrMessage(""); setQrConfirm(true); }}>Enable QR</button>
               <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => { setBulkQrMessage(""); setQrConfirm(false); }}>Disable QR</button>
+              {canEditInventory ? <button className="desk-button" type="button" disabled={exportInventory.isPending} onClick={() => exportInventory.mutate("csv")}>{selectedIds.length ? `Export CSV (${selectedIds.length})` : "Export CSV"}</button> : null}
+              {canEditInventory ? <button className="desk-button" type="button" disabled={exportInventory.isPending} onClick={() => exportInventory.mutate("xlsx")}>{selectedIds.length ? `Export XLSX (${selectedIds.length})` : "Export XLSX"}</button> : null}
             </>
           )}
         />
         <DataTable<AdminProduct> columns={columns} data={rows} getRowId={(row) => row.id} selectedIds={selectedIds} onSelectionChange={setSelectedIds} loading={products.isLoading} emptyTitle="No inventory" />
         {toBuyMessage ? <p className="text-sm text-muted">{toBuyMessage}</p> : null}
         {bulkQrMessage ? <p className="text-sm text-muted">{bulkQrMessage}</p> : null}
+        {exportInventory.error ? <p className="text-sm text-danger">{exportInventory.error instanceof Error ? exportInventory.error.message : "Could not export inventory."}</p> : null}
       </div>
       <ItemModal title="Add item" open={addOpen} onClose={() => setAddOpen(false)} form={form} setForm={setForm} categories={categoryRows} includeQuantities pending={create.isPending} error={create.error?.message} onSubmit={() => create.mutate()} />
       <ItemModal title={editing?.name ?? "Edit item"} open={Boolean(editing)} onClose={() => setEditing(null)} form={form} setForm={setForm} categories={categoryRows} pending={update.isPending} error={update.error?.message} onSubmit={() => update.mutate()}>

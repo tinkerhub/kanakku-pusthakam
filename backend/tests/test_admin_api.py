@@ -287,6 +287,37 @@ def test_bulk_import_accepts_xlsx_upload():
     ).exists()
 
 
+def test_inventory_list_filters_low_stock_before_pagination():
+    makerspace = make_space("inventory-low-stock")
+    admin = make_member("inventory-low-stock-admin", makerspace)
+    low = make_product(
+        makerspace,
+        name="Low Resin",
+        total_quantity=10,
+        available_quantity=2,
+    )
+    make_product(
+        makerspace,
+        name="Healthy Resin",
+        total_quantity=10,
+        available_quantity=8,
+    )
+    make_product(
+        makerspace,
+        name="Z Empty Resin",
+        total_quantity=0,
+        available_quantity=0,
+    )
+
+    response = authenticated_client(admin).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory?page_size=1&low_stock=true"
+    )
+
+    assert response.status_code == 200
+    assert response.data["count"] == 2
+    assert response.data["results"][0]["id"] == low.id
+
+
 def test_inventory_create_api_writes_product_and_audit():
     makerspace = make_space("inventory-create")
     admin = make_member("inventory-create-admin", makerspace)

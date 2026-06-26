@@ -17,6 +17,7 @@ from apps.admin_api.views_inventory import (
     _assert_box_in_makerspace,
     _assert_category_in_makerspace,
 )
+from apps.admin_api.views_inventory_export import InventoryExportView
 from apps.admin_api.views_lending_history import InventoryLendingHistoryView
 from apps.admin_api.views_needs_fix import (
     NeedsFixActionView,
@@ -53,6 +54,7 @@ __all__ = [
     "EmailLogPagination",
     "EmailLogRetryView",
     "InventoryDetailView",
+    "InventoryExportView",
     "InventoryLendingHistoryView",
     "InventoryListCreateView",
     "InventoryProductImageView",

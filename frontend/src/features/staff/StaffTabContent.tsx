@@ -91,6 +91,7 @@ export function StaffTabContent({
           key={makerspaceKey}
           makerspace={activeMakerspace}
           canViewAudit={canViewAudit}
+          canEditInventory={canEditInventory}
         />
       ) : null}
       {activeTab === "needsfix" && canEditInventory ? <NeedsFixShelf key={makerspaceKey} makerspace={activeMakerspace} /> : null}
