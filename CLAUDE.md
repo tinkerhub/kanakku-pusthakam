@@ -2,6 +2,63 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — second OSMM feature-parity port (15 features, features-only) (2026-06-27)
+
+Ported 15 more upstream `Shaan-Shoukath/OSMM-Makerspace-Manager` features that landed AFTER the
+2026-06-23 port. Branch **`feat/osmm-feature-parity`** (off `main`), 7 commits (one per phase,
+each Codex-implemented + Claude-verified + tests + a background `codex review` whose findings were
+fixed before moving on). **Features only — the OSMM pastel reskin/rebrand + About page were
+deliberately NOT ported** (this fork keeps its TinkerSpace "Vibrant" theme). Plan (gitignored):
+`docs/superpowers/specs/2026-06-27-osmm-feature-parity-plan.md`.
+
+- **Phase 1 — inventory export + low-stock filter** (OSMM `67afb20`,`8b54185`). New
+  `admin_api/exports.py` (csv/xlsx + formula-injection neutralizer), `inventory_filters.py`
+  (`apply_inventory_list_filters`: archived/q/**low_stock** = `available*5 <= total`), and
+  `views_inventory_export.py` (`InventoryExportView`, **EDIT_INVENTORY**-gated since it carries
+  storage_location/box_code; selected-ids OR filtered; totals row). Frontend: low-stock toggle +
+  CSV/XLSX export buttons in `Inventory.tsx` (gated `canEditInventory`). `tests/test_inventory_export.py`.
+- **Phase 2 — report date-range + printer-model + actual filament** (`9e1f3eb`,`b9e5507`,`258d9ea`).
+  Optional **`start`/`end`** date filtering threaded additively through `operations/reports.py`
+  (kept the fork's no-`limit`-in-helpers structure + `_top_borrowers` stable-identity grouping) and
+  `printing/reports.py`, **preserving the fork's `VIEW_AUDIT` PII gate** (`_makerspace_for_report_view`).
+  `printer.model` surfaced in public stats + printing reports (no migration — field already existed).
+  Staff actual-grams override at print completion (`workflow.complete(..., actual_filament_grams=)` +
+  `CompletePrintSerializer`); `_top_requesters` ranking stays on estimated grams. Date-range inputs on
+  both report panels. **Fix:** `printer_outcomes` scopes by `created_at` (not `completed_at`) so failed
+  jobs aren't dropped under a date range.
+- **Phase 3 — procurement** (`d65f906`,`a841d4a`). status/kind filters + budget/bought totals + XLSX
+  export (reuses `admin_api/exports.py`); preserves `access.derive_kind`/`viewable_kinds`. `ProcurementPanel.tsx`.
+- **Phase 4a — bulk import: expanded mapping + per-row partial success** (`4f4df7a`,`e7ac39c`). New
+  `bulk_import_parsers.py`; apply wraps each row in a savepoint, catches `IntegrityError`, reports
+  `{created,updated,errors[]}`. **Blank optional cells now fall through to model defaults** in
+  `_normalize_row` (covers both sync + async paths). `tests/test_bulk_import_hardening.py`.
+- **Phase 4b — async bulk-import jobs** (`6b4d874`,`6e4d952`,`0ffb086`). New `admin_api/models.py`
+  `BulkImportJob` (**no FileField** — parsed-at-submit rows stored on the job, so no purge/storage
+  change) + first `admin_api/migrations/0001_initial` (dep `makerspaces/0023_makerspace_geolocation`),
+  Celery `admin_api/tasks.py` (`process_bulk_import_job`, `select_for_update` PENDING-claim → idempotent),
+  submit/poll endpoints, progress-poll UI (`BulkImport.tsx` + `BulkImportHelpers.ts`). Enqueue is
+  **fail-safe** (broker down → job marked FAILED, never 500). `lifecycle.py` purge deletes
+  `BulkImportJob` (CASCADE) + drift-guard test updated. Reuses the email-port Celery app
+  (`CELERY_TASK_ALWAYS_EAGER` default-true when no broker → sync in dev/tests).
+- **Phase 5 — QR scan-history + stocktake controls** (`c83a633`,`0ccb0f6`). `views_qr_history.py`
+  (Product/Asset QR history, **`VIEW_AUDIT`-gated** + `hide_from_superadmin` + capped, actor redacted to
+  `User #N`) surfaced in `Inventory.tsx` + `ContainersPanel.tsx` (gated `canViewAudit`). Expanded
+  stocktake counting controls in `StocktakePanel.tsx` (**container-scoped stocktakes force the line
+  container**). `tests/test_admin_qr_history.py`.
+- **Phase 6 — infra/security** (`4a5ebed`,`7183407`,`ee9e3cf`,`6fa5468`). Celery-beat hourly
+  return-reminder (`hardware_requests/tasks.py` + `CELERY_BEAT_SCHEDULE` + `beat` service in
+  compose/render; cron endpoint + mgmt command kept as fallbacks). API-client **secret rotation**
+  (`api-clients/<pk>/rotate-secret`, MANAGE_MAKERSPACE, one-time reveal) + secret clearing. Evidence
+  upload metadata (`content_type`/`size_bytes`, migration `evidence/0004`). Auth security telemetry
+  (`accounts/audit_events.py`: login success/fail + refresh-reject, usernames **HMAC-fingerprinted,
+  never raw**) + Telegram webhook throttle scope.
+
+Backend full suite green on the host runner (DB+MinIO via published compose ports; `API_CLIENT_ENC_KEY`
+set); `makemigrations --check` clean; `tsc -b` clean. **Deferred (manual):** `frontend/openapi-schema.json`
++ `src/generated/api.ts` were NOT regenerated — this host's drf-spectacular 0.29.0 produces a ~32k-line
+divergent reformat of the dev-container-generated snapshot; the new endpoints work via raw path strings
+and the build stays clean. Regenerate in the dev-container before publishing API docs/clients.
+
 ## Recent batch — multi-agent Codex review + fixes for the 6-feature port (2026-06-23)
 
 Ran an 11-agent Codex review of the uncommitted 6-feature OSMM port (5 per-AREA reviewers —
