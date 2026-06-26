@@ -245,11 +245,12 @@ export async function staffRequest<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  const isFormData = options.body instanceof FormData;
   const makeRequest = () =>
     fetch(`${API_V1_URL}${path}`, {
       ...options,
       headers: {
-        "Content-Type": "application/json",
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...authHeaders(),
         ...(options.headers ?? {}),
       },

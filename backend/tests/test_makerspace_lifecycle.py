@@ -14,6 +14,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
+from apps.admin_api.models import BulkImportJob
 from apps.apiclients.models import ApiClient, ApiKeyRequest
 from apps.audit.models import AuditLog
 from apps.boxes.models import Box, BoxScan, QrCode, QrScanEvent
@@ -375,6 +376,14 @@ def populate_full_purge_graph(makerspace, survivor, actor):
         created_by=actor,
     )
 
+    BulkImportJob.objects.create(
+        makerspace=makerspace,
+        actor=actor,
+        mode=BulkImportJob.Mode.PREVIEW,
+        rows=[{"name": "Lifecycle Product", "total_quantity": "1", "available_quantity": "1"}],
+        result={"valid": True},
+    )
+
     ApiClient.objects.create(
         makerspace=makerspace,
         label="Lifecycle client",
@@ -450,6 +459,7 @@ def assert_purged_makerspace_graph(space_id):
     assert StockTransfer.objects.filter(source_makerspace_id=space_id).count() == 0
     assert StockTransfer.objects.filter(destination_makerspace_id=space_id).count() == 0
     assert StockTransferLine.objects.filter(transfer__makerspace_id=space_id).count() == 0
+    assert BulkImportJob.objects.filter(makerspace_id=space_id).count() == 0
     assert ApiClient.objects.filter(makerspace_id=space_id).count() == 0
     assert ApiKeyRequest.objects.filter(makerspace_id=space_id).count() == 0
     assert EmailTemplate.objects.filter(makerspace_id=space_id).count() == 0

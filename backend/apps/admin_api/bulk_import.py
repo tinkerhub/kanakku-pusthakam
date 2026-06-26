@@ -25,18 +25,22 @@ QUANTITY_BUCKET_FIELDS = {
 DETAIL_WARNING_FIELDS = {"description", "storage_location", "category", "image_key"}
 
 
-def preview_import(makerspace, rows, mapping):
+def preview_import(makerspace, rows, mapping, progress_callback=None):
     mapping = mapping or _default_mapping(rows)
     mapped = []
     errors = []
     warnings = []
     existing_names = _existing_names(makerspace, rows, mapping)
-    for index, row in enumerate(rows, start=2):
+    total_rows = len(rows)
+    for offset, row in enumerate(rows, start=1):
+        index = offset + 1
         normalized, row_errors, row_warnings = _normalize_row(makerspace, row, mapping)
         if row_errors:
             errors.append({"row": index, "errors": row_errors})
         if row_warnings:
             warnings.append({"row": index, "warnings": row_warnings})
+        if progress_callback:
+            progress_callback(offset, total_rows)
         action = "error" if row_errors else _row_action(normalized, existing_names)
         mapped.append(
             {
@@ -62,8 +66,8 @@ def preview_import(makerspace, rows, mapping):
     }
 
 
-def apply_import(actor, makerspace, rows, mapping, allow_partial=True):
-    preview = preview_import(makerspace, rows, mapping)
+def apply_import(actor, makerspace, rows, mapping, allow_partial=True, progress_callback=None):
+    preview = preview_import(makerspace, rows, mapping, progress_callback=progress_callback)
     if not preview["valid"] and not allow_partial:
         return {**preview, "applied": False}
     created = updated = 0
@@ -113,6 +117,13 @@ def _normalize_row(makerspace, row, mapping):
         column = mapping.get(field)
         if column:
             data[field] = row.get(column)
+    # Drop blank OPTIONAL cells so absent values fall through to model defaults
+    # rather than failing coercion. Common sheets leave reserved/issued/damaged/lost
+    # and the boolean columns blank; "" must mean "use default", not 0/False/"Must be
+    # an integer". Required fields keep "" so they still raise the required error.
+    for field in list(data):
+        if field not in REQUIRED_FIELDS and isinstance(data[field], str) and not data[field].strip():
+            del data[field]
     for field in REQUIRED_FIELDS:
         if data.get(field) in {None, ""}:
             errors[field] = "This field is required."

@@ -48,6 +48,38 @@ def test_bulk_import_apply_reports_row_integrity_error_and_continues(monkeypatch
     assert not InventoryProduct.objects.filter(makerspace=makerspace, name="Broken Meter").exists()
 
 
+def test_bulk_import_blank_optional_cells_fall_through_to_defaults():
+    # Blank optional cells (reserved/issued buckets, booleans) must use model defaults
+    # rather than failing coercion ("Must be an integer") or importing False. Required
+    # fields keep their required-error behavior. (Phase 4a review P2.)
+    makerspace = make_space("bulk-blank-optional")
+    admin = make_member("bulk-blank-optional-admin", makerspace)
+
+    response = authenticated_client(admin).post(
+        import_apply_url(makerspace),
+        {
+            "rows": [
+                {
+                    "name": "Blank Optionals",
+                    "total_quantity": "5",
+                    "available_quantity": "5",
+                    "reserved_quantity": "",
+                    "issued_quantity": "",
+                    "is_public": "",
+                }
+            ]
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["summary"]["errors"] == 0
+    product = InventoryProduct.objects.get(makerspace=makerspace, name="Blank Optionals")
+    assert product.reserved_quantity == 0
+    assert product.issued_quantity == 0
+    assert product.is_public is True
+
+
 def test_bulk_import_apply_skips_invalid_preview_rows_and_continues():
     makerspace = make_space("bulk-hardening-invalid")
     admin = make_member("bulk-hardening-invalid-admin", makerspace)

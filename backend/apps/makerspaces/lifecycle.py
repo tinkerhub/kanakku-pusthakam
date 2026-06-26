@@ -134,6 +134,7 @@ def _collect_public_image_keys(makerspace):
 
 
 def _delete_object_graph(makerspace):
+    from apps.admin_api.models import BulkImportJob
     from apps.apiclients.models import ApiClient, ApiKeyRequest
     from apps.audit.models import AuditLog
     from apps.boxes.models import Box, BoxScan, QrCode, QrScanEvent
@@ -208,6 +209,7 @@ def _delete_object_graph(makerspace):
         EmailLayout.objects.filter(makerspace=makerspace).delete()
         EmailLog.objects.filter(makerspace=makerspace).delete()
         EmailNotificationMute.objects.filter(makerspace=makerspace).delete()
+        BulkImportJob.objects.filter(makerspace=makerspace).delete()
         ApiClient.objects.filter(makerspace=makerspace).delete()
         ApiKeyRequest.objects.filter(makerspace=makerspace).delete()
         MakerspaceMembership.objects.filter(makerspace=makerspace).delete()

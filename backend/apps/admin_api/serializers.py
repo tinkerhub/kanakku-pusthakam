@@ -1,4 +1,8 @@
-from apps.admin_api.serializers_bulk import BulkImportPreviewSerializer
+from apps.admin_api.serializers_bulk import (
+    BulkImportJobCreateSerializer,
+    BulkImportJobSerializer,
+    BulkImportPreviewSerializer,
+)
 from apps.admin_api.serializers_inventory import (
     CategoryAdminSerializer,
     InventoryProductAdminCreateSerializer,
@@ -20,6 +24,8 @@ from apps.admin_api.serializers_users import (
 
 __all__ = [
     "AuditLogSerializer",
+    "BulkImportJobCreateSerializer",
+    "BulkImportJobSerializer",
     "BulkImportPreviewSerializer",
     "CategoryAdminSerializer",
     "InventoryProductAdminCreateSerializer",
