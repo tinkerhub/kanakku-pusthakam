@@ -57,6 +57,9 @@ export function PrintingSection({ printing }: { printing: PublicStatsPrinting })
               <p className="text-xl font-bold text-ink">
                 {printing.busiest_printer.name}
               </p>
+              {printing.busiest_printer.model ? (
+                <p className="text-xs text-muted">{printing.busiest_printer.model}</p>
+              ) : null}
               <p className="text-muted">
                 {formatNumber(printing.busiest_printer.hours)} hours /{" "}
                 {printing.busiest_printer.completed} completed

@@ -153,6 +153,7 @@ def test_makerspace_printing_report_aggregates_totals_hours_filament_and_periods
         {
             "printer_id": printer.id,
             "printer_name": "Prusa MK4",
+            "printer_model": "",
             "image_url": None,
             "completed_requests": 3,
             "hours": 3.0,
@@ -185,6 +186,67 @@ def test_makerspace_printing_report_aggregates_totals_hours_filament_and_periods
     assert {"requester", "requests", "items"} <= set(requesters[0].keys())
     counts = [row["requests"] for row in requesters]
     assert counts == sorted(counts, reverse=True)
+
+def test_printing_report_accepts_date_range_filters():
+    makerspace = make_space("reports-print-date-range")
+    bucket = make_bucket(makerspace)
+    requester = make_user("reports-print-date-requester", access_status=User.AccessStatus.ACTIVE)
+    manager = make_print_manager("reports-print-date-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Date Printer")
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PLA",
+        color="black",
+        initial_weight_grams=1000,
+        remaining_weight_grams=800,
+    )
+    make_completed_request(
+        bucket, requester, printer, spool, "In range", 30, "50.00", completed_at(2026, 5, 10, 9)
+    )
+    make_completed_request(
+        bucket, requester, printer, spool, "Out of range", 60, "90.00", completed_at(2026, 6, 10, 9)
+    )
+
+    response = authenticated_client(manager).get(
+        f"{makerspace_report_url(makerspace)}?start=2026-05-01&end=2026-05-31"
+    )
+
+    assert response.status_code == 200
+    assert response.data["printer_hours"][0]["completed_requests"] == 1
+    assert response.data["printer_hours"][0]["hours"] == 0.5
+    assert response.data["filament_estimated_by_period"]["by_month"] == [
+        {"period": "2026-05", "grams": 50.0}
+    ]
+
+
+def test_printing_report_date_range_still_counts_failed_jobs():
+    # Failed requests never get completed_at set; the outcomes table must scope by
+    # created_at so a date range does not silently drop failures (regression).
+    makerspace = make_space("reports-print-failed-range")
+    bucket = make_bucket(makerspace)
+    requester = make_user("reports-failed-requester", access_status=User.AccessStatus.ACTIVE)
+    manager = make_print_manager("reports-failed-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Fail Printer")
+    failed = PrintRequest.objects.create(
+        bucket=bucket,
+        requester=requester,
+        title="Failed in May",
+        quantity=1,
+        status=PrintRequest.Status.FAILED,
+        printer=printer,
+        estimated_minutes=30,
+        estimated_filament_grams=Decimal("20.00"),
+    )
+    PrintRequest.objects.filter(pk=failed.pk).update(created_at=completed_at(2026, 5, 12, 9))
+
+    response = authenticated_client(manager).get(
+        f"{makerspace_report_url(makerspace)}?start=2026-05-01&end=2026-05-31"
+    )
+
+    assert response.status_code == 200
+    outcomes = {row["printer_id"]: row for row in response.data["printer_outcomes"]}
+    assert outcomes[printer.id]["failed"] == 1
 
 
 def test_printing_report_keeps_estimate_based_request_grams_separate_from_spool_delta():
@@ -231,6 +293,7 @@ def test_printing_report_keeps_estimate_based_request_grams_separate_from_spool_
         {
             "printer_id": printer.id,
             "printer_name": "Estimate rig",
+            "printer_model": "",
             "image_url": None,
             "completed": 1,
             "failed": 0,
@@ -369,7 +432,7 @@ def test_admin_printing_report_is_superadmin_only_and_includes_makerspaces():
         role=User.Role.SUPERADMIN,
         access_status=User.AccessStatus.ACTIVE,
     )
-    printer_a = PrintPrinter.objects.create(makerspace=space_a, name="A1")
+    printer_a = PrintPrinter.objects.create(makerspace=space_a, name="A1", model="Ender 5")
     printer_b = PrintPrinter.objects.create(makerspace=space_b, name="X1")
     spool_a = FilamentSpool.objects.create(
         makerspace=space_a,
@@ -420,6 +483,12 @@ def test_admin_printing_report_is_superadmin_only_and_includes_makerspaces():
         space_a.id,
         space_b.id,
     }
+    models_by_ms = {
+        row["makerspace_id"]: row["printer_model"]
+        for row in response.data["printer_hours"]
+    }
+    assert models_by_ms[space_a.id] == "Ender 5"
+    assert models_by_ms[space_b.id] == ""
     assert {row["makerspace_id"] for row in response.data["filament_used"]} == {
         space_a.id,
         space_b.id,

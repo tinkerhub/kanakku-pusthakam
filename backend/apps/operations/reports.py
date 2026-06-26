@@ -6,10 +6,8 @@ from apps.hardware_requests.display import label_from_candidates, requester_labe
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.inventory.models import InventoryAsset, InventoryProduct
 
-
 DEFAULT_REPORT_LIMIT = 100
 MAX_REPORT_LIMIT = 500
-
 
 REPORT_KEYS = [
     "summary",
@@ -25,11 +23,10 @@ REPORT_KEYS = [
 ]
 
 
-def report_data(report_key="summary", makerspace_id=None, *, limit=None):
+def report_data(report_key="summary", makerspace_id=None, *, limit=None, date_range=None):
     if report_key == "summary":
         return _summary(makerspace_id)
-    return {"rows": _limited_rows(report_rows(report_key, makerspace_id), limit)}
-
+    return {"rows": _limited_rows(report_rows(report_key, makerspace_id, date_range=date_range), limit)}
 
 
 def _limited_rows(rows, limit):
@@ -39,26 +36,26 @@ def _limited_rows(rows, limit):
     return rows[:1] + rows[1 : limit + 1]
 
 
-def report_rows(report_key, makerspace_id=None):
+def report_rows(report_key, makerspace_id=None, *, date_range=None):
     aggregate = makerspace_id is None
     if report_key == "taken-items":
-        return _taken_items(makerspace_id, aggregate)
+        return _taken_items(makerspace_id, aggregate, date_range=date_range)
     if report_key == "active-loans":
-        return _active_loans(makerspace_id, aggregate)
+        return _active_loans(makerspace_id, aggregate, date_range=date_range)
     if report_key == "returns":
-        return _returns(makerspace_id, aggregate)
+        return _returns(makerspace_id, aggregate, date_range=date_range)
     if report_key == "damaged-missing":
         return _damaged_missing(makerspace_id, aggregate)
     if report_key == "damaged-lost":
         return _damaged_lost(makerspace_id, aggregate)
     if report_key == "qr-scans":
-        return _qr_scans(makerspace_id, aggregate)
+        return _qr_scans(makerspace_id, aggregate, date_range=date_range)
     if report_key == "most-lent":
-        return _most_lent(makerspace_id, aggregate)
+        return _most_lent(makerspace_id, aggregate, date_range=date_range)
     if report_key == "top-borrowers":
-        return _top_borrowers(makerspace_id, aggregate)
+        return _top_borrowers(makerspace_id, aggregate, date_range=date_range)
     if report_key == "recently-added":
-        return _recently_added(makerspace_id, aggregate)
+        return _recently_added(makerspace_id, aggregate, date_range=date_range)
     data = report_data("summary", makerspace_id)
     return [["metric", "value"], *[[key, value] for key, value in data.items()]]
 
@@ -83,7 +80,7 @@ def _summary(makerspace_id):
     }
 
 
-def _taken_items(makerspace_id, aggregate):
+def _taken_items(makerspace_id, aggregate, date_range=None):
     # Group by product_id (not name) so two distinct products sharing a name are not
     # merged — there is no unique (makerspace, name) constraint. Name stays the display column.
     group = ["product_id", "product__name"]
@@ -93,25 +90,25 @@ def _taken_items(makerspace_id, aggregate):
         group = ["request__makerspace_id", *group]
         display = ["request__makerspace_id", *display]
         header = ["makerspace_id", *header]
-    qs = _items(makerspace_id).values(*group).annotate(quantity=Sum("issued_quantity")).order_by("-quantity")
+    qs = _apply_date_range(_items(makerspace_id), "request__issued_at", date_range).values(*group).annotate(quantity=Sum("issued_quantity")).order_by("-quantity")
     return [header, *[[_value(row, key) for key in display] + [row["quantity"] or 0] for row in qs]]
 
 
-def _active_loans(makerspace_id, aggregate):
+def _active_loans(makerspace_id, aggregate, date_range=None):
     header = ["id", "requester", "status", "issued_at"]
     if aggregate:
         header = ["makerspace_id", *header]
-    qs = _requests(makerspace_id).select_related("requester").filter(
+    qs = _apply_date_range(_requests(makerspace_id), "issued_at", date_range).select_related("requester").filter(
         status__in=[HardwareRequest.Status.ISSUED, HardwareRequest.Status.PARTIALLY_RETURNED]
     ).order_by("-issued_at")
     return [header, *[_request_row(request, aggregate, request.issued_at) for request in qs]]
 
 
-def _returns(makerspace_id, aggregate):
+def _returns(makerspace_id, aggregate, date_range=None):
     header = ["id", "requester", "status", "closed_at"]
     if aggregate:
         header = ["makerspace_id", *header]
-    qs = _requests(makerspace_id).select_related("requester").filter(
+    qs = _apply_date_range(_requests(makerspace_id), "closed_at", date_range).select_related("requester").filter(
         status__in=[HardwareRequest.Status.RETURNED, HardwareRequest.Status.CLOSED_WITH_ISSUE]
     ).order_by("-closed_at")
     return [header, *[_request_row(request, aggregate, request.closed_at) for request in qs]]
@@ -135,17 +132,17 @@ def _damaged_lost(makerspace_id, aggregate):
     return _product_quantity_rows(makerspace_id, aggregate, values, header)
 
 
-def _qr_scans(makerspace_id, aggregate):
+def _qr_scans(makerspace_id, aggregate, date_range=None):
     values = ["context"]
     header = ["context", "count"]
     if aggregate:
         values = ["makerspace_id", *values]
         header = ["makerspace_id", *header]
-    qs = _qr_events(makerspace_id).values(*values).annotate(count=Count("id")).order_by(*values)
+    qs = _apply_date_range(_qr_events(makerspace_id), "created_at", date_range).values(*values).annotate(count=Count("id")).order_by(*values)
     return [header, *[[_value(row, key) for key in values] + [row["count"]] for row in qs]]
 
 
-def _most_lent(makerspace_id, aggregate):
+def _most_lent(makerspace_id, aggregate, date_range=None):
     # Group by product_id (not name) so distinct products sharing a name keep separate
     # lend counts; name remains the display column.
     group = ["product_id", "product__name"]
@@ -156,7 +153,7 @@ def _most_lent(makerspace_id, aggregate):
         display = ["request__makerspace_id", *display]
         header = ["makerspace_id", *header]
     qs = (
-        _items(makerspace_id)
+        _apply_date_range(_items(makerspace_id), "request__issued_at", date_range)
         .filter(issued_quantity__gt=0)
         .values(*group)
         .annotate(
@@ -175,7 +172,7 @@ def _most_lent(makerspace_id, aggregate):
     ]
 
 
-def _top_borrowers(makerspace_id, aggregate):
+def _top_borrowers(makerspace_id, aggregate, date_range=None):
     # Group by the requester (PROTECT, non-nullable, so never collapses NULLs) and
     # resolve a readable holder label — never the internal checkin_<hash> username.
     # Group by STABLE account-level identity (requester_id + account fields, all constant
@@ -193,7 +190,7 @@ def _top_borrowers(makerspace_id, aggregate):
         values = ["request__makerspace_id", *values]
         header = ["makerspace_id", *header]
     qs = (
-        _items(makerspace_id)
+        _apply_date_range(_items(makerspace_id), "request__issued_at", date_range)
         .filter(issued_quantity__gt=0)
         .values(*values)
         .annotate(
@@ -223,13 +220,13 @@ def _top_borrowers(makerspace_id, aggregate):
     return [header, *rows]
 
 
-def _recently_added(makerspace_id, aggregate):
+def _recently_added(makerspace_id, aggregate, date_range=None):
     values = ["name", "created_at", "total_quantity"]
     header = ["product_name", "created_at", "total_quantity"]
     if aggregate:
         values = ["makerspace_id", *values]
         header = ["makerspace_id", *header]
-    qs = _products(makerspace_id).order_by("-created_at", "-id")
+    qs = _apply_date_range(_products(makerspace_id), "created_at", date_range).order_by("-created_at", "-id")
     return [header, *[[_value(product, key) for key in values] for product in qs]]
 
 
@@ -296,6 +293,17 @@ def _qr_events(makerspace_id):
         )
         return qs.exclude(makerspace_id__in=excluded) if excluded else qs
     return qs.filter(makerspace_id=makerspace_id)
+
+
+def _apply_date_range(qs, field, date_range):
+    if not date_range:
+        return qs
+    start, end = date_range
+    if start is not None:
+        qs = qs.filter(**{f"{field}__gte": start})
+    if end is not None:
+        qs = qs.filter(**{f"{field}__lt": end})
+    return qs
 
 
 def _value(source, key):

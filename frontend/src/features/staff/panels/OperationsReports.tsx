@@ -36,28 +36,32 @@ export function OperationsReports({
   printingOnly?: boolean;
 }) {
   const [allMakerspaces, setAllMakerspaces] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const aggregate = isSuperadmin && allMakerspaces;
   const scopeKey = aggregate ? "all" : makerspace.id;
+  const rangeParam = `${startDate ? `start=${startDate}` : ""}${startDate && endDate ? "&" : ""}${endDate ? `end=${endDate}` : ""}`;
+  const rangeKey = `${startDate}|${endDate}`;
   const analyticsBase = aggregate ? "/admin/analytics" : `/admin/makerspace/${makerspace.id}/analytics`;
   const reportsBase = aggregate ? "/admin/reports" : `/admin/makerspace/${makerspace.id}/reports`;
-  const analyticsPreview = (report: string) => `${analyticsBase}/${report}?limit=100`;
+  const analyticsPreview = (report: string) => `${analyticsBase}/${report}?limit=100${rangeParam ? `&${rangeParam}` : ""}`;
 
   // Print managers (printingOnly) lack VIEW_INVENTORY, so the hardware analytics
   // endpoints would 403. Disable those queries entirely rather than render empty,
   // erroring panels - the printing report is the only one they can see.
   const hardwareEnabled = !printingOnly;
   const summary = useStaffGet<Summary>(["operations-report", "summary", scopeKey], `${analyticsBase}/summary`, hardwareEnabled);
-  const mostLent = useStaffGet<ReportRows>(["operations-report", "most-lent", scopeKey], analyticsPreview("most-lent"), hardwareEnabled);
-  const topBorrowers = useStaffGet<ReportRows>(["operations-report", "top-borrowers", scopeKey], analyticsPreview("top-borrowers"), hardwareEnabled);
-  const damagedLost = useStaffGet<ReportRows>(["operations-report", "damaged-lost", scopeKey], analyticsPreview("damaged-lost"), hardwareEnabled);
-  const recentlyAdded = useStaffGet<ReportRows>(["operations-report", "recently-added", scopeKey], analyticsPreview("recently-added"), hardwareEnabled);
+  const mostLent = useStaffGet<ReportRows>(["operations-report", "most-lent", scopeKey, rangeKey], analyticsPreview("most-lent"), hardwareEnabled);
+  const topBorrowers = useStaffGet<ReportRows>(["operations-report", "top-borrowers", scopeKey, rangeKey], analyticsPreview("top-borrowers"), hardwareEnabled);
+  const damagedLost = useStaffGet<ReportRows>(["operations-report", "damaged-lost", scopeKey, rangeKey], analyticsPreview("damaged-lost"), hardwareEnabled);
+  const recentlyAdded = useStaffGet<ReportRows>(["operations-report", "recently-added", scopeKey, rangeKey], analyticsPreview("recently-added"), hardwareEnabled);
 
   const scopeLabel = aggregate ? "all makerspaces" : makerspace.name;
 
   const exportReport = useMutation({
     mutationFn: ({ report, format }: { report: string; format: "csv" | "xlsx" }) =>
       downloadStaffFile(
-        `${reportsBase}/${report}/export?format=${format}`,
+        `${reportsBase}/${report}/export?format=${format}${rangeParam ? `&${rangeParam}` : ""}`,
         `${aggregate ? "all-makerspaces-" : ""}${report}.${format}`,
       ),
   });
@@ -76,17 +80,30 @@ export function OperationsReports({
                 : "Inventory movement, borrower activity, exceptions, and print usage."}
             </p>
           </div>
-          {isSuperadmin ? (
-            <label className="flex items-center gap-2 text-sm text-ink">
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-current"
-                checked={allMakerspaces}
-                onChange={(event) => setAllMakerspaces(event.target.checked)}
-              />
-              All makerspaces
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-xs text-muted">
+              From
+              <input type="date" className="desk-input" value={startDate} max={endDate || undefined} onChange={(event) => setStartDate(event.target.value)} />
             </label>
-          ) : null}
+            <label className="flex flex-col gap-1 text-xs text-muted">
+              To
+              <input type="date" className="desk-input" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} />
+            </label>
+            {startDate || endDate ? (
+              <button className="desk-button" type="button" onClick={() => { setStartDate(""); setEndDate(""); }}>Clear dates</button>
+            ) : null}
+            {isSuperadmin ? (
+              <label className="flex items-center gap-2 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-current"
+                  checked={allMakerspaces}
+                  onChange={(event) => setAllMakerspaces(event.target.checked)}
+                />
+                All makerspaces
+              </label>
+            ) : null}
+          </div>
         </div>
         {!printingOnly ? (
           <DataState loading={summary.isLoading} error={summary.error} empty={!summary.data}>
@@ -162,7 +179,7 @@ export function OperationsReports({
       </>
       ) : null}
 
-      <PrintingReportSection makerspace={makerspace} aggregate={aggregate} />
+      <PrintingReportSection makerspace={makerspace} aggregate={aggregate} rangeParam={rangeParam} />
     </div>
   );
 }

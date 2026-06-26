@@ -14,6 +14,7 @@ export type PrintingReport = {
   printer_hours: {
     printer_id: number;
     printer_name: string;
+    printer_model?: string;
     completed_requests: number;
     hours: number;
     makerspace_id?: number;
@@ -21,6 +22,7 @@ export type PrintingReport = {
   printer_outcomes: {
     printer_id: number;
     printer_name: string;
+    printer_model?: string;
     completed: number;
     failed: number;
     grams_used: number;
@@ -70,14 +72,19 @@ const statusPie: { key: keyof PrintingReport["totals"]; label: string }[] = [
   { key: "rejected", label: "Rejected" },
 ];
 
-export function PrintingReportSection({ makerspace, aggregate }: { makerspace: Makerspace; aggregate: boolean }) {
+function printerDisplayName(row: { printer_name: string; printer_model?: string }) {
+  return row.printer_model ? `${row.printer_name} (${row.printer_model})` : row.printer_name;
+}
+
+export function PrintingReportSection({ makerspace, aggregate, rangeParam = "" }: { makerspace: Makerspace; aggregate: boolean; rangeParam?: string }) {
   const [period, setPeriod] = useState<PeriodKey>("month");
   const scopeKey = aggregate ? "all" : makerspace.id;
   // printing routes are mounted under /api/v1/printing/ (not /api/v1/admin/).
-  const printingPath = aggregate
+  const printingBase = aggregate
     ? "/printing/admin/printing/reports"
     : `/printing/admin/makerspace/${makerspace.id}/printing/reports`;
-  const printing = useStaffGet<PrintingReport>(["operations-report", "printing", scopeKey], printingPath);
+  const printingPath = rangeParam ? `${printingBase}?${rangeParam}` : printingBase;
+  const printing = useStaffGet<PrintingReport>(["operations-report", "printing", scopeKey, rangeParam], printingPath);
 
   const activePeriod = periods.find((item) => item.key === period) ?? periods[0];
   const filamentRows = printing.data?.filament_estimated_by_period[activePeriod.dataKey] ?? [];
@@ -157,8 +164,8 @@ export function PrintingReportSection({ makerspace, aggregate }: { makerspace: M
                       : ["printer", "completed_requests", "hours"],
                     ...(printing.data?.printer_hours ?? []).map((row) =>
                       aggregate
-                        ? [row.makerspace_id ?? "", row.printer_name, row.completed_requests, row.hours]
-                        : [row.printer_name, row.completed_requests, row.hours],
+                        ? [row.makerspace_id ?? "", printerDisplayName(row), row.completed_requests, row.hours]
+                        : [printerDisplayName(row), row.completed_requests, row.hours],
                     ),
                   ],
                 }}
@@ -174,8 +181,8 @@ export function PrintingReportSection({ makerspace, aggregate }: { makerspace: M
                       : ["printer", "completed", "failed", "grams_used"],
                     ...(printing.data?.printer_outcomes ?? []).map((row) =>
                       aggregate
-                        ? [row.makerspace_id ?? "", row.printer_name, row.completed, row.failed, row.grams_used]
-                        : [row.printer_name, row.completed, row.failed, row.grams_used],
+                        ? [row.makerspace_id ?? "", printerDisplayName(row), row.completed, row.failed, row.grams_used]
+                        : [printerDisplayName(row), row.completed, row.failed, row.grams_used],
                     ),
                   ],
                 }}

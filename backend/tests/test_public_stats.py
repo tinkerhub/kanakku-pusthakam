@@ -178,12 +178,13 @@ def assert_public_stats_schema(payload):
         if payload["printing"]["busiest_printer"] is not None:
             assert set(payload["printing"]["busiest_printer"]) == {
                 "name",
+                "model",
                 "hours",
                 "completed",
                 "image_url",
             }
         assert all(
-            set(row) == {"name", "jobs", "hours", "grams", "image_url"}
+            set(row) == {"name", "model", "jobs", "hours", "grams", "image_url"}
             for row in payload["printing"]["per_printer"]
         )
         assert all(set(row) == {"brand", "grams"} for row in payload["printing"]["by_brand"])
@@ -284,6 +285,7 @@ def test_build_public_stats_returns_exact_schema(monkeypatch):
                 {
                     "printer_id": 10,
                     "printer_name": "Prusa MK4",
+                    "printer_model": "",
                     "hours": 6.5,
                     "completed_requests": 3,
                     "image_url": "http://cdn.test/prusa.png",
@@ -293,6 +295,7 @@ def test_build_public_stats_returns_exact_schema(monkeypatch):
                 {
                     "printer_id": 10,
                     "printer_name": "Prusa MK4",
+                    "printer_model": "",
                     "completed": 3,
                     "failed": 1,
                     "grams_used": 200.25,
@@ -302,6 +305,7 @@ def test_build_public_stats_returns_exact_schema(monkeypatch):
                 {
                     "printer_id": 11,
                     "printer_name": "Manual Rig",
+                    "printer_model": "",
                     "completed": 0,
                     "failed": 0,
                     "grams_used": 20,
@@ -342,6 +346,7 @@ def test_build_public_stats_returns_exact_schema(monkeypatch):
     }
     assert set(stats["printing"]["busiest_printer"]) == {
         "name",
+        "model",
         "hours",
         "completed",
         "image_url",
@@ -349,6 +354,7 @@ def test_build_public_stats_returns_exact_schema(monkeypatch):
     assert stats["printing"]["per_printer"] == [
         {
             "name": "Prusa MK4",
+            "model": "",
             "jobs": 3,
             "hours": 6.5,
             "grams": 200.25,
@@ -356,6 +362,7 @@ def test_build_public_stats_returns_exact_schema(monkeypatch):
         },
         {
             "name": "Manual Rig",
+            "model": "",
             "jobs": 0,
             "hours": 0.0,
             "grams": 20.0,
@@ -363,7 +370,7 @@ def test_build_public_stats_returns_exact_schema(monkeypatch):
         },
     ]
     assert all(
-        set(row) == {"name", "jobs", "hours", "grams", "image_url"}
+        set(row) == {"name", "model", "jobs", "hours", "grams", "image_url"}
         for row in stats["printing"]["per_printer"]
     )
     assert set(stats["printing"]["by_brand"][0]) == {"brand", "grams"}
@@ -588,8 +595,8 @@ def test_public_stats_per_printer_orders_and_strips_internal_keys():
     requester = make_user("printer-leaderboard-requester")
     now = timezone.now()
 
-    def completed_print(name, minutes, grams):
-        printer = PrintPrinter.objects.create(makerspace=makerspace, name=name)
+    def completed_print(name, minutes, grams, model=""):
+        printer = PrintPrinter.objects.create(makerspace=makerspace, name=name, model=model)
         PrintRequest.objects.create(
             bucket=bucket,
             requester=requester,
@@ -602,11 +609,15 @@ def test_public_stats_per_printer_orders_and_strips_internal_keys():
         )
         return printer
 
-    completed_print("Beta", 60, 80)
+    completed_print("Beta", 60, 80, model="Ender 3 V3")
     completed_print("Gamma", 180, 50)
     completed_print("Alpha", 120, 50)
     completed_print("Delta", 120, 50)
-    manual_only = PrintPrinter.objects.create(makerspace=makerspace, name="Manual Only")
+    manual_only = PrintPrinter.objects.create(
+        makerspace=makerspace,
+        name="Manual Only",
+        model="Prusa Mini",
+    )
     ManualPrintLog.objects.create(
         makerspace=makerspace,
         printer=manual_only,
@@ -626,6 +637,7 @@ def test_public_stats_per_printer_orders_and_strips_internal_keys():
     ]
     assert rows[0] == {
         "name": "Beta",
+        "model": "Ender 3 V3",
         "jobs": 1,
         "hours": 1.0,
         "grams": 80.0,
@@ -633,6 +645,7 @@ def test_public_stats_per_printer_orders_and_strips_internal_keys():
     }
     assert rows[2] == {
         "name": "Alpha",
+        "model": "",
         "jobs": 1,
         "hours": 2.0,
         "grams": 50.0,
@@ -640,12 +653,13 @@ def test_public_stats_per_printer_orders_and_strips_internal_keys():
     }
     assert rows[-1] == {
         "name": "Manual Only",
+        "model": "Prusa Mini",
         "jobs": 0,
         "hours": 1.5,
         "grams": 40.0,
         "image_url": None,
     }
-    assert all(set(row) == {"name", "jobs", "hours", "grams", "image_url"} for row in rows)
+    assert all(set(row) == {"name", "model", "jobs", "hours", "grams", "image_url"} for row in rows)
 
 
 def test_self_checkout_and_direct_handout_borrowers_appear_in_current_loans():
@@ -728,6 +742,7 @@ def test_public_stats_endpoint_returns_200_with_full_schema(monkeypatch):
                 {
                     "printer_id": 42,
                     "printer_name": "Voron",
+                    "printer_model": "",
                     "hours": 4.25,
                     "completed_requests": 2,
                     "image_url": None,
@@ -737,6 +752,7 @@ def test_public_stats_endpoint_returns_200_with_full_schema(monkeypatch):
                 {
                     "printer_id": 42,
                     "printer_name": "Voron",
+                    "printer_model": "",
                     "completed": 2,
                     "failed": 0,
                     "grams_used": 150,
@@ -761,6 +777,7 @@ def test_public_stats_endpoint_returns_200_with_full_schema(monkeypatch):
     assert_public_stats_schema(response.data)
     assert response.data["printing"]["busiest_printer"] == {
         "name": "Voron",
+        "model": "",
         "hours": 4.25,
         "completed": 2,
         "image_url": None,
