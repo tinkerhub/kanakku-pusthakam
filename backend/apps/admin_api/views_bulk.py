@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
@@ -19,11 +20,19 @@ def _rows_from_upload(uploaded_file):
 
     rows_from_upload raises ValueError (incl. JSONDecodeError/UnicodeDecodeError,
     and normalized corrupt-XLSX errors) on malformed files; without this they'd
-    surface as a 500 for what is really user input."""
+    surface as a 500 for what is really user input.
+    """
     try:
         return bulk_import.rows_from_upload(uploaded_file)
     except ValueError as exc:
         raise ValidationError({"file": str(exc) or "Uploaded file could not be parsed."})
+
+
+def _authorized_makerspace(request, makerspace_id):
+    makerspace = get_object_or_404(Makerspace, pk=makerspace_id)
+    require_module(makerspace, "bulk_import")
+    require_action(request.user, rbac.Action.EDIT_INVENTORY, makerspace_id)
+    return makerspace
 
 
 class BulkImportPreviewView(APIView):
@@ -37,21 +46,24 @@ class BulkImportPreviewView(APIView):
         examples=[BULK_IMPORT_ROWS_EXAMPLE],
     )
     def post(self, request, makerspace_id, *args, **kwargs):
-        makerspace = get_object_or_404(Makerspace, pk=makerspace_id)
-        require_module(makerspace, "bulk_import")
-        require_action(request.user, rbac.Action.EDIT_INVENTORY, makerspace_id)
+        makerspace = _authorized_makerspace(request, makerspace_id)
         serializer = BulkImportPreviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         rows = serializer.validated_data.get("rows")
         if rows is None:
             rows = _rows_from_upload(serializer.validated_data["file"])
-        return Response(
-            bulk_import.preview_import(
+        try:
+            result = bulk_import.preview_import(
                 makerspace,
                 rows,
                 serializer.validated_data.get("mapping") or {},
             )
-        )
+        except IntegrityError:
+            return Response(
+                {"detail": "Import failed due to a data conflict; no changes were applied."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(result)
 
 
 class BulkImportApplyView(APIView):
@@ -65,18 +77,22 @@ class BulkImportApplyView(APIView):
         examples=[BULK_IMPORT_ROWS_EXAMPLE],
     )
     def post(self, request, makerspace_id, *args, **kwargs):
-        makerspace = get_object_or_404(Makerspace, pk=makerspace_id)
-        require_module(makerspace, "bulk_import")
-        require_action(request.user, rbac.Action.EDIT_INVENTORY, makerspace_id)
+        makerspace = _authorized_makerspace(request, makerspace_id)
         serializer = BulkImportPreviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         rows = serializer.validated_data.get("rows")
         if rows is None:
             rows = _rows_from_upload(serializer.validated_data["file"])
-        result = bulk_import.apply_import(
-            request.user,
-            makerspace,
-            rows,
-            serializer.validated_data.get("mapping") or {},
-        )
+        try:
+            result = bulk_import.apply_import(
+                request.user,
+                makerspace,
+                rows,
+                serializer.validated_data.get("mapping") or {},
+            )
+        except IntegrityError:
+            return Response(
+                {"detail": "Import failed due to a data conflict; no changes were applied."},
+                status=status.HTTP_409_CONFLICT,
+            )
         return Response(result, status=status.HTTP_200_OK)
