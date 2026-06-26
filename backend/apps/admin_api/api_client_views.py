@@ -1,3 +1,5 @@
+import secrets
+
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, status
@@ -109,6 +111,39 @@ class ApiClientDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
         instance.delete()
         sync_makerspace_origins(makerspace)
+
+
+@extend_schema(
+    tags=["API clients"],
+    summary="Rotate API client secret",
+    request=None,
+    responses={200: ApiClientCreateResponseSerializer},
+)
+class ApiClientRotateSecretView(generics.GenericAPIView):
+    serializer_class = ApiClientSerializer
+    permission_classes = [IsActiveStaff]
+
+    def get_queryset(self):
+        return rbac.scope_by_action(
+            self.request.user,
+            rbac.Action.MANAGE_MAKERSPACE,
+            ApiClient.objects.select_related("makerspace"),
+        )
+
+    def post(self, request, *args, **kwargs):
+        client = self.get_object()
+        raw_secret = secrets.token_urlsafe(32)
+        client.set_secret(raw_secret)
+        client.save(update_fields=["secret_encrypted", "updated_at"])
+        audit.record(
+            request.user,
+            "api_client.secret_rotated",
+            makerspace=client.makerspace,
+            target=client,
+        )
+        data = ApiClientSerializer(client, context=self.get_serializer_context()).data
+        data["client_secret"] = raw_secret
+        return Response(data)
 
 
 @extend_schema(

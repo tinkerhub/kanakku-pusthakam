@@ -117,7 +117,7 @@ def test_admin_member_can_request_upload_url(monkeypatch):
 
     response = authenticated_client(user).post(
         upload_url(makerspace),
-        {"evidence_type": "issue", "content_type": "image/png"},
+        {"evidence_type": "issue", "content_type": "image/png", "size_bytes": 12345},
         format="json",
     )
 
@@ -128,6 +128,8 @@ def test_admin_member_can_request_upload_url(monkeypatch):
     photo = EvidencePhoto.objects.get()
     assert photo.makerspace == makerspace
     assert photo.object_key == response.data["object_key"]
+    assert photo.content_type == "image/png"
+    assert photo.size_bytes == 12345
     assert response.data["evidence_id"] == photo.id
     audit = AuditLog.objects.get()
     assert audit.action == "evidence.upload_url_issued"

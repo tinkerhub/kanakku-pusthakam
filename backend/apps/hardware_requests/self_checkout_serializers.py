@@ -24,15 +24,7 @@ class PublicToolEvidenceUrlRequestSerializer(serializers.Serializer):
     identifier = serializers.CharField(max_length=254)
     evidence_type = serializers.ChoiceField(choices=["issue", "return"])
     content_type = serializers.CharField()
-
-
-# Checkout collects full identity; email IS the Check-In identifier (no separate
-# `identifier` field). Return keeps using PublicToolScanSerializer above.
-class PublicToolCheckoutSerializer(serializers.Serializer):
-    payload = serializers.CharField()
-    requester_name = serializers.CharField(max_length=120)
-    contact_email = serializers.EmailField()
-    contact_phone = serializers.CharField(max_length=32)
+    size_bytes = serializers.IntegerField(required=False, allow_null=True, min_value=0)
 
 
 class PublicToolLoanItemSerializer(serializers.Serializer):

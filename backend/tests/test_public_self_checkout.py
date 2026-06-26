@@ -1,7 +1,10 @@
 import pytest
+from types import SimpleNamespace
+
 from django.test import override_settings
 from rest_framework.test import APIClient
 
+from apps.audit.models import AuditLog
 from apps.boxes.models import Box, QrCode, QrScanEvent
 from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
@@ -381,3 +384,39 @@ def test_public_return_requires_same_verified_user():
     assert response.status_code == 403
     assert response.data["code"] == "requester_blocked"
     assert PublicToolLoan.objects.get().status == PublicToolLoan.Status.CHECKED_OUT
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_public_self_checkout_evidence_upload_url_stores_metadata(monkeypatch):
+    makerspace = make_space("checkout-evidence-metadata")
+    make_product(makerspace, public_self_checkout_enabled=True)
+    monkeypatch.setattr(
+        "apps.hardware_requests.self_checkout_views.checkin.verify",
+        lambda makerspace, identifier: SimpleNamespace(external_id=identifier),
+    )
+    monkeypatch.setattr(
+        "apps.hardware_requests.self_checkout_views.presigned_upload",
+        lambda object_key, content_type: {
+            "url": "http://minio/evidence",
+            "fields": {"key": object_key, "Content-Type": content_type},
+        },
+    )
+
+    response = api_client().post(
+        f"/api/v1/public/{makerspace.slug}/tools/evidence-url",
+        {
+            "identifier": "member-1@example.com",
+            "evidence_type": EvidencePhoto.EvidenceType.ISSUE,
+            "content_type": "image/png",
+            "size_bytes": 4321,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    photo = EvidencePhoto.objects.get(pk=response.data["evidence_id"])
+    assert photo.content_type == "image/png"
+    assert photo.size_bytes == 4321
+    event = AuditLog.objects.get(action="evidence.upload_url_issued")
+    assert event.makerspace == makerspace
+    assert event.actor == photo.uploaded_by

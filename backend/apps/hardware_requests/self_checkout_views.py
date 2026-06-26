@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
+from apps.audit import services as audit
 from apps.apiclients.throttling import ClientTierRateThrottle
 from apps.hardware_requests import self_checkout_workflow
 from apps.hardware_requests.self_checkout_serializers import (
@@ -65,7 +66,15 @@ class PublicToolEvidenceUploadUrlView(APIView):
             makerspace=makerspace,
             evidence_type=data["evidence_type"],
             object_key=object_key,
+            content_type=data["content_type"],
+            size_bytes=data.get("size_bytes"),
             uploaded_by=requester,
+        )
+        audit.record(
+            requester,
+            "evidence.upload_url_issued",
+            makerspace=makerspace,
+            target=photo,
         )
         response = {
             "evidence_id": photo.pk,

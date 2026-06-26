@@ -242,13 +242,14 @@ class ApiIntegrationSettingsSerializer(serializers.ModelSerializer):
         return attrs
 
     def update(self, instance, validated_data):
-        telegram_bot_token = validated_data.pop("telegram_bot_token", None)
-        smtp_password = validated_data.pop("smtp_password", None)
+        missing = object()
+        telegram_bot_token = validated_data.pop("telegram_bot_token", missing)
+        smtp_password = validated_data.pop("smtp_password", missing)
         for field, value in validated_data.items():
             setattr(instance, field, value)
-        if telegram_bot_token:
+        if telegram_bot_token is not missing:
             instance.set_telegram_bot_token(telegram_bot_token)
-        if smtp_password:
+        if smtp_password is not missing:
             instance.set_smtp_password(smtp_password)
         instance.save()
         return instance

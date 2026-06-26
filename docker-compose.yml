@@ -144,6 +144,21 @@ services:
       backend:
         condition: service_healthy
 
+  beat:
+    build:
+      context: ./backend
+    container_name: kanakku-pusthakam-beat
+    environment: *backend-env
+    command: celery -A config beat -l info
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
   frontend:
     build:
       context: ./frontend

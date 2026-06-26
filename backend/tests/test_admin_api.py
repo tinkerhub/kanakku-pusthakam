@@ -930,6 +930,89 @@ def test_admin_can_manage_api_integration_settings_from_api_clients_area(monkeyp
     assert makerspace.smtp_from_email == "makerspace@example.com"
 
 
+def test_admin_can_clear_makerspace_integration_secrets(monkeypatch):
+    makerspace = make_space("client-settings-clear")
+    admin = make_member("client-settings-clear-admin", makerspace)
+    makerspace.set_telegram_bot_token("bot-token")
+    makerspace.set_smtp_password("smtp-secret")
+    makerspace.save(update_fields=["telegram_bot_token", "smtp_password", "updated_at"])
+    monkeypatch.setattr(
+        "apps.integrations.smtp_validation.socket.getaddrinfo",
+        lambda host, port, type=None: [(None, None, None, None, ("8.8.8.8", port))],
+    )
+
+    response = authenticated_client(admin).patch(
+        f"/api/v1/admin/makerspace/{makerspace.id}/api-settings",
+        {"telegram_bot_token": "", "smtp_password": ""},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["telegram_bot_token_set"] is False
+    assert response.data["smtp_password_set"] is False
+    makerspace.refresh_from_db()
+    assert makerspace.get_telegram_bot_token() == ""
+    assert makerspace.get_smtp_password() == ""
+
+
+def test_makerspace_update_can_clear_integration_secrets(monkeypatch):
+    makerspace = make_space("makerspace-settings-clear")
+    admin = make_member("makerspace-settings-clear-admin", makerspace)
+    makerspace.set_telegram_bot_token("bot-token")
+    makerspace.set_smtp_password("smtp-secret")
+    makerspace.save(update_fields=["telegram_bot_token", "smtp_password", "updated_at"])
+    monkeypatch.setattr(
+        "apps.integrations.smtp_validation.socket.getaddrinfo",
+        lambda host, port, type=None: [(None, None, None, None, ("8.8.8.8", port))],
+    )
+
+    response = authenticated_client(admin).patch(
+        f"/api/v1/admin/makerspaces/{makerspace.id}",
+        {"telegram_bot_token": "", "smtp_password": ""},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["telegram_bot_token_set"] is False
+    assert response.data["smtp_password_set"] is False
+    makerspace.refresh_from_db()
+    assert makerspace.get_telegram_bot_token() == ""
+    assert makerspace.get_smtp_password() == ""
+
+
+def test_api_client_secret_rotation_returns_new_secret_once():
+    makerspace = make_space("client-rotate")
+    admin = make_member("client-rotate-admin", makerspace)
+    api_client, old_secret = ApiClient.issue(
+        label="Webhook",
+        makerspace=makerspace,
+        allowed_origins=["https://lab.example.com"],
+        created_by=admin,
+    )
+    client = authenticated_client(admin)
+
+    response = client.post(
+        f"/api/v1/admin/api-clients/{api_client.id}/rotate-secret",
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["id"] == api_client.id
+    assert response.data["client_secret"]
+    assert response.data["client_secret"] != old_secret
+    api_client.refresh_from_db()
+    assert api_client.get_secret() == response.data["client_secret"]
+    assert AuditLog.objects.filter(
+        action="api_client.secret_rotated",
+        target_id=str(api_client.id),
+    ).exists()
+
+    listed = client.get(f"/api/v1/admin/makerspace/{makerspace.id}/api-clients")
+    detail = client.get(f"/api/v1/admin/api-clients/{api_client.id}")
+    assert "client_secret" not in listed.data["results"][0]
+    assert "client_secret" not in detail.data
+
+
 def test_admin_cannot_manage_other_makerspace_api_clients():
     own_space = make_space("own-api")
     other_space = make_space("other-api")
