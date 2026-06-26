@@ -1,19 +1,18 @@
-import csv
-from io import StringIO
-
-from django.http import Http404, HttpResponse
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.views import APIView
 
 from apps.accounts import rbac
+from apps.admin_api.exports import csv_response, xlsx_response
 from apps.admin_api.permissions import IsActiveStaff
 from apps.audit import services as audit
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace
+from apps.printing.serializers import ErrorSerializer
 from apps.procurement import access
 from apps.procurement.models import ToBuyItem
 from apps.procurement.serializers import ToBuyItemSerializer
@@ -23,14 +22,12 @@ DEFAULT_LIST_LIMIT = 200
 MAX_LIST_LIMIT = 500
 
 
-def _csv_safe(value):
-    # Prevent CSV/spreadsheet formula injection: a cell starting with one of these
-    # is treated as a formula by Excel/Sheets. User-controlled name/link could
-    # carry one, so neutralize it with a leading apostrophe.
-    text = "" if value is None else str(value)
-    if text[:1] in ("=", "+", "-", "@", "\t", "\r"):
-        return "'" + text
-    return text
+PROCUREMENT_ERROR_RESPONSES = {
+    400: OpenApiResponse(ErrorSerializer, description="Invalid request."),
+    401: OpenApiResponse(description="Authentication credentials were not provided."),
+    403: OpenApiResponse(description="Permission denied."),
+    404: OpenApiResponse(description="Not found."),
+}
 
 
 def _list_limit(request):
@@ -44,12 +41,48 @@ def _list_limit(request):
     return min(value, MAX_LIST_LIMIT)
 
 
+STATUS_PARAM = OpenApiParameter(
+    "status",
+    OpenApiTypes.STR,
+    OpenApiParameter.QUERY,
+    enum=[ToBuyItem.Status.PENDING, ToBuyItem.Status.BOUGHT],
+    description="Filter by procurement item status.",
+)
+
+
+def _apply_status_filter(queryset, request):
+    status = request.query_params.get("status")
+    if status in ToBuyItem.Status.values:
+        return queryset.filter(status=status)
+    return queryset
+
+
 KIND_PARAM = OpenApiParameter(
-    "kind", OpenApiTypes.STR, OpenApiParameter.QUERY,
+    "kind",
+    OpenApiTypes.STR,
+    OpenApiParameter.QUERY,
     enum=[ToBuyItem.Kind.HARDWARE, ToBuyItem.Kind.PRINTING],
     description="Stream to add to. Honored only for makerspace admins/superadmin; "
     "other roles are auto-tagged by role.",
 )
+
+
+KIND_FILTER_PARAM = OpenApiParameter(
+    "kind",
+    OpenApiTypes.STR,
+    OpenApiParameter.QUERY,
+    enum=[ToBuyItem.Kind.HARDWARE, ToBuyItem.Kind.PRINTING],
+    description="Filter the list/export to one visible procurement stream.",
+)
+
+
+def _apply_kind_filter(queryset, request, visible_kinds):
+    requested = request.query_params.get("kind")
+    if requested in ToBuyItem.Kind.values:
+        if requested in visible_kinds:
+            return queryset.filter(kind=requested)
+        return queryset.none()
+    return queryset
 
 
 @extend_schema(tags=["Procurement"])
@@ -65,20 +98,28 @@ class ToBuyListCreateView(generics.ListCreateAPIView):
         if not kinds:
             return ToBuyItem.objects.none()
         limit = _list_limit(self.request)
-        return (
-            ToBuyItem.objects.filter(makerspace_id=makerspace_id, kind__in=kinds)
-            .select_related("created_by")
-            .order_by("-created_at", "-id")[:limit]
-        )
+        queryset = ToBuyItem.objects.filter(makerspace_id=makerspace_id, kind__in=kinds)
+        queryset = _apply_kind_filter(queryset, self.request, kinds)
+        queryset = _apply_status_filter(queryset, self.request)
+        return queryset.select_related("created_by").order_by("-created_at", "-id")[:limit]
 
     @extend_schema(
         summary="List to-buy items for a makerspace",
-        parameters=[OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY)],
+        parameters=[
+            OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
+            STATUS_PARAM,
+            KIND_FILTER_PARAM,
+        ],
+        responses={200: ToBuyItemSerializer(many=True), **PROCUREMENT_ERROR_RESPONSES},
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
-    @extend_schema(summary="Add a to-buy item", parameters=[KIND_PARAM])
+    @extend_schema(
+        summary="Add a to-buy item",
+        parameters=[KIND_PARAM],
+        responses={201: ToBuyItemSerializer, **PROCUREMENT_ERROR_RESPONSES},
+    )
     def post(self, request, *args, **kwargs):
         return super().post(request, *args, **kwargs)
 
@@ -138,15 +179,15 @@ class ToBuyDetailView(generics.RetrieveUpdateDestroyAPIView):
         if not access.can_manage_kind(self.request.user, item.makerspace_id, item.kind):
             raise PermissionDenied()
 
-    @extend_schema(summary="Retrieve a to-buy item")
+    @extend_schema(summary="Retrieve a to-buy item", responses={200: ToBuyItemSerializer, **PROCUREMENT_ERROR_RESPONSES})
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
-    @extend_schema(summary="Update a to-buy item")
+    @extend_schema(summary="Update a to-buy item", request=ToBuyItemSerializer, responses={200: ToBuyItemSerializer, **PROCUREMENT_ERROR_RESPONSES})
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
 
-    @extend_schema(summary="Delete a to-buy item")
+    @extend_schema(summary="Delete a to-buy item", responses={204: None, **PROCUREMENT_ERROR_RESPONSES})
     def delete(self, request, *args, **kwargs):
         return super().delete(request, *args, **kwargs)
 
@@ -177,35 +218,61 @@ class ToBuyExportView(APIView):
     serializer_class = ToBuyItemSerializer
 
     @extend_schema(
-        summary="Export to-buy items as CSV",
-        responses={(200, "text/csv"): OpenApiTypes.STR},
+        summary="Export to-buy items as CSV or XLSX",
+        parameters=[
+            STATUS_PARAM,
+            KIND_FILTER_PARAM,
+            OpenApiParameter(
+                "format",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                enum=["csv", "xlsx"],
+            ),
+        ],
+        responses={
+            (200, "text/csv"): OpenApiTypes.STR,
+            (
+                200,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ): OpenApiTypes.BINARY,
+            **PROCUREMENT_ERROR_RESPONSES,
+        },
     )
     def get(self, request, makerspace_id, *args, **kwargs):
         require_module(get_object_or_404(Makerspace, pk=makerspace_id), MODULE_KEY)
         kinds = access.viewable_kinds(request.user, makerspace_id)
         if not kinds:
             raise PermissionDenied()
-        items = (
-            ToBuyItem.objects.filter(makerspace_id=makerspace_id, kind__in=kinds)
-            .select_related("created_by")
-            .order_by("-created_at", "-id")
-        )
-        buffer = StringIO()
-        writer = csv.writer(buffer)
-        writer.writerow(
-            ["kind", "name", "quantity", "link", "status", "estimated_unit_cost", "added_by", "created_at"]
-        )
+        fmt = request.query_params.get("format", "csv")
+        if fmt not in {"csv", "xlsx"}:
+            raise ValidationError({"format": "Use csv or xlsx."})
+        items = ToBuyItem.objects.filter(makerspace_id=makerspace_id, kind__in=kinds)
+        items = _apply_kind_filter(items, request, kinds)
+        items = _apply_status_filter(items, request)
+        items = items.select_related("created_by").order_by("-created_at", "-id")
+        rows = [
+            [
+                "kind",
+                "name",
+                "quantity",
+                "link",
+                "status",
+                "estimated_unit_cost",
+                "added_by",
+                "created_at",
+            ]
+        ]
         for item in items:
-            writer.writerow([
-                _csv_safe(item.kind),
-                _csv_safe(item.name),
+            rows.append([
+                item.kind,
+                item.name,
                 item.quantity,
-                _csv_safe(item.link),
-                _csv_safe(item.status),
+                item.link,
+                item.status,
                 item.estimated_unit_cost if item.estimated_unit_cost is not None else "",
-                _csv_safe(item.created_by.username if item.created_by else ""),
+                item.created_by.username if item.created_by else "",
                 item.created_at.isoformat(),
             ])
-        response = HttpResponse(buffer.getvalue(), content_type="text/csv")
-        response["Content-Disposition"] = 'attachment; filename="to-buy.csv"'
-        return response
+        if fmt == "xlsx":
+            return xlsx_response(rows, "to-buy.xlsx")
+        return csv_response(rows, "to-buy.csv")

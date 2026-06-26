@@ -5,6 +5,8 @@ import { downloadStaffFile, staffRequest } from "../../../lib/api";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 
 type Kind = "hardware" | "printing";
+type StatusFilter = "all" | "pending" | "bought";
+type KindFilter = "all" | Kind;
 
 type ToBuyItem = {
   id: number;
@@ -31,9 +33,14 @@ function safeHref(link: string): string | null {
 export function ProcurementPanel({ makerspace, canChooseKind = false }: { makerspace: Makerspace; canChooseKind?: boolean }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<Form>(emptyForm);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
+  const [kindFilter, setKindFilter] = useState<KindFilter>("all");
   const base = `/procurement/makerspace/${makerspace.id}/to-buy`;
-  const queryKey = ["procurement", makerspace.id];
-  const items = useStaffGet<ToBuyItem[]>(queryKey, `${base}?limit=200`);
+  const listParams = new URLSearchParams({ limit: "200" });
+  if (statusFilter !== "all") listParams.set("status", statusFilter);
+  if (kindFilter !== "all") listParams.set("kind", kindFilter);
+  const queryKey = ["procurement", makerspace.id, statusFilter, kindFilter];
+  const items = useStaffGet<ToBuyItem[]>(queryKey, `${base}?${listParams.toString()}`);
   const invalidate = () => queryClient.invalidateQueries({ queryKey });
 
   const create = useMutation({
@@ -69,16 +76,24 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
     onSuccess: invalidate,
   });
 
-  const exportCsv = useMutation({
-    mutationFn: () => downloadStaffFile(`${base}/export`, `to-buy-${makerspace.slug}.csv`),
+  const exportToBuy = useMutation({
+    mutationFn: (format: "csv" | "xlsx") => {
+      const params = new URLSearchParams({ format });
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (kindFilter !== "all") params.set("kind", kindFilter);
+      return downloadStaffFile(`${base}/export?${params.toString()}`, `to-buy-${makerspace.slug}.${format}`);
+    },
   });
 
   const rows = items.data ?? [];
+  const visibleEstimatedTotal = rows.reduce((sum, item) => sum + itemTotal(item), 0);
+  const pendingBudget = rows.filter((item) => item.status === "pending").reduce((sum, item) => sum + itemTotal(item), 0);
+  const boughtTotal = rows.filter((item) => item.status === "bought").reduce((sum, item) => sum + itemTotal(item), 0);
 
   return (
     <Panel title="To Buy">
       <p className="mb-3 text-xs text-muted">
-        Shopping list for {makerspace.name}. Add what to buy with quantity and a link, mark items bought, and export to CSV.
+        Shopping list for {makerspace.name}. Add what to buy with quantity and a link, mark items bought, and export the list.
       </p>
 
       <form
@@ -109,14 +124,43 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
         ) : null}
       </form>
       {create.error ? <p className="mt-2 text-sm text-danger">{create.error instanceof Error ? create.error.message : "Could not add item."}</p> : null}
-      {exportCsv.error ? <p className="mt-2 text-sm text-danger">{exportCsv.error instanceof Error ? exportCsv.error.message : "Could not export CSV."}</p> : null}
+      {exportToBuy.error ? <p className="mt-2 text-sm text-danger">{exportToBuy.error instanceof Error ? exportToBuy.error.message : "Could not export list."}</p> : null}
 
-      <div className="mt-4 flex flex-wrap justify-end gap-2">
-        <button className="desk-button" type="button" disabled={exportCsv.isPending} onClick={() => exportCsv.mutate()}>
-          Export CSV
-        </button>
+      <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          <Metric label="Visible estimated total" value={formatAmount(visibleEstimatedTotal)} />
+          <Metric label="Pending budget" value={formatAmount(pendingBudget)} />
+          <Metric label="Bought total" value={formatAmount(boughtTotal)} />
+          <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            Status
+            <select className="desk-input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="bought">Bought</option>
+            </select>
+          </label>
+          {canChooseKind ? (
+            <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-muted">
+              Kind
+              <select className="desk-input" value={kindFilter} onChange={(event) => setKindFilter(event.target.value as KindFilter)}>
+                <option value="all">All</option>
+                <option value="hardware">Hardware</option>
+                <option value="printing">Printing</option>
+              </select>
+            </label>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap gap-2 justify-self-start lg:justify-self-end">
+          <button className="desk-button" type="button" disabled={exportToBuy.isPending} onClick={() => exportToBuy.mutate("csv")}>
+            Export CSV
+          </button>
+          <button className="desk-button" type="button" disabled={exportToBuy.isPending} onClick={() => exportToBuy.mutate("xlsx")}>
+            Export XLSX
+          </button>
+        </div>
       </div>
 
+      {items.isFetching && !items.isLoading ? <p className="mt-2 text-xs text-muted">Refreshing list...</p> : null}
       {items.isLoading ? (
         <p className="mt-3 text-sm text-muted">Loading...</p>
       ) : items.error ? (
@@ -171,5 +215,23 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
         </div>
       )}
     </Panel>
+  );
+}
+
+function itemTotal(item: ToBuyItem) {
+  const unitCost = Number(item.estimated_unit_cost ?? 0);
+  return Number.isFinite(unitCost) ? unitCost * item.quantity : 0;
+}
+
+function formatAmount(value: number) {
+  return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-line bg-bg px-3 py-2">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-ink">{value}</p>
+    </div>
   );
 }

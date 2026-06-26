@@ -149,6 +149,56 @@ def test_cross_tenant_items_are_not_visible():
     assert client.get(detail_url(item_b)).status_code == 404
 
 
+
+def test_list_and_export_filter_by_status():
+    space = make_space("proc-status-filter")
+    admin = make_space_manager("proc-status-filter-mgr", space)
+    ToBuyItem.objects.create(makerspace=space, kind=ToBuyItem.Kind.HARDWARE, name="Pending item")
+    ToBuyItem.objects.create(
+        makerspace=space,
+        kind=ToBuyItem.Kind.HARDWARE,
+        name="Bought item",
+        status=ToBuyItem.Status.BOUGHT,
+    )
+
+    client = authenticated_client(admin)
+    listed = client.get(f"{list_url(space)}?status=pending")
+    exported = client.get(f"{export_url(space)}?status=pending")
+
+    assert listed.status_code == 200
+    assert [row["name"] for row in listed.data] == ["Pending item"]
+    body = exported.content.decode()
+    assert "Pending item" in body
+    assert "Bought item" not in body
+
+
+def test_list_and_export_filter_by_kind_without_expanding_visibility():
+    space = make_space("proc-kind-filter")
+    admin = make_space_manager("proc-kind-filter-admin", space)
+    print_manager = make_print_manager("proc-kind-filter-print", space)
+    ToBuyItem.objects.create(makerspace=space, kind=ToBuyItem.Kind.HARDWARE, name="Hardware item")
+    ToBuyItem.objects.create(makerspace=space, kind=ToBuyItem.Kind.PRINTING, name="Printing item")
+
+    admin_client = authenticated_client(admin)
+    listed = admin_client.get(f"{list_url(space)}?kind=printing")
+    exported = admin_client.get(f"{export_url(space)}?kind=printing")
+
+    assert listed.status_code == 200
+    assert [row["name"] for row in listed.data] == ["Printing item"]
+    body = exported.content.decode()
+    assert "Printing item" in body
+    assert "Hardware item" not in body
+
+    print_client = authenticated_client(print_manager)
+    hidden_list = print_client.get(f"{list_url(space)}?kind=hardware")
+    hidden_export = print_client.get(f"{export_url(space)}?kind=hardware")
+
+    assert hidden_list.status_code == 200
+    assert hidden_list.data == []
+    hidden_body = hidden_export.content.decode()
+    assert "Hardware item" not in hidden_body
+    assert "Printing item" not in hidden_body
+
 def test_export_csv_scoped_to_viewable_kinds():
     space = make_space("proc-csv")
     manager = make_print_manager("proc-csv-mgr", space)
@@ -162,6 +212,24 @@ def test_export_csv_scoped_to_viewable_kinds():
     assert "Filament" in body
     assert "Hidden hardware" not in body  # hardware stream excluded for print manager
 
+
+
+def test_export_xlsx_returns_spreadsheet_and_invalid_format_400():
+    space = make_space("proc-xlsx")
+    manager = make_space_manager("proc-xlsx-mgr", space)
+    ToBuyItem.objects.create(makerspace=space, kind=ToBuyItem.Kind.HARDWARE, name="Drill bits", quantity=4)
+    client = authenticated_client(manager)
+
+    xlsx = client.get(f"{export_url(space)}?format=xlsx")
+    assert xlsx.status_code == 200
+    assert (
+        xlsx["Content-Type"]
+        == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+    bad = client.get(f"{export_url(space)}?format=pdf")
+    assert bad.status_code == 400
+    assert "format" in bad.data
 
 def test_negative_estimated_cost_and_zero_quantity_are_rejected():
     space = make_space("proc-validate")
