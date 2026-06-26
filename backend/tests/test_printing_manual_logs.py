@@ -397,6 +397,7 @@ def test_printing_report_merges_manual_logs_and_includes_manual_only_printers():
         {
             "printer_id": printer.id,
             "printer_name": "A printer",
+            "printer_model": "",
             "image_url": None,
             "completed": 1,
             "failed": 0,
@@ -406,6 +407,7 @@ def test_printing_report_merges_manual_logs_and_includes_manual_only_printers():
         {
             "printer_id": manual_only.id,
             "printer_name": "B printer",
+            "printer_model": "",
             "image_url": None,
             "completed": 0,
             "failed": 0,
