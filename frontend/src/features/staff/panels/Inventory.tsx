@@ -52,6 +52,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
   const [qrConfirm, setQrConfirm] = useState<boolean | null>(null);
   const [bulkQrMessage, setBulkQrMessage] = useState("");
   const [showLowStock, setShowLowStock] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const debouncedSearch = useDebouncedValue(search);
   useEffect(() => {
     setSearch(readStorage(`inventory.view.${makerspace.id}`));
@@ -67,6 +68,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
     setQrConfirm(null);
     setBulkQrMessage("");
     setShowLowStock(false);
+    setShowArchived(false);
   }, [makerspace.id]);
   const lowStockParam = showLowStock ? "&low_stock=true" : "";
   const inventoryQuery = `/admin/makerspace/${makerspace.id}/inventory?page_size=1000&q=${encodeURIComponent(debouncedSearch)}${lowStockParam}`;
@@ -94,6 +96,10 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
   const archive = useMutation({
     mutationFn: (product: AdminProduct) => staffRequest(`/admin/inventory/${product.id}`, { method: "PATCH", body: JSON.stringify({ is_archived: true }) }),
     onSuccess: () => { setArchiveTarget(null); invalidate(); },
+  });
+  const unarchive = useMutation({
+    mutationFn: (product: AdminProduct) => staffRequest(`/admin/inventory/${product.id}`, { method: "PATCH", body: JSON.stringify({ is_archived: false }) }),
+    onSuccess: () => invalidate(),
   });
   const bulkQr = useMutation({
     mutationFn: async (enabled: boolean) => {
@@ -152,9 +158,10 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
   const rows = useMemo(() => {
     const normalizedSearch = debouncedSearch.toLowerCase();
     return (products.data?.results ?? []).filter((product) =>
-      [product.name, product.description, product.tracking_mode, product.storage_location].join(" ").toLowerCase().includes(normalizedSearch),
+      product.is_archived === showArchived &&
+      [product.name, product.description, product.tracking_mode, product.storage_location, product.is_archived ? "archived" : "active"].join(" ").toLowerCase().includes(normalizedSearch),
     );
-  }, [debouncedSearch, products.data?.results]);
+  }, [debouncedSearch, products.data?.results, showArchived]);
   const categoryRows = categoryResults(categories.data);
   const openEdit = (product: AdminProduct) => {
     setEditing(product);
@@ -168,7 +175,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
       </div>
     ) },
     { key: "name", header: "Name", sortable: true, render: (product) => <button type="button" className="text-left font-semibold text-ink hover:text-accent-ink" onClick={() => openEdit(product)}>{product.name}</button> },
-    { key: "tracking_mode", header: "Mode", sortable: true },
+    { key: "tracking_mode", header: "Mode", sortable: true, render: (product) => <span className="inline-flex items-center gap-2"><span>{product.tracking_mode}</span>{product.is_archived ? <StatusBadge status="archived" label="Archived" /> : null}</span> },
     { key: "total_quantity", header: "Total", sortable: true },
     { key: "available_quantity", header: "Available", sortable: true, render: (product) => <InventoryAvailability product={product} canUseToBuy={canUseToBuy} onAddToBuy={openToBuy} /> },
     { key: "issued_quantity", header: "Issued", sortable: true },
@@ -177,7 +184,9 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
     { key: "actions", header: "", render: (product) => (
       <div className="desk-actions flex flex-wrap gap-2">
         <button className="desk-button" type="button" onClick={() => openEdit(product)}>Edit</button>
-        <button className="desk-button" type="button" onClick={() => setArchiveTarget(product)}>Archive</button>
+        {product.is_archived
+          ? <button className="desk-button" type="button" disabled={unarchive.isPending} onClick={() => unarchive.mutate(product)}>Back to inventory</button>
+          : <button className="desk-button" type="button" onClick={() => setArchiveTarget(product)}>Archive</button>}
         {canUseToBuy ? <button className="desk-button" type="button" onClick={() => openToBuy(product)}>To Buy</button> : null}
       </div>
     ) },
@@ -193,6 +202,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
             <>
               <button className="desk-button" type="button" onClick={() => { setForm(emptyForm); setAddOpen(true); }}>Add item</button>
               <button className="desk-button" type="button" onClick={() => setShowLowStock((value) => !value)}>{showLowStock ? "All stock" : "Low stock"}</button>
+              <button className="desk-button" type="button" onClick={() => setShowArchived((value) => !value)}>{showArchived ? "Show active" : "Show archived"}</button>
               <button className="desk-button" type="button" onClick={() => writeStorage(storageKey, search)}>Save view</button>
               <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => { setBulkQrMessage(""); setQrConfirm(true); }}>Enable QR</button>
               <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => { setBulkQrMessage(""); setQrConfirm(false); }}>Disable QR</button>
@@ -201,7 +211,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
             </>
           )}
         />
-        <DataTable<AdminProduct> columns={columns} data={rows} getRowId={(row) => row.id} selectedIds={selectedIds} onSelectionChange={setSelectedIds} loading={products.isLoading} emptyTitle="No inventory" />
+        <DataTable<AdminProduct> columns={columns} data={rows} getRowId={(row) => row.id} selectedIds={selectedIds} onSelectionChange={setSelectedIds} loading={products.isLoading} emptyTitle={showArchived ? "No archived inventory" : "No active inventory"} />
         {toBuyMessage ? <p className="text-sm text-muted">{toBuyMessage}</p> : null}
         {bulkQrMessage ? <p className="text-sm text-muted">{bulkQrMessage}</p> : null}
         {exportInventory.error ? <p className="text-sm text-danger">{exportInventory.error instanceof Error ? exportInventory.error.message : "Could not export inventory."}</p> : null}
@@ -210,7 +220,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
       <ItemModal title={editing?.name ?? "Edit item"} open={Boolean(editing)} onClose={() => setEditing(null)} form={form} setForm={setForm} categories={categoryRows} pending={update.isPending} error={update.error?.message} onSubmit={() => update.mutate()}>
         {editing ? <div className="border-t border-line pt-3"><ImageUploader endpoint={`/admin/inventory/${editing.id}/image`} currentUrl={editing.image_url} label="Item photo" onChanged={invalidate} /></div> : null}
         {editing ? <QuantityAdjust product={editing} form={adjustForm} setForm={setAdjustForm} pending={adjust.isPending} error={adjust.error?.message} onSubmit={() => adjust.mutate()} /> : null}
-        {editing?.tracking_mode === "individual" ? <IndividualAssets productId={editing.id} /> : null}
+        {editing?.tracking_mode === "individual" ? <IndividualAssets productId={editing.id} canEditInventory={canEditInventory} onChanged={invalidate} /> : null}
         {editing && canViewAudit ? <QrHistory productId={editing.id} /> : null}
         {editing && canViewAudit ? <LendingHistory productId={editing.id} /> : null}
       </ItemModal>
@@ -267,14 +277,26 @@ function QuantityAdjust({ product, form, setForm, pending, error, onSubmit }: { 
   );
 }
 
-function IndividualAssets({ productId }: { productId: number }) {
+function IndividualAssets({ productId, canEditInventory = false, onChanged }: { productId: number; canEditInventory?: boolean; onChanged?: () => void }) {
+  const queryClient = useQueryClient();
   const assets = useStaffGet<{ results: InventoryAssetRow[] }>(["inventory-assets", productId], `/admin/inventory/${productId}/assets?page_size=1000`);
   const rows = assets.data?.results ?? [];
+  // Flip one serialized unit on/off the to-be-fixed shelf (backend enforces EDIT_INVENTORY
+  // + the available|damaged -> maintenance -> available transitions).
+  const fix = useMutation({
+    mutationFn: ({ assetId, action }: { assetId: number; action: "shelve" | "repair" }) =>
+      staffRequest(`/admin/assets/${assetId}/fix-status`, { method: "POST", body: JSON.stringify({ action }) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory-assets", productId] });
+      onChanged?.();
+    },
+  });
   return (
     <div className="grid gap-2 border-t border-line pt-3">
       <h3 className="text-sm font-semibold text-ink">Individual assets</h3>
       {assets.isLoading ? <p className="text-sm text-muted">Loading assets...</p> : null}
       {assets.error ? <p className="text-sm text-danger">{assets.error.message}</p> : null}
+      {fix.error ? <p className="text-sm text-danger">{fix.error instanceof Error ? fix.error.message : "Could not update asset."}</p> : null}
       {!assets.isLoading && !rows.length ? <p className="text-sm text-muted">No asset records yet.</p> : null}
       <div className="grid gap-2">
         {rows.map((asset) => (
@@ -287,6 +309,15 @@ function IndividualAssets({ productId }: { productId: number }) {
                 <p className="truncate font-mono text-xs text-muted">{asset.qr_code_id ? `QR #${asset.qr_code_id} | ${asset.qr_payload ?? ""}` : "No QR linked"}</p>
               </div>
             </div>
+            {canEditInventory ? (
+              <div className="desk-actions flex shrink-0 gap-2">
+                {asset.status === "maintenance" ? (
+                  <button className="desk-button" type="button" disabled={fix.isPending} onClick={() => fix.mutate({ assetId: asset.id, action: "repair" })}>Back to inventory</button>
+                ) : (asset.status === "available" || asset.status === "damaged") ? (
+                  <button className="desk-button" type="button" disabled={fix.isPending} onClick={() => fix.mutate({ assetId: asset.id, action: "shelve" })}>Send to fix</button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ))}
       </div>
