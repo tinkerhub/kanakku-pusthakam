@@ -42,3 +42,6 @@ docs/roadmap.md
 
 # Stitch design mockups (reference only, not consumed by Vite; CDN refs violate CSP)
 stitch_luminous_minimalist_interface/
+
+# Local Postgres backup/migration artifacts — never commit (may contain user/secret/tenant data)
+*.dump

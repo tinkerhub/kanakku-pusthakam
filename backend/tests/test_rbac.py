@@ -57,6 +57,11 @@ def test_can_matrix_admin_vs_guest_admin():
     assert rbac.can(guest, rbac.Action.ISSUE_REQUEST, s.id) is True
     assert rbac.can(admin, rbac.Action.EDIT_INVENTORY, s.id) is True
     assert rbac.can(guest, rbac.Action.EDIT_INVENTORY, s.id) is False
+    # Guest Admin is handout-only but must NOT create direct handouts (those bypass
+    # accept/reject). This fork deliberately diverges from upstream OSMM, which grants
+    # ISSUE_DIRECT_LOAN to guest admins — we keep it Space/Inventory-manager only.
+    assert rbac.can(guest, rbac.Action.ISSUE_DIRECT_LOAN, s.id) is False
+    assert rbac.can(admin, rbac.Action.ISSUE_DIRECT_LOAN, s.id) is True
 
 
 def test_can_denies_out_of_scope_makerspace():

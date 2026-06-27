@@ -298,8 +298,14 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   // API clients, and makerspace settings.
   // Declared before allowedTabs because the filter callback below reads it immediately.
   const canManageMakerspace = isSuperadmin || activeRole === "space_manager";
+  // Guest Admins are handout-only: they issue accepted requests + process returns (the Requests
+  // tab) and nothing else. Direct handout stays blocked by backend RBAC, so this also hides the
+  // Inventory and Ledger tabs, leaving just the handover queue (+ dashboard overview).
+  const handoutOnly = !isSuperadmin && activeRole === "guest_admin";
   const allowedTabs: readonly string[] = (fullAccess ? ALL_TABS : PRINTING_TABS).filter((tabName) => {
     if (tabName === "tobuy") return canUseToBuy;
+    if (tabName === "inventory") return !handoutOnly;
+    if (tabName === "ledger") return !handoutOnly;
     if (tabName === "needsfix") return canEditInventory;
     if (tabName === "categories") return canEditInventory;
     if (tabName === "bulk") return canEditInventory;
