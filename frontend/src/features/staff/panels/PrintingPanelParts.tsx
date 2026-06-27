@@ -83,6 +83,7 @@ export type PrintRequest = {
   files?: {
     id: number;
     kind: string;
+    original_filename: string;
     content_type: string;
     size_bytes: number;
   }[];
@@ -424,7 +425,8 @@ export function PrintRows({
                     className="desk-button text-xs"
                     onClick={() => openFile(file.id)}
                   >
-                    {file.kind ? `${humanize(file.kind)} ${index + 1}` : `File ${index + 1}`}
+                    {file.original_filename ||
+                      (file.kind ? `${humanize(file.kind)} ${index + 1}` : `File ${index + 1}`)}
                   </button>
                 ))}
               </div>

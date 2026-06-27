@@ -41,6 +41,7 @@ export function PublicPrintRequestPage() {
   const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState("");
   const [submittedToken, setSubmittedToken] = useState("");
+  const [copiedStatusUrl, setCopiedStatusUrl] = useState(false);
   const [activeStatusToken, setActiveStatusToken] = useState("");
   const [statusEmail, setStatusEmail] = useState("");
   const statusLinkHandledRef = useRef(false);
@@ -67,23 +68,54 @@ export function PublicPrintRequestPage() {
     // available, so a requester opening an existing ?token= link must still see
     // their status even if the makerspace later disables new submissions.
     enabled: Boolean(activeStatusToken),
-    refetchInterval: (query) =>
-      query.state.data?.status === "printing" ? 30_000 : false,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === "printing") return 30_000;
+      if (status === "pending" || status === "accepted") return 90_000;
+      return false;
+    },
   });
   const statusByEmailMutation = useMutation({
     mutationFn: (email: string) =>
       fetchPrintStatusByEmail(makerspaceSlug, email.trim()),
   });
+  const statusStorageKey = makerspaceSlug ? `tinkerspace.printStatus.${makerspaceSlug}` : "";
+  const statusUrl =
+    activeStatusToken && typeof window !== "undefined"
+      ? `${window.location.origin}${tenantPath("print")}?token=${activeStatusToken}`
+      : "";
+
   useEffect(() => {
     if (statusLinkHandledRef.current) {
       return;
     }
-    statusLinkHandledRef.current = true;
+    // A ?token= deep-link is available immediately (any tenant mode), so honor it
+    // first and mark handled. With no URL token we must wait for the storage key,
+    // which is empty until the single-tenant slug resolves from bootstrap — only
+    // then read the saved token, so reload-recovery isn't lost on single-tenant sites.
     const token = new URLSearchParams(window.location.search).get("token")?.trim();
     if (token) {
+      statusLinkHandledRef.current = true;
       setActiveStatusToken(token);
+      return;
     }
-  }, []);
+    if (!statusStorageKey) {
+      return;
+    }
+    statusLinkHandledRef.current = true;
+    const stored = window.localStorage.getItem(statusStorageKey)?.trim();
+    if (stored) {
+      setActiveStatusToken(stored);
+    }
+  }, [statusStorageKey]);
+
+  useEffect(() => {
+    if (!statusStorageKey || !activeStatusToken) {
+      return;
+    }
+    window.localStorage.setItem(statusStorageKey, activeStatusToken);
+    setCopiedStatusUrl(false);
+  }, [activeStatusToken, statusStorageKey]);
   const verifyMutation = useMutation({
     mutationFn: (email: string) => verifyPrintCheckin(makerspaceSlug, email),
     onSuccess: (data, email) => {
@@ -185,6 +217,16 @@ export function PublicPrintRequestPage() {
     if (statusEmail.trim()) {
       statusByEmailMutation.mutate(statusEmail.trim());
     }
+  }
+
+  async function copyStatusUrl() {
+    if (!statusUrl) {
+      return;
+    }
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(statusUrl);
+    }
+    setCopiedStatusUrl(true);
   }
 
   return (
@@ -346,6 +388,15 @@ export function PublicPrintRequestPage() {
                 {statusByEmailMutation.isPending ? "Checking..." : "Check status"}
               </button>
             </form>
+            {statusUrl ? (
+              <div className="mt-4 rounded-lg border border-line bg-panel/80 p-3 text-sm">
+                <p className="font-semibold text-ink">Status URL</p>
+                <p className="mt-1 break-all text-muted">{statusUrl}</p>
+                <button className="desk-button mt-2 bg-panel" type="button" onClick={copyStatusUrl}>
+                  {copiedStatusUrl ? "Copied" : "Copy link"}
+                </button>
+              </div>
+            ) : null}
             <div className="mt-4">
               <StatusResult
                 error={statusQuery.error}

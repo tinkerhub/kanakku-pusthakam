@@ -28,6 +28,10 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
     settings.data?.staff_notifications_enabled ?? makerspace.staff_notifications_enabled ?? true;
   const publicStatsEnabled =
     settings.data?.public_stats_enabled ?? makerspace.public_stats_enabled ?? false;
+  const publicPrintStatusLookupPolicy =
+    settings.data?.public_print_status_lookup_policy ??
+    makerspace.public_print_status_lookup_policy ??
+    "email_unverified";
   const reEnableBlocked = isSuperadmin && !superadminAccessEnabled;
 
   const updateAccess = useMutation({
@@ -61,6 +65,19 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
       staffRequest<Makerspace>(`/admin/makerspaces/${makerspace.id}`, {
         method: "PATCH",
         body: JSON.stringify({ public_stats_enabled: next }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["makerspace-settings", makerspace.id] });
+      queryClient.invalidateQueries({ queryKey: ["makerspaces"] });
+      queryClient.invalidateQueries({ queryKey: ["staff", "makerspaces"] });
+    },
+  });
+
+  const updatePrintStatusLookupPolicy = useMutation({
+    mutationFn: (next: Makerspace["public_print_status_lookup_policy"]) =>
+      staffRequest<Makerspace>(`/admin/makerspaces/${makerspace.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ public_print_status_lookup_policy: next }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["makerspace-settings", makerspace.id] });
@@ -240,6 +257,40 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             </label>
           </div>
         </div>
+        <div className="rounded-2xl border border-ink bg-bg p-4 shadow-brutal-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid max-w-2xl gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-base font-semibold text-ink">Public print status recovery</h3>
+                <Badge tone={publicPrintStatusLookupPolicy === "token_only" ? "neutral" : "success"}>
+                  {statusLookupLabel(publicPrintStatusLookupPolicy)}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted">
+                Controls whether public print requests can be recovered from an email address when the
+                status link is lost. Check-In verified requires the requester to pass Check-In; email
+                lookup is enumerable but works without SMTP.
+              </p>
+              {updatePrintStatusLookupPolicy.error ? (
+                <p className="text-sm text-danger">{updatePrintStatusLookupPolicy.error.message}</p>
+              ) : null}
+            </div>
+            <select
+              className="desk-input w-full md:w-64"
+              value={publicPrintStatusLookupPolicy}
+              disabled={settings.isLoading || updatePrintStatusLookupPolicy.isPending}
+              onChange={(event) =>
+                updatePrintStatusLookupPolicy.mutate(
+                  event.target.value as Makerspace["public_print_status_lookup_policy"],
+                )
+              }
+            >
+              <option value="token_only">Token only</option>
+              <option value="email_unverified">Email lookup</option>
+              <option value="checkin_verified">Check-In verified</option>
+            </select>
+          </div>
+        </div>
         <MakerspaceEmailSettings makerspace={makerspace} />
         <div className="rounded-2xl border border-ink bg-bg p-4 shadow-brutal-sm">
           <form
@@ -329,4 +380,12 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
       </div>
     </Panel>
   );
+}
+
+function statusLookupLabel(policy: Makerspace["public_print_status_lookup_policy"]) {
+  return {
+    token_only: "Token only",
+    email_unverified: "Email lookup",
+    checkin_verified: "Check-In verified",
+  }[policy ?? "email_unverified"];
 }

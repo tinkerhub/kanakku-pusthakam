@@ -10,6 +10,42 @@ type PresignResponse = {
   headers?: Record<string, string>;
 };
 
+/**
+ * Headless variant of the uploader flow for callers that drive their own UI
+ * (e.g. attaching a printer photo at create time). POST -> presign, upload via
+ * the returned method (POST multipart or PUT), then PUT { object_key } to
+ * finalize+attach against the same endpoint.
+ */
+export async function uploadPublicImage(endpoint: string, file: File) {
+  const presigned = await staffRequest<PresignResponse>(endpoint, {
+    method: "POST",
+    body: JSON.stringify({
+      content_type: file.type || "application/octet-stream",
+      filename: file.name,
+    }),
+  });
+
+  if (presigned.method === "PUT") {
+    const res = await fetch(presigned.url, {
+      method: "PUT",
+      body: file,
+      headers: presigned.headers,
+    });
+    if (!res.ok) throw new Error(`Storage upload failed (${res.status})`);
+  } else {
+    const formData = new FormData();
+    Object.entries(presigned.fields ?? {}).forEach(([k, v]) => formData.append(k, v));
+    formData.append("file", file);
+    const res = await fetch(presigned.url, { method: "POST", body: formData });
+    if (!res.ok) throw new Error(`Storage upload failed (${res.status})`);
+  }
+
+  await staffRequest(endpoint, {
+    method: "PUT",
+    body: JSON.stringify({ object_key: presigned.object_key }),
+  });
+}
+
 type ImageUploaderProps = {
   /** Admin endpoint base, e.g. `/admin/inventory/12/image` or `/admin/makerspace/3/logo`. */
   endpoint: string;

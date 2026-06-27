@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
+import { uploadPublicImage } from "../ImageUploader";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 import { ManualPrintLogSection } from "./ManualPrintLogSection";
 import {
@@ -35,6 +36,8 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
 
   const [printerName, setPrinterName] = useState("");
   const [printerModel, setPrinterModel] = useState("");
+  const [printerPhoto, setPrinterPhoto] = useState<File | null>(null);
+  const [printerPhotoError, setPrinterPhotoError] = useState("");
   const [spoolPrinter, setSpoolPrinter] = useState("");
   const [spoolMaterial, setSpoolMaterial] = useState("PLA");
   const [spoolColor, setSpoolColor] = useState("");
@@ -49,8 +52,9 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
   const invalidatePrinting = () => invalidatePrintingViews(queryClient, makerspace.id);
 
   const createPrinter = useMutation({
-    mutationFn: () =>
-      printingRequest("/printing/manage/printers/", {
+    mutationFn: async () => {
+      setPrinterPhotoError("");
+      const created = await printingRequest<PrintPrinter>("/printing/manage/printers/", {
         method: "POST",
         body: JSON.stringify({
           makerspace: makerspace.id,
@@ -58,10 +62,23 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
           model: printerModel.trim(),
           status: "active",
         }),
-      }),
-    onSuccess: () => {
+      });
+      let photoError = "";
+      if (printerPhoto) {
+        try {
+          await uploadPublicImage(`/admin/printing/printers/${created.id}/image`, printerPhoto);
+        } catch (err) {
+          photoError =
+            err instanceof Error ? err.message : "Printer was added, but photo upload failed.";
+        }
+      }
+      return { created, photoError };
+    },
+    onSuccess: ({ photoError }) => {
       setPrinterName("");
       setPrinterModel("");
+      setPrinterPhoto(null);
+      setPrinterPhotoError(photoError);
       invalidatePrinting();
     },
   });
@@ -170,15 +187,27 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
           ))}
         </div>
         {!printers.isLoading && !printerRows.length ? <p className="text-sm text-muted">No printers yet.</p> : null}
-        <div className="mt-4 grid gap-2 rounded-2xl border border-ink bg-bg p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <div className="mt-4 grid gap-2 rounded-2xl border border-ink bg-bg p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(180px,0.8fr)_auto]">
           <input className="desk-input min-w-0" placeholder="Printer name" value={printerName} onChange={(event) => setPrinterName(event.target.value)} />
           <input className="desk-input min-w-0" placeholder="Model" value={printerModel} onChange={(event) => setPrinterModel(event.target.value)} />
+          <label className="desk-input flex min-w-0 cursor-pointer items-center overflow-hidden px-3 py-2 text-sm text-muted">
+            <span className="truncate">{printerPhoto ? printerPhoto.name : "Printer photo"}</span>
+            <input
+              className="sr-only"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={createPrinter.isPending}
+              onChange={(event) => setPrinterPhoto(event.target.files?.[0] ?? null)}
+            />
+          </label>
           <button disabled={!printerName.trim() || createPrinter.isPending} onClick={() => createPrinter.mutate()}>
             {createPrinter.isPending ? "Adding..." : "Add printer"}
           </button>
         </div>
+        <p className="mt-1 text-xs text-muted">Choose a photo now, or use Edit later to add or replace it.</p>
         <ErrorText message={printers.error instanceof Error ? printers.error.message : undefined} />
         <ErrorText message={createPrinter.error instanceof Error ? createPrinter.error.message : undefined} />
+        <ErrorText message={printerPhotoError} />
         <ErrorText message={deletePrinter.error instanceof Error ? deletePrinter.error.message : undefined} />
       </Panel>
 
