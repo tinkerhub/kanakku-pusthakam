@@ -77,6 +77,9 @@ class QrPrintBatchItemView(APIView):
         serializer = QrPrintBatchItemCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         qr = get_object_or_404(QrCode, pk=serializer.validated_data["qr_code_id"], makerspace=batch.makerspace)
+        # NB: this fork allows BOX QRs in print batches (box labels are printed too), so we
+        # deliberately do NOT adopt upstream 9a6dca7's product/asset-only guard, which would
+        # break the fork's box-QR-batch feature (test_qr_batch_accepts_box_and_product_items).
         item = services.add_qr_to_batch(
             batch,
             qr,

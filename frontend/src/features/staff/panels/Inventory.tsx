@@ -9,6 +9,7 @@ import { useDebouncedValue } from "../../../lib/useDebouncedValue";
 import { readStorage, writeStorage } from "../../../lib/safeStorage";
 import { ImageUploader } from "../ImageUploader";
 import { QrHistory } from "./QrHistory";
+import { QrImage } from "./QrImage";
 import { invalidateInventoryViews } from "../queryInvalidation";
 import { categoryResults, Panel, type Category, type CategoryListResponse, type Makerspace, type Product, useStaffGet } from "./shared";
 
@@ -24,6 +25,7 @@ type ItemForm = {
   storage_location: string; is_public: boolean; public_self_checkout_enabled: boolean; show_public_count: boolean; public_availability_mode: string;
 };
 type AdjustmentForm = { delta_available: string; delta_damaged: string; delta_lost: string; reason: string };
+type InventoryAssetRow = { id: number; asset_tag: string; serial_number: string; status: string; box_label: string | null; qr_code_id: number | null; qr_payload: string | null };
 type Actor = { username: string; role: string };
 type LendingHistoryEntry = { id: number; username: string; issued_at: string; quantity: number; accepted_by: Actor | null; issued_by: Actor | null };
 type LendingHistoryResponse = { product_id: number; last_borrower: LendingHistoryEntry | null; recent: LendingHistoryEntry[] };
@@ -208,6 +210,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
       <ItemModal title={editing?.name ?? "Edit item"} open={Boolean(editing)} onClose={() => setEditing(null)} form={form} setForm={setForm} categories={categoryRows} pending={update.isPending} error={update.error?.message} onSubmit={() => update.mutate()}>
         {editing ? <div className="border-t border-line pt-3"><ImageUploader endpoint={`/admin/inventory/${editing.id}/image`} currentUrl={editing.image_url} label="Item photo" onChanged={invalidate} /></div> : null}
         {editing ? <QuantityAdjust product={editing} form={adjustForm} setForm={setAdjustForm} pending={adjust.isPending} error={adjust.error?.message} onSubmit={() => adjust.mutate()} /> : null}
+        {editing?.tracking_mode === "individual" ? <IndividualAssets productId={editing.id} /> : null}
         {editing && canViewAudit ? <QrHistory productId={editing.id} /> : null}
         {editing && canViewAudit ? <LendingHistory productId={editing.id} /> : null}
       </ItemModal>
@@ -264,6 +267,32 @@ function QuantityAdjust({ product, form, setForm, pending, error, onSubmit }: { 
   );
 }
 
+function IndividualAssets({ productId }: { productId: number }) {
+  const assets = useStaffGet<{ results: InventoryAssetRow[] }>(["inventory-assets", productId], `/admin/inventory/${productId}/assets?page_size=1000`);
+  const rows = assets.data?.results ?? [];
+  return (
+    <div className="grid gap-2 border-t border-line pt-3">
+      <h3 className="text-sm font-semibold text-ink">Individual assets</h3>
+      {assets.isLoading ? <p className="text-sm text-muted">Loading assets...</p> : null}
+      {assets.error ? <p className="text-sm text-danger">{assets.error.message}</p> : null}
+      {!assets.isLoading && !rows.length ? <p className="text-sm text-muted">No asset records yet.</p> : null}
+      <div className="grid gap-2">
+        {rows.map((asset) => (
+          <div key={asset.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-surface p-2 text-sm">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              {asset.qr_code_id ? <div className="w-16 shrink-0"><QrImage qrId={asset.qr_code_id} label={asset.asset_tag} /></div> : null}
+              <div className="min-w-0">
+                <p className="font-medium text-ink">{asset.asset_tag}</p>
+                <p className="text-xs text-muted">{[asset.serial_number, asset.box_label, asset.status].filter(Boolean).join(" | ")}</p>
+                <p className="truncate font-mono text-xs text-muted">{asset.qr_code_id ? `QR #${asset.qr_code_id} | ${asset.qr_payload ?? ""}` : "No QR linked"}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 function LendingHistory({ productId }: { productId: number }) {
   const history = useStaffGet<LendingHistoryResponse>(["lending-history", productId], `/admin/inventory/${productId}/lending-history`);
   const last = history.data?.last_borrower;
