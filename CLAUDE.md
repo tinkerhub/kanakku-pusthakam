@@ -2,6 +2,78 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — third OSMM feature-parity port (batch 3, features-only) (2026-06-27)
+
+Ported the remaining genuinely-missing upstream `Shaan-Shoukath/OSMM-Makerspace-Manager` features on
+branch **`feat/osmm-parity-batch3`** (off `main`), 7 commits (one per phase; each Codex-implemented +
+Claude-verified, with tests and a background `codex review` whose findings were fixed before moving
+on). **Features only — the OSMM pastel reskin/rebrand/About page were deliberately NOT ported** (this
+fork keeps its TinkerSpace "Vibrant" theme). **Phase 7 was deliberately scoped down by the product
+owner to the additive header link only** — upstream's role-based-landing + `/m/:slug/admin/*` routing
+restructure (`44a9c68`,`dd926cb`) and the public item-detail *popup* (`0546c7f`) were SKIPPED as
+UI-preference changes that conflict with "no UI changes / keep Vibrant" (the staff browser isolation
+those routing commits target already exists in this fork via `origin_scope` hard-scoping). Plan
+(gitignored): `docs/superpowers/specs/2026-06-27-osmm-parity-batch3-plan.md`. Codex Windows corrupts
+`??`→`-` when editing existing `.tsx`, so all existing-frontend edits were done by hand; Codex drove
+backend + new files. Backend full suite green on the host runner (DB+MinIO via published compose
+ports; `API_CLIENT_ENC_KEY` set + a generated Fernet key); `tsc -b` clean; **OpenAPI snapshot +
+generated TS client NOT regenerated** (deferred — new endpoints work via raw path strings; regen in
+the dev-container before publishing API docs).
+
+- **Phase 1 — guest-admin handout-only lockdown.** Fork stays STRICTER than upstream: a Guest Admin
+  (non-superadmin) is hard-locked out of the **inventory** and **ledger** tabs (`StaffApp.tsx`
+  `handoutOnly = !isSuperadmin && activeRole === "guest_admin"` + tab guards) and **never** gets
+  `ISSUE_DIRECT_LOAN` (`test_rbac.py` asserts the divergence — direct handouts stay Space/Inventory
+  manager only).
+- **Phase 2 — public-image + evidence upload hardening.** New `evidence/image_validation.py`
+  (`image_mime_from_bytes` via Pillow) + `inventory/public_image_sniff.py` (`sniff_is_valid_image`):
+  byte-level content sniffing so an attacker can't smuggle a non-image past the MIME/extension gate.
+  `public_image_storage.finalize_upload` now returns a `FinalizeResult` (was an int) with
+  `is_safe_object_key`/`public_image_key_in_use`/`finalize_error_message`; `evidence/storage.py` gains
+  `validate_evidence_object`/`EvidenceObjectValidationError`. Callers updated (inventory/makerspace/
+  printer image views, direct-loan + handover + return workflows). `+Pillow` in requirements;
+  conftest stubs the validators. `tests/test_*` for sniffing/finalize.
+- **Phase 3 — warranty tracking.** New `apps/warranty/` app (`Warranty` [XOR `CheckConstraint` +
+  `clean()` host↔makerspace integrity] + `WarrantyDocument`, status/storage/signals/admin, migration
+  `0001`). admin_api `views_warranty{,_documents,_report}` + `warranty_access.py`. Frontend
+  `WarrantySection`/`WarrantyStatusBadge`/`WarrantyPanel` mounted on asset (ContainersPanel) + printer
+  (PrintingPanelParts) cards. **No public leak** (warranty is staff-only, tenant-scoped, purge-aware).
+  PDF docs sniffed; `signals.py` defers S3 delete to `transaction.on_commit` so a rollback can't orphan
+  storage. `tests/test_warranty.py` (15 incl. public-leak, cross-tenant, host-integrity, PDF-sniff, purge).
+- **Phase 4a — QR-batch dedupe + individual-asset linking** (`operations/0005` dedupe+UniqueConstraint,
+  `services_qr_assets` get_or_create, `serializers_inventory` qr_code_id/qr_payload, new
+  `views_assets.InventoryAssetListView` at `/admin/inventory/<product_pk>/assets`). New
+  `availability.reconcile_individual_product_from_assets` — **PRESERVES `reserved_quantity`**
+  (`available = AVAILABLE_assets − reserved`, `total = sum(counts) + reserved`); the naive upstream
+  reconcile (6707d60) zeroed reserved → double-allocation, fixed + regression-tested. **QR rebind**
+  view fixed to return a DRF `Response` (was a raw dataclass → 500) + `QrRebindTargetSerializer` gained
+  `destination_makerspace_id`/`destination_product_id` for the asset-move branch.
+- **Phase 4b — unit-QR display + asset-move scanner.** `Inventory.tsx` shows per-unit QR + asset list
+  (`?page_size=1000`); `ScannerPanel.tsx` asset-move UI; api_views individual-product PRODUCT-QR guard.
+  **Fork divergence preserved:** box QRs are still allowed in print batches (removed Codex's adopted
+  upstream `9a6dca7` product/asset-only guard; restored `QrTools.tsx` from HEAD).
+- **Phase 5 — individual-asset fix-shelf + archived inventory.** `availability.move_asset_status`
+  (reconcile-first, bucket-guarded) + `move_available_to_needs_fix`; `views_assets`
+  `InventoryAssetStatusActionView` at `/admin/assets/<pk>/fix-status` (action ∈ {shelve,repair},
+  EDIT_INVENTORY); `views_needs_fix` +shelve. Frontend (hand-built): `Inventory.tsx` archived toggle +
+  unarchive ("Back to inventory") + Archived badge; per-asset Shelve/Repair buttons gated
+  `canEditInventory`.
+- **Phase 6 — public print status recovery + printing UX** (OSMM `594c151`,`4469bbd`,`55df989`).
+  `Makerspace.public_print_status_lookup_policy` (`token_only`|`email_unverified`|`checkin_verified`,
+  default email_unverified, migration `makerspaces/0024`) gates `PublicPrintStatusByEmailView`:
+  **token_only → 403**, **checkin_verified → Check-In verify then scope by `external_checkin_user_id`**
+  (both CLOSE the email-enumeration hole), email_unverified keeps the prior enumerable contact_email
+  match as an explicit opt-in (accepted-risk comment retained). React Settings card (Vibrant-styled
+  select + `statusLookupLabel`). Public print page: localStorage status-token persistence
+  (`tinkerspace.printStatus.<slug>`) + copy-status-URL + `pending`/`accepted` 90s poll; **Stage-4 P2
+  fix** — restore effect honors a `?token=` deep-link immediately but defers the localStorage read
+  until the single-tenant slug/key resolves (was lost on single-tenant reload). `original_filename`
+  surfaced on print files (button label) + manual-log `note` display + per-printer manual-log filter
+  (`?printer=`) + printer photo upload at create time (`uploadPublicImage` headless helper).
+- **Phase 7 — staff header public-inventory link only** (OSMM `73b5371`). Additive `<Link>` in the
+  staff header to the public catalog (`/` single-tenant, else `/m/<slug>`); null until a makerspace is
+  active. Routing restructure + item popup intentionally skipped (see batch note above).
+
 ## Recent batch — second OSMM feature-parity port (15 features, features-only) (2026-06-27)
 
 Ported 15 more upstream `Shaan-Shoukath/OSMM-Makerspace-Manager` features that landed AFTER the
