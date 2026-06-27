@@ -1,10 +1,74 @@
 from django.db import connection, transaction
+from django.db.models import Count
 
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 
 
 class InsufficientStock(Exception):
     pass
+
+
+ASSET_QUANTITY_BUCKETS = {
+    InventoryAsset.Status.AVAILABLE: "available_quantity",
+    InventoryAsset.Status.RESERVED: "reserved_quantity",
+    InventoryAsset.Status.ISSUED: "issued_quantity",
+    InventoryAsset.Status.DAMAGED: "damaged_quantity",
+    InventoryAsset.Status.LOST: "lost_quantity",
+    InventoryAsset.Status.MAINTENANCE: "needs_fix_quantity",
+}
+
+ASSET_QUANTITY_FIELDS = tuple(dict.fromkeys(ASSET_QUANTITY_BUCKETS.values()))
+
+
+def reconcile_individual_product_from_assets(product):
+    """Make individual-tracked product buckets match serialized asset rows.
+
+    Fork-specific reservation model (do NOT recompute reserved from asset status):
+    an individual unit is reserved at the PRODUCT level (`reserved_quantity`) while its
+    asset row stays AVAILABLE — assets only flip AVAILABLE->ISSUED at handover (see
+    `reserve_for_request` / `assert_individual_assets_available`). So `reserved_quantity`
+    is NOT derivable from asset status; recomputing it from rows (which never carry the
+    RESERVED status here) would zero live reservations and let a reserved physical asset
+    be allocated twice. We therefore PRESERVE `reserved_quantity`, recompute
+    issued/damaged/lost/needs_fix from asset rows, and derive
+    `available = AVAILABLE_assets - reserved_quantity` (reserved units are physically
+    still AVAILABLE-status rows).
+    """
+    if product.tracking_mode != TrackingMode.INDIVIDUAL:
+        return product
+
+    status_counts = {
+        row["status"]: row["count"]
+        for row in (
+            InventoryAsset.objects.filter(product_id=product.pk)
+            .values("status")
+            .annotate(count=Count("id"))
+        )
+    }
+    available_assets = status_counts.get(InventoryAsset.Status.AVAILABLE, 0)
+    reserved = product.reserved_quantity  # preserved — request-driven, not asset-derivable
+    counts = {
+        "issued_quantity": status_counts.get(InventoryAsset.Status.ISSUED, 0),
+        "damaged_quantity": status_counts.get(InventoryAsset.Status.DAMAGED, 0),
+        "lost_quantity": status_counts.get(InventoryAsset.Status.LOST, 0),
+        "needs_fix_quantity": status_counts.get(InventoryAsset.Status.MAINTENANCE, 0),
+        "available_quantity": max(0, available_assets - reserved),
+    }
+    # total = every serialized row; reserved units are already inside available_assets,
+    # so add reserved back exactly once (available was reduced by it above).
+    total = sum(counts.values()) + reserved
+    changed = []
+    for field, value in counts.items():
+        if getattr(product, field) != value:
+            setattr(product, field, value)
+            changed.append(field)
+    if product.total_quantity != total:
+        product.total_quantity = total
+        changed.append("total_quantity")
+
+    if changed:
+        product.save(update_fields=[*changed, "updated_at"])
+    return product
 
 
 def adjust_quantities(

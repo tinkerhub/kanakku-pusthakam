@@ -9,6 +9,7 @@ from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.operations.models import (
     InventoryAdjustment,
     QrPrintBatch,
+    QrPrintBatchItem,
     StockTransfer,
     StocktakeLedgerEntry,
     StocktakeSession,
@@ -534,7 +535,8 @@ def test_asset_generation_creates_qr_labels_in_print_batch():
     manager = make_member("ops-assets-manager", makerspace)
     product = make_product(makerspace, name="Drill", tracking_mode=TrackingMode.INDIVIDUAL)
 
-    response = authenticated_client(manager).post(
+    client = authenticated_client(manager)
+    response = client.post(
         f"/api/v1/admin/products/{product.id}/assets/generate",
         {"count": 2, "create_print_batch": True},
         format="json",
@@ -544,6 +546,13 @@ def test_asset_generation_creates_qr_labels_in_print_batch():
     assert len(response.data["assets"]) == 2
     assert QrCode.objects.filter(target_type=QrCode.TargetType.ASSET).count() == 2
     assert QrPrintBatch.objects.get(pk=response.data["print_batch_id"]).items.count() == 2
+    product.refresh_from_db()
+    assert product.total_quantity == 2
+    assert product.available_quantity == 2
+    listing = client.get(f"/api/v1/admin/inventory/{product.id}/assets")
+    assert listing.status_code == 200
+    assert all(row["qr_code_id"] for row in listing.data["results"])
+    assert all(row["qr_payload"] for row in listing.data["results"])
 
 
 def test_asset_generation_adds_50_unique_sequential_unit_qrs_to_existing_batch():
@@ -552,7 +561,8 @@ def test_asset_generation_adds_50_unique_sequential_unit_qrs_to_existing_batch()
     product = make_product(makerspace, name="Arduino", tracking_mode=TrackingMode.INDIVIDUAL)
     batch = QrPrintBatch.objects.create(makerspace=makerspace, title="Arduino labels", created_by=manager)
 
-    response = authenticated_client(manager).post(
+    client = authenticated_client(manager)
+    response = client.post(
         f"/api/v1/admin/products/{product.id}/assets/generate",
         {"count": 50, "name_prefix": "Arduino", "print_batch_id": batch.id},
         format="json",
@@ -561,12 +571,55 @@ def test_asset_generation_adds_50_unique_sequential_unit_qrs_to_existing_batch()
     assert response.status_code == 201
     assert len(response.data["assets"]) == 50
     assert InventoryAsset.objects.filter(product=product).count() == 50
+    product.refresh_from_db()
+    assert product.total_quantity == 50
+    assert product.available_quantity == 50
     assert QrCode.objects.filter(target_type=QrCode.TargetType.ASSET).count() == 50
     assert QrCode.objects.filter(target_type=QrCode.TargetType.ASSET).values("payload").distinct().count() == 50
     assert list(batch.items.order_by("sort_order").values_list("label_text", flat=True)) == [
         f"Arduino {number}" for number in range(1, 51)
     ]
 
+
+def test_asset_generation_fills_existing_units_without_qr_before_creating_new_units():
+    makerspace = make_space("ops-assets-missing-qr")
+    manager = make_member("ops-assets-missing-qr-manager", makerspace)
+    product = make_product(
+        makerspace,
+        name="Arduino",
+        tracking_mode=TrackingMode.INDIVIDUAL,
+        total_quantity=3,
+        available_quantity=3,
+    )
+    assets = [
+        InventoryAsset.objects.create(makerspace=makerspace, product=product, asset_tag=f"ARD-{number}")
+        for number in range(1, 4)
+    ]
+    QrCode.objects.create(
+        makerspace=makerspace,
+        target_type=QrCode.TargetType.ASSET,
+        target_id=assets[0].id,
+        created_by=manager,
+    )
+    batch = QrPrintBatch.objects.create(makerspace=makerspace, title="Missing unit labels", created_by=manager)
+
+    response = authenticated_client(manager).post(
+        f"/api/v1/admin/products/{product.id}/assets/generate",
+        {"count": 2, "name_prefix": "Arduino", "print_batch_id": batch.id},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert [row["id"] for row in response.data["assets"]] == [assets[1].id, assets[2].id]
+    assert InventoryAsset.objects.filter(product=product).count() == 3
+    assert QrCode.objects.filter(
+        target_type=QrCode.TargetType.ASSET,
+        target_id__in=[asset.id for asset in assets],
+    ).count() == 3
+    assert list(batch.items.order_by("sort_order").values_list("label_text", flat=True)) == [
+        "Arduino ARD-2",
+        "Arduino ARD-3",
+    ]
 
 def test_qr_batch_accepts_box_and_product_items_and_downloads_name_captions():
     makerspace = make_space("ops-qr-batch")
@@ -618,6 +671,37 @@ def test_qr_batch_accepts_box_and_product_items_and_downloads_name_captions():
     assert "Multimeter" in svg_contents
 
 
+def test_qr_batch_replaces_duplicate_inventory_qr_item():
+    makerspace = make_space("ops-qr-batch-replace")
+    manager = make_member("ops-qr-batch-replace-manager", makerspace)
+    product = make_product(makerspace, name="Multimeter")
+    qr = QrCode.objects.create(
+        makerspace=makerspace,
+        target_type=QrCode.TargetType.PRODUCT,
+        target_id=product.id,
+        created_by=manager,
+    )
+    batch = QrPrintBatch.objects.create(makerspace=makerspace, title="Bench labels", created_by=manager)
+    client = authenticated_client(manager)
+
+    first = client.post(
+        f"/api/v1/admin/qr-print-batches/{batch.id}/items",
+        {"qr_code_id": qr.id, "label_text": "Old label"},
+        format="json",
+    )
+    second = client.post(
+        f"/api/v1/admin/qr-print-batches/{batch.id}/items",
+        {"qr_code_id": qr.id, "label_text": "New label"},
+        format="json",
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.data["id"] == second.data["id"]
+    assert QrPrintBatchItem.objects.filter(batch=batch, qr_code=qr).count() == 1
+    item = QrPrintBatchItem.objects.get(batch=batch, qr_code=qr)
+    assert item.label_text == "New label"
+
 def test_qr_batch_items_enforce_manage_qr_rbac_and_makerspace_scope():
     space_a = make_space("ops-qr-scope-a")
     space_b = make_space("ops-qr-scope-b")
@@ -645,3 +729,36 @@ def test_qr_batch_items_enforce_manage_qr_rbac_and_makerspace_scope():
 
     assert denied_role.status_code == 403
     assert denied_scope.status_code == 404
+
+
+def test_reconcile_individual_product_preserves_reserved_quantity():
+    # Regression (Stage-4 P1): reservation is product-level in this fork — individual asset
+    # rows stay AVAILABLE while reserved_quantity carries the reservation. Reconcile must NOT
+    # recompute reserved from asset status (which would zero it and double-allocate the unit).
+    from apps.inventory.availability import reconcile_individual_product_from_assets
+
+    makerspace = make_space("reconcile-reserved")
+    product = make_product(
+        makerspace,
+        name="Reserved Drill",
+        tracking_mode=TrackingMode.INDIVIDUAL,
+        total_quantity=3,
+        available_quantity=3,
+    )
+    for number in range(3):
+        InventoryAsset.objects.create(
+            makerspace=makerspace, product=product, asset_tag=f"RES-{number}"
+        )
+    # Simulate an accepted-but-unissued reservation: 1 unit reserved at the product level
+    # while all 3 asset rows remain AVAILABLE (total 3 = available 2 + reserved 1, constraint-valid).
+    product.available_quantity = 2
+    product.reserved_quantity = 1
+    product.save(update_fields=["available_quantity", "reserved_quantity"])
+
+    reconcile_individual_product_from_assets(product)
+    product.refresh_from_db()
+
+    assert product.reserved_quantity == 1  # preserved, not zeroed
+    assert product.available_quantity == 2  # 3 AVAILABLE assets - 1 reserved
+    assert product.issued_quantity == 0
+    assert product.total_quantity == 3  # every serialized row

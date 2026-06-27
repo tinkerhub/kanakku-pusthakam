@@ -59,6 +59,11 @@ urlpatterns = [
         name="admin-inventory-export",
     ),
     path("inventory/<int:pk>", views.InventoryDetailView.as_view(), name="admin-inventory-detail"),
+    path(
+        "inventory/<int:product_pk>/assets",
+        views.InventoryAssetListView.as_view(),
+        name="admin-inventory-assets",
+    ),
     path("inventory/<int:pk>/qr-history", views.ProductQrHistoryView.as_view(), name="admin-inventory-qr-history"),
     path(
         "inventory/<int:pk>/image",
@@ -254,8 +259,3 @@ urlpatterns = [
         name="admin-makerspace-warranties",
     ),
 ]
-
-
-
-
-

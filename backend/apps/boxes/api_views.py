@@ -245,7 +245,12 @@ class QrRebindTargetView(APIView):
         from django.db import transaction
 
         with transaction.atomic():
-            return rebind_qr_target(request.user, pk, serializer.validated_data)
+            result = rebind_qr_target(request.user, pk, serializer.validated_data)
+        # rebind_qr_target returns a QrRebindResult dataclass (qr only); the serializer
+        # contract is {qr, target}. Build the target payload from the rebound QR and wrap
+        # in a DRF Response (returning the raw dataclass 500s in finalize_response).
+        payload = {"qr": result.qr, "target": qr_target_payload(result.qr)}
+        return Response(QrRebindResultSerializer(payload).data)
 
 
 def _allowed_scanner_actions(user, qr):

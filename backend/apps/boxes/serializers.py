@@ -113,6 +113,12 @@ class QrRebindTargetSerializer(serializers.Serializer):
     # Cap to the smaller target column (asset_tag is 100, product name 200) so an
     # overlong rename returns a clean 400 instead of a DB-level error at save.
     new_name = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    # Present only for a cross-makerspace individual-asset move; rebind_qr_target keys the
+    # asset-move branch on this. Optional so same-makerspace product/asset rebinds omit it.
+    destination_makerspace_id = serializers.IntegerField(required=False)
+    # The destination product the moved asset joins (optional; a matching-name product is
+    # found/created when absent).
+    destination_product_id = serializers.IntegerField(required=False)
 
 
 class QrRebindResultSerializer(serializers.Serializer):
