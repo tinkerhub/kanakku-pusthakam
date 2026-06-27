@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -340,6 +341,13 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       ? [activeMakerspace]
       : makerspaces.data ?? [];
   const moduleAllowedTabs = filterTabsByEnabledModules(allowedTabs, activeMakerspace);
+  // Link staff back to their public catalog: "/" on a single-tenant locked site,
+  // otherwise the central /m/<slug> deep link. Null until a makerspace is active.
+  const publicInventoryPath = activeMakerspace
+    ? singleTenantLocked
+      ? "/"
+      : `/m/${activeMakerspace.slug}`
+    : null;
   // Derived (no useEffect): switching makerspace recomputes synchronously, and a
   // tab that isn't allowed for the current role falls back to the role-appropriate
   // default landing tab (then the first allowed tab).
@@ -454,6 +462,11 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
               <span className="pill max-w-full truncate border border-ink bg-panel px-3 py-2 font-mono text-xs uppercase text-muted sm:max-w-56">
                 {user.username}
               </span>
+              {publicInventoryPath ? (
+                <Link className="desk-button" to={publicInventoryPath}>
+                  Public inventory
+                </Link>
+              ) : null}
               {isSuperadmin && !singleTenantLocked ? (
                 <button className="desk-button" onClick={() => setSelected(null)}>
                   Switch makerspace
