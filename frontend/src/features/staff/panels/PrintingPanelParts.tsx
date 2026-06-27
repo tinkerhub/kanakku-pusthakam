@@ -6,6 +6,7 @@ import {
   getAccessToken,
   refreshAccessToken,
 } from "../../../lib/api";
+import { WarrantySection } from "../WarrantySection";
 
 const SPOOL_SWATCHES: Record<string, string> = {
   Black: "#1b1c19",
@@ -246,6 +247,8 @@ export function PrinterCard({
         <button type="button" disabled={!printer.is_active} onClick={onDeactivate}>Deactivate</button>
         <button type="button" className="text-danger" onClick={onDelete}>Delete</button>
       </div>
+      {/* Printer warranty (purchase/expiry/docs) — MANAGE_PRINTING, enforced server-side. */}
+      <div className="mt-3"><WarrantySection hostKind="printer" hostId={printer.id} /></div>
     </div>
   );
 }

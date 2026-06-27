@@ -80,6 +80,7 @@ def _audit_meta(makerspace):
 def _collect_storage_keys(makerspace):
     from apps.evidence.models import EvidencePhoto
     from apps.printing.models import PrintRequest, PrintRequestFile
+    from apps.warranty.models import WarrantyDocument
 
     keys = []
     seen = set()
@@ -93,6 +94,9 @@ def _collect_storage_keys(makerspace):
         add(key)
 
     for key in PrintRequestFile.objects.filter(makerspace=makerspace).values_list("object_key", flat=True):
+        add(key)
+
+    for key in WarrantyDocument.objects.filter(warranty__makerspace=makerspace).values_list("object_key", flat=True):
         add(key)
 
     for request in PrintRequest.objects.filter(bucket__makerspace=makerspace).only(
@@ -154,11 +158,11 @@ def _delete_object_graph(makerspace):
 
     with connection.cursor() as cursor:
         # Suspend ALL triggers for THIS transaction only via the session-replication
-        # role. It is transaction-scoped — Postgres resets it on commit/rollback, and a
-        # dropped connection resets it too — so a crash mid-purge can NEVER leave the
+        # role. It is transaction-scoped -- Postgres resets it on commit/rollback, and a
+        # dropped connection resets it too -- so a crash mid-purge can NEVER leave the
         # append-only immutability triggers durably disabled platform-wide. (ALTER TABLE
         # DISABLE TRIGGER cannot be re-enabled inside the same transaction that modified
-        # the table — "pending trigger events" — forcing a post-commit re-enable that is
+        # the table -- "pending trigger events" -- forcing a post-commit re-enable that is
         # not crash-safe.) Django's ORM performs every CASCADE/SET_NULL fixup in Python
         # and the comprehensive purge test asserts no orphans survive, so losing DB-level
         # FK enforcement for this one transaction is safe.
@@ -244,3 +248,4 @@ def _delete_public_image_keys(storage_keys):
 
     for key in storage_keys:
         public_image_storage.delete_object(key)
+

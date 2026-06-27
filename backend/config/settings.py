@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "apps.printing",
     "apps.audit",
     "apps.evidence",
+    "apps.warranty",
     "apps.admin_api",
     "apps.integrations",
     "apps.operations",
@@ -130,7 +131,7 @@ AXES_FAILURE_LIMIT = env.int("AXES_FAILURE_LIMIT", default=5)
 AXES_COOLOFF_TIME = 1
 AXES_RESET_ON_SUCCESS = True
 # Axes hooks Django's authenticate(), so it covers BOTH the admin session login and
-# the SimpleJWT staff login (apps/accounts LoginView) — intentional brute-force lockout
+# the SimpleJWT staff login (apps/accounts LoginView) â€” intentional brute-force lockout
 # on top of that view's DRF rate throttle. The nested list makes the lockout key the
 # COMBINATION of ip_address+username (AND), not either alone (OR): repeated failures
 # against a known username from other IPs can't lock that account out (no username DoS).
@@ -163,6 +164,11 @@ STORAGES = {
 EVIDENCE_URL_TTL_SECONDS = env.int("EVIDENCE_URL_TTL_SECONDS", default=300)
 EVIDENCE_MAX_BYTES = env.int("EVIDENCE_MAX_BYTES", default=10485760)
 EVIDENCE_ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"]
+WARRANTY_DOC_MAX_BYTES = env.int("WARRANTY_DOC_MAX_BYTES", default=10485760)
+WARRANTY_DOC_ALLOWED_MIME = env.list(
+    "WARRANTY_DOC_ALLOWED_MIME",
+    default=["application/pdf", "image/jpeg", "image/png", "image/webp"],
+)
 PUBLIC_IMAGE_BUCKET = env("PUBLIC_IMAGE_BUCKET", default="public-images")
 PUBLIC_IMAGE_BASE_URL = env("PUBLIC_IMAGE_BASE_URL", default="")
 PUBLIC_IMAGE_MAX_BYTES = env.int("PUBLIC_IMAGE_MAX_BYTES", default=5242880)
@@ -389,8 +395,8 @@ SIMPLE_JWT = {
 # Cross-site refresh cookie (frontends live on separate origins).
 AUTH_REFRESH_COOKIE = "refresh_token"
 # CSRF defense for the cookie-bearing endpoints (refresh/logout): the view requires
-# this custom header to be PRESENT — a non-simple header forces a CORS preflight that
-# an attacker's origin cannot pass — AND validates the Origin header against the
+# this custom header to be PRESENT â€” a non-simple header forces a CORS preflight that
+# an attacker's origin cannot pass â€” AND validates the Origin header against the
 # allowlist (review fixes #1, #8). The header VALUE is not a secret; presence + Origin
 # is the defense. This works cross-origin where a readable double-submit cookie cannot.
 AUTH_REFRESH_CSRF_HEADER = "X-Refresh-CSRF"
@@ -443,5 +449,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "Health", "description": "Health and readiness probes."},
     ],
 }
+
+
 
 

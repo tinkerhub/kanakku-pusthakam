@@ -134,6 +134,8 @@ def _model_for_path(model_path):
         from apps.printing import models
     elif app_label == "procurement":
         from apps.procurement import models
+    elif app_label == "warranty":
+        from apps.warranty import models
     else:
         raise LookupError(model_path)
     return getattr(models, model_name)
@@ -185,9 +187,16 @@ _MODEL_LOOKUPS = {
     "direct-loan-return": ("hardware_requests.PublicToolLoan", "makerspace_id"),
     "managed-printer-detail": ("printing.PrintPrinter", "makerspace_id"),
     "admin-printer-image": ("printing.PrintPrinter", "makerspace_id"),
+    "admin-asset-warranty": ("inventory.InventoryAsset", "makerspace_id"),
+    "admin-printer-warranty": ("printing.PrintPrinter", "makerspace_id"),
+    "admin-warranty-document-presign": ("warranty.Warranty", "makerspace_id"),
+    "admin-warranty-documents": ("warranty.Warranty", "makerspace_id"),
+    "admin-warranty-document-url": ("warranty.WarrantyDocument", "warranty__makerspace_id"),
+    "admin-warranty-document-detail": ("warranty.WarrantyDocument", "warranty__makerspace_id"),
     "managed-spool-detail": ("printing.FilamentSpool", "makerspace_id"),
     "managed-file-url": ("printing.PrintRequestFile", "makerspace_id"),
     "to-buy-detail": ("procurement.ToBuyItem", "makerspace_id"),
     **{name: ("hardware_requests.HardwareRequest", "makerspace_id") for name in _REQUEST_ACTIONS},
     **{name: ("printing.PrintRequest", "makerspace_id") for name in _PRINT_ACTIONS},
 }
+

@@ -23,6 +23,7 @@ import {
   StocktakePanel,
   StockTransferPanel,
   Users,
+  WarrantyPanel,
   type Makerspace,
 } from "./StaffPanels";
 
@@ -128,6 +129,14 @@ export function StaffTabContent({
           makerspace={activeMakerspace}
           isSuperadmin={isSuperadmin}
           printingOnly={printingOnly}
+        />
+      ) : null}
+      {activeTab === "warranty" && (canEditInventory || canSeePrinting) ? (
+        <WarrantyPanel
+          key={makerspaceKey}
+          makerspace={activeMakerspace}
+          canEditInventory={canEditInventory}
+          canSeePrinting={canSeePrinting}
         />
       ) : null}
       {activeTab === "direct" && canEditInventory ? <DirectLoans key={makerspaceKey} makerspace={activeMakerspace} /> : null}

@@ -24,14 +24,14 @@ import { useTenant } from "../../lib/tenant";
 
 const ALL_TABS = [
   "dashboard", "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
-  "stocktake", "containers", "ledger", "reports", "bulk", "qr", "scanner", "api", "emails", "email-logs", "settings", "users", "platform", "audit",
+  "stocktake", "containers", "ledger", "reports", "warranty", "bulk", "qr", "scanner", "api", "emails", "email-logs", "settings", "users", "platform", "audit",
 ] as const;
 // Membership roles that get the full staff console. Anything else (print_manager,
 // or an unknown role) is failed closed to the 3D-printing surfaces only.
 const FULL_ACCESS_ROLES = ["space_manager", "inventory_manager", "guest_admin"];
 // Print managers also get a To-Buy list (their items are auto-tagged "printing").
 // "requests" is included so they reach the (printing-only) unified Requests tab.
-const PRINTING_TABS = ["requests", "printing", "tobuy", "reports", "api", "emails"];
+const PRINTING_TABS = ["requests", "printing", "tobuy", "reports", "warranty", "api", "emails"];
 
 // Human labels for every tab key (single source — was an inline ternary in the nav).
 const TAB_LABELS: Record<string, string> = {
@@ -51,6 +51,7 @@ const TAB_LABELS: Record<string, string> = {
   printing: "3D Printing",
   tobuy: "To Buy",
   reports: "Reports",
+  warranty: "Warranties",
   audit: "Audit log",
   users: "Users",
   settings: "Settings",
@@ -70,7 +71,7 @@ const TAB_GROUPS: { label: string; tabs: string[] }[] = [
     tabs: ["inventory", "categories", "needsfix", "containers", "bulk", "qr", "scanner"],
   },
   { label: "3D Printing", tabs: ["printing"] },
-  { label: "Insights", tabs: ["reports", "audit"] },
+  { label: "Insights", tabs: ["reports", "warranty", "audit"] },
   // Rarely-used admin tabs collapsed behind one expander by default.
   { label: "Admin", tabs: ["users", "settings", "api", "emails", "email-logs", "platform"] },
 ];
@@ -320,6 +321,8 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     // so they're VIEW_AUDIT-gated on the backend. Guest admins (handout-only) lose the
     // tab; print managers keep it for their printing report (separate MANAGE_PRINTING data).
     if (tabName === "reports") return canViewAudit || canSeePrinting;
+    // Warranties cover assets (EDIT_INVENTORY) and printers (MANAGE_PRINTING) — either grants the tab.
+    if (tabName === "warranty") return canEditInventory || canSeePrinting;
     if (tabName === "users") return canManageMakerspace;
     if (tabName === "settings") return canManageMakerspace;
     if (tabName === "emails") return canEditInventory || canSeePrinting || canManageMakerspace;
@@ -498,6 +501,7 @@ const TAB_MODULES: Record<string, string[]> = {
   qr: ["qr_management"],
   scanner: ["scanner"],
   reports: ["reports", "printing"],
+  warranty: ["staff_admin", "printing"],
 };
 
 function filterTabsByEnabledModules(tabs: readonly string[], makerspace?: Makerspace) {

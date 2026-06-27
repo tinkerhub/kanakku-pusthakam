@@ -15,5 +15,6 @@ export { RequestsPanel } from "./panels/RequestsPanel";
 export { StocktakePanel } from "./panels/StocktakePanel";
 export { StockTransferPanel } from "./panels/StockTransferPanel";
 export { Users } from "./panels/Users";
+export { WarrantyPanel } from "./panels/WarrantyPanel";
 export { Panel, useStaffGet } from "./panels/shared";
 export type { Category, Makerspace } from "./panels/shared";

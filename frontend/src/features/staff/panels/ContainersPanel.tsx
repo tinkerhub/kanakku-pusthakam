@@ -6,6 +6,7 @@ import { invalidateContainerViews } from "../queryInvalidation";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 import { QrHistory } from "./QrHistory";
 import { QrImage } from "./QrImage";
+import { WarrantySection } from "../WarrantySection";
 
 type Container = { id: number; code?: string; label: string; location?: string; is_active?: boolean };
 type Contents = {
@@ -119,6 +120,9 @@ function ContainerRow({ container, makerspaceId, canViewAudit }: { container: Co
 // get_or_create, so it returns the existing active QR (or makes one) and we render it.
 function AssetQrRow({ asset, canViewAudit }: { asset: { id: number; asset_tag: string; product: string; status: string }; canViewAudit: boolean }) {
   const [qrId, setQrId] = useState<number | null>(null);
+  // The containers tab is MANAGE_QR-gated; those roles also hold EDIT_INVENTORY, and the
+  // asset-warranty endpoints enforce EDIT_INVENTORY server-side, so the section stays editable here.
+  const [showWarranty, setShowWarranty] = useState(false);
   const show = useMutation({
     mutationFn: () => staffRequest<{ id: number }>(`/admin/assets/${asset.id}/qr`, { method: "POST", body: JSON.stringify({}) }),
     onSuccess: (qr) => setQrId(qr.id),
@@ -127,8 +131,10 @@ function AssetQrRow({ asset, canViewAudit }: { asset: { id: number; asset_tag: s
     <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
       <span>{asset.asset_tag} ({asset.status})</span>
       <button type="button" className="desk-button" disabled={show.isPending} onClick={() => show.mutate()}>{qrId ? "QR shown" : "Show QR"}</button>
+      <button type="button" className="desk-button" onClick={() => setShowWarranty((value) => !value)}>{showWarranty ? "Hide warranty" : "Warranty"}</button>
       {qrId ? <QrImage qrId={qrId} label={asset.asset_tag} /> : null}
       {canViewAudit ? <QrHistory assetId={asset.id} className="grid w-full gap-2 pt-2" /> : null}
+      {showWarranty ? <div className="w-full pt-2"><WarrantySection hostKind="asset" hostId={asset.id} /></div> : null}
       {show.error instanceof Error ? <span className="text-danger">{show.error.message}</span> : null}
     </div>
   );

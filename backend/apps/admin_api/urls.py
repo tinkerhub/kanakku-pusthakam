@@ -1,4 +1,4 @@
-﻿from django.urls import path
+from django.urls import path
 
 from apps.admin_api import api_client_views, views
 from apps.admin_api.views_email_templates import (
@@ -11,6 +11,17 @@ from apps.admin_api.views_email_logs import EmailLogListView, EmailLogRetryView
 from apps.admin_api.views_notification_recipients import NotificationRecipientsView
 from apps.admin_api.views_notification_rules import NotificationRulesView
 from apps.admin_api.views_platform import PlatformEmailSettingsView
+from apps.admin_api.views_warranty import (
+    AssetWarrantyView,
+    MakerspaceWarrantyReportView,
+    PrinterWarrantyView,
+)
+from apps.admin_api.views_warranty_documents import (
+    WarrantyDocumentCreateView,
+    WarrantyDocumentDeleteView,
+    WarrantyDocumentPresignView,
+    WarrantyDocumentUrlView,
+)
 from apps.makerspaces.models import MakerspaceMembership
 from apps.printing.views_printer_image import PrinterImageView
 
@@ -69,6 +80,7 @@ urlpatterns = [
         views.InventoryLendingHistoryView.as_view(),
         name="admin-inventory-lending-history",
     ),
+    path("assets/<int:pk>/warranty", AssetWarrantyView.as_view(), name="admin-asset-warranty"),
     path("assets/<int:pk>/qr-history", views.AssetQrHistoryView.as_view(), name="admin-inventory-asset-qr-history"),
     path(
         "inventory/<int:pk>/adjust-quantity",
@@ -211,7 +223,38 @@ urlpatterns = [
         PrinterImageView.as_view(),
         name="admin-printer-image",
     ),
+    path(
+        "printing/printers/<int:pk>/warranty",
+        PrinterWarrantyView.as_view(),
+        name="admin-printer-warranty",
+    ),
+    path(
+        "warranty/<int:pk>/documents/presign",
+        WarrantyDocumentPresignView.as_view(),
+        name="admin-warranty-document-presign",
+    ),
+    path(
+        "warranty/<int:pk>/documents",
+        WarrantyDocumentCreateView.as_view(),
+        name="admin-warranty-documents",
+    ),
+    path(
+        "warranty/documents/<int:pk>/url",
+        WarrantyDocumentUrlView.as_view(),
+        name="admin-warranty-document-url",
+    ),
+    path(
+        "warranty/documents/<int:pk>",
+        WarrantyDocumentDeleteView.as_view(),
+        name="admin-warranty-document-detail",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/warranties",
+        MakerspaceWarrantyReportView.as_view(),
+        name="admin-makerspace-warranties",
+    ),
 ]
+
 
 
 
