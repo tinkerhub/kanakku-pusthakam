@@ -1,4 +1,4 @@
-from apps.admin_api.views_assets import InventoryAssetListView
+from apps.admin_api.views_assets import InventoryAssetListView, InventoryAssetStatusActionView
 from apps.admin_api.views_bulk import (
     BulkImportApplyView,
     BulkImportJobDetailView,
@@ -61,6 +61,7 @@ __all__ = [
     "EmailLogPagination",
     "EmailLogRetryView",
     "InventoryAssetListView",
+    "InventoryAssetStatusActionView",
     "InventoryDetailView",
     "InventoryExportView",
     "InventoryLendingHistoryView",

@@ -274,3 +274,7 @@ class InventoryAssetAdminSerializer(serializers.ModelSerializer):
     def get_qr_payload(self, obj):
         qr = self._active_qr(obj)
         return qr.payload if qr else None
+
+
+class InventoryAssetStatusActionSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(choices=["shelve", "repair"])

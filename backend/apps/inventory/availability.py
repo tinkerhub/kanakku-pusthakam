@@ -71,6 +71,38 @@ def reconcile_individual_product_from_assets(product):
     return product
 
 
+def move_asset_status(asset, new_status):
+    """Move one serialized asset between product quantity buckets.
+
+    The caller must already be inside transaction.atomic() and hold the asset row
+    lock. This service locks the product row before changing bucket counts.
+    """
+    if not connection.in_atomic_block:
+        raise RuntimeError("move_asset_status must be called inside transaction.atomic().")
+    old_status = asset.status
+    if old_status == new_status:
+        return asset
+    old_bucket = ASSET_QUANTITY_BUCKETS.get(old_status)
+    new_bucket = ASSET_QUANTITY_BUCKETS.get(new_status)
+    if old_bucket is None or new_bucket is None:
+        raise InsufficientStock(
+            "Asset status transition is not backed by inventory quantity buckets."
+        )
+
+    product = InventoryProduct.objects.select_for_update().get(pk=asset.product_id)
+    reconcile_individual_product_from_assets(product)
+    product.refresh_from_db()
+    old_value = getattr(product, old_bucket)
+    if old_value < 1:
+        raise InsufficientStock(
+            f"Product {product.pk} has no {old_bucket} stock to move."
+        )
+    asset.status = new_status
+    asset.save(update_fields=["status", "updated_at"])
+    reconcile_individual_product_from_assets(product)
+    return asset
+
+
 def adjust_quantities(
     product, *, delta_available, delta_damaged, delta_lost, reason, actor
 ):
@@ -321,6 +353,21 @@ def repair_from_needs_fix(product, quantity):
     locked.needs_fix_quantity -= quantity
     locked.available_quantity += quantity
     locked.save(update_fields=["needs_fix_quantity", "available_quantity", "updated_at"])
+    return locked
+
+
+def move_available_to_needs_fix(product, quantity):
+    """Move available units out of circulation onto the to-be-fixed shelf."""
+    if not connection.in_atomic_block:
+        raise RuntimeError("move_available_to_needs_fix must be called inside transaction.atomic().")
+    locked = InventoryProduct.objects.select_for_update().get(pk=product.pk)
+    if quantity <= 0 or locked.available_quantity < quantity:
+        raise InsufficientStock(
+            f"Cannot move {quantity}: only {locked.available_quantity} available."
+        )
+    locked.available_quantity -= quantity
+    locked.needs_fix_quantity += quantity
+    locked.save(update_fields=["available_quantity", "needs_fix_quantity", "updated_at"])
     return locked
 
 
