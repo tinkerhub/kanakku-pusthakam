@@ -1,7 +1,7 @@
 {
     "openapi": "3.0.3",
     "info": {
-        "title": "OSMM API",
+        "title": "Kanakku Pusthakam API",
         "version": "0.1.0",
         "description": "Multi-tenant makerspace hardware loan system.\n\nPublic flow: browse inventory, search with `q`, page with `page`, verify Check-In, submit a borrow request, then track it by public token or verified Check-In identifier.\n\nAdmin flow: authenticate with JWT, manage makerspaces, inventory, staff, QR labels, bulk imports, request review, issue, and return.\n\nAuthentication: staff/admin endpoints use `Authorization: Bearer <access>`. Public browser endpoints can use `X-Publishable-Key` when public key hardening is enabled."
     },
@@ -287,6 +287,14 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "limit",
                         "schema": {
                             "type": "integer"
@@ -311,6 +319,14 @@
                             ]
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
                     }
                 ],
                 "tags": [
@@ -452,6 +468,42 @@
                 }
             }
         },
+        "/api/v1/admin/api-clients/{id}/rotate-secret": {
+            "post": {
+                "operationId": "api_v1_admin_api_clients_rotate_secret_create",
+                "summary": "Rotate API client secret",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "API clients"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiClientCreateResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/api-key-requests": {
             "get": {
                 "operationId": "api_v1_admin_api_key_requests_list",
@@ -549,6 +601,62 @@
                 }
             }
         },
+        "/api/v1/admin/assets/{id}/fix-status": {
+            "post": {
+                "operationId": "api_v1_admin_assets_fix_status_create",
+                "summary": "Move a specific individual asset to or from the fix shelf",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/InventoryAssetStatusAction"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/InventoryAssetStatusAction"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/InventoryAssetStatusAction"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InventoryAssetAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/assets/{id}/qr": {
             "post": {
                 "operationId": "api_v1_admin_assets_qr_create",
@@ -581,6 +689,134 @@
                             }
                         },
                         "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/assets/{id}/qr-history": {
+            "get": {
+                "operationId": "api_v1_admin_assets_qr_history_retrieve",
+                "summary": "List QR scan history for an inventory asset",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AssetQrHistory"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/assets/{id}/warranty": {
+            "get": {
+                "operationId": "api_v1_admin_assets_warranty_retrieve",
+                "summary": "Retrieve warranty details for an inventory asset",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Warranty"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "api_v1_admin_assets_warranty_update",
+                "summary": "Create or update warranty details for an inventory asset",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyUpsert"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyUpsert"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyUpsert"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Warranty"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid warranty details."
                     }
                 }
             }
@@ -1453,8 +1689,8 @@
         "/api/v1/admin/inventory/{id}/needs-fix": {
             "post": {
                 "operationId": "api_v1_admin_inventory_needs_fix_create",
-                "description": "Repair (back to available) or scrap (out of inventory) units on the shelf.",
-                "summary": "Repair or scrap units on the to-be-fixed shelf",
+                "description": "Move units onto the shelf, back to available, or out of inventory.",
+                "summary": "Move inventory units to, from, or out of the to-be-fixed shelf",
                 "parameters": [
                     {
                         "in": "path",
@@ -1499,6 +1735,96 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/InventoryProductAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/inventory/{id}/qr-history": {
+            "get": {
+                "operationId": "api_v1_admin_inventory_qr_history_retrieve",
+                "summary": "List QR scan history for an inventory product",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProductQrHistory"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/inventory/{product_pk}/assets": {
+            "get": {
+                "operationId": "api_v1_admin_inventory_assets_list",
+                "summary": "List individual assets for an inventory product",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "page_size",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return per page.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "product_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedInventoryAssetAdminList"
                                 }
                             }
                         },
@@ -1732,6 +2058,14 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "limit",
                         "schema": {
                             "type": "integer"
@@ -1744,6 +2078,14 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
                     }
                 ],
                 "tags": [
@@ -1776,6 +2118,14 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "limit",
                         "schema": {
                             "type": "integer"
@@ -1788,6 +2138,14 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
                     }
                 ],
                 "tags": [
@@ -1820,6 +2178,14 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "limit",
                         "schema": {
                             "type": "integer"
@@ -1832,6 +2198,14 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
                     }
                 ],
                 "tags": [
@@ -1864,6 +2238,14 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "limit",
                         "schema": {
                             "type": "integer"
@@ -1876,6 +2258,14 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
                     }
                 ],
                 "tags": [
@@ -1908,6 +2298,14 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "limit",
                         "schema": {
                             "type": "integer"
@@ -1920,6 +2318,14 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
                     }
                 ],
                 "tags": [
@@ -1952,6 +2358,14 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "limit",
                         "schema": {
                             "type": "integer"
@@ -1964,6 +2378,14 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
                     }
                 ],
                 "tags": [
@@ -1996,6 +2418,14 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "limit",
                         "schema": {
                             "type": "integer"
@@ -2008,6 +2438,14 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
                     }
                 ],
                 "tags": [
@@ -2040,6 +2478,14 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "limit",
                         "schema": {
                             "type": "integer"
@@ -2052,6 +2498,14 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
                     }
                 ],
                 "tags": [
@@ -2084,6 +2538,14 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "limit",
                         "schema": {
                             "type": "integer"
@@ -2096,6 +2558,14 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
                     }
                 ],
                 "tags": [
@@ -2128,6 +2598,14 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "limit",
                         "schema": {
                             "type": "integer"
@@ -2140,6 +2618,14 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
                     }
                 ],
                 "tags": [
@@ -2569,15 +3055,6 @@
                         "schema": {
                             "type": "integer"
                         }
-                    },
-                    {
-                        "name": "page_size",
-                        "required": false,
-                        "in": "query",
-                        "description": "Number of results to return per page.",
-                        "schema": {
-                            "type": "integer"
-                        }
                     }
                 ],
                 "tags": [
@@ -2991,6 +3468,111 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/email-layout": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_email_layout_retrieve",
+                "summary": "Retrieve or update the email base layout",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailLayout"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            },
+            "put": {
+                "operationId": "api_v1_admin_makerspace_email_layout_update",
+                "summary": "Retrieve or update the email base layout",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailLayout"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailLayout"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailLayout"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailLayout"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid email layout."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/email-logs": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_email_logs_list",
@@ -3102,6 +3684,7 @@
         "/api/v1/admin/makerspace/{makerspace_id}/email-templates": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_email_templates_list",
+                "summary": "List editable email templates",
                 "parameters": [
                     {
                         "in": "path",
@@ -3127,28 +3710,27 @@
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/components/schemas/EmailTemplateListItem"
+                                        "$ref": "#/components/schemas/EmailTemplateRow"
                                     }
                                 }
                             }
                         },
                         "description": ""
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
                     }
                 }
             }
         },
-        "/api/v1/admin/makerspace/{makerspace_id}/email-templates/{stream}/{audience}/{key}": {
+        "/api/v1/admin/makerspace/{makerspace_id}/email-templates/{key}": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_email_templates_retrieve",
+                "summary": "Retrieve, update, or reset an email template",
                 "parameters": [
-                    {
-                        "in": "path",
-                        "name": "audience",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    },
                     {
                         "in": "path",
                         "name": "key",
@@ -3162,14 +3744,6 @@
                         "name": "makerspace_id",
                         "schema": {
                             "type": "integer"
-                        },
-                        "required": true
-                    },
-                    {
-                        "in": "path",
-                        "name": "stream",
-                        "schema": {
-                            "type": "string"
                         },
                         "required": true
                     }
@@ -3187,25 +3761,24 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/EmailTemplateDetail"
+                                    "$ref": "#/components/schemas/EmailTemplateRow"
                                 }
                             }
                         },
                         "description": ""
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
                     }
                 }
             },
-            "patch": {
-                "operationId": "api_v1_admin_makerspace_email_templates_partial_update",
+            "put": {
+                "operationId": "api_v1_admin_makerspace_email_templates_update",
+                "summary": "Retrieve, update, or reset an email template",
                 "parameters": [
-                    {
-                        "in": "path",
-                        "name": "audience",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    },
                     {
                         "in": "path",
                         "name": "key",
@@ -3214,127 +3787,6 @@
                         },
                         "required": true
                     },
-                    {
-                        "in": "path",
-                        "name": "makerspace_id",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "required": true
-                    },
-                    {
-                        "in": "path",
-                        "name": "stream",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Email templates"
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PatchedEmailTemplateUpdate"
-                            }
-                        },
-                        "application/x-www-form-urlencoded": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PatchedEmailTemplateUpdate"
-                            }
-                        },
-                        "multipart/form-data": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PatchedEmailTemplateUpdate"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "jwtAuth": []
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/EmailTemplateDetail"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/api/v1/admin/makerspace/{makerspace_id}/email-templates/{stream}/{audience}/{key}/reset": {
-            "post": {
-                "operationId": "api_v1_admin_makerspace_email_templates_reset_create",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "audience",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    },
-                    {
-                        "in": "path",
-                        "name": "key",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    },
-                    {
-                        "in": "path",
-                        "name": "makerspace_id",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "required": true
-                    },
-                    {
-                        "in": "path",
-                        "name": "stream",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Email templates"
-                ],
-                "security": [
-                    {
-                        "jwtAuth": []
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/EmailTemplateDetail"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/api/v1/admin/makerspace/{makerspace_id}/email-templates/preview": {
-            "post": {
-                "operationId": "api_v1_admin_makerspace_email_templates_preview_create",
-                "parameters": [
                     {
                         "in": "path",
                         "name": "makerspace_id",
@@ -3351,17 +3803,17 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/EmailTemplatePreviewRequest"
+                                "$ref": "#/components/schemas/EmailTemplateWrite"
                             }
                         },
                         "application/x-www-form-urlencoded": {
                             "schema": {
-                                "$ref": "#/components/schemas/EmailTemplatePreviewRequest"
+                                "$ref": "#/components/schemas/EmailTemplateWrite"
                             }
                         },
                         "multipart/form-data": {
                             "schema": {
-                                "$ref": "#/components/schemas/EmailTemplatePreviewRequest"
+                                "$ref": "#/components/schemas/EmailTemplateWrite"
                             }
                         }
                     },
@@ -3377,11 +3829,130 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/EmailTemplatePreviewResponse"
+                                    "$ref": "#/components/schemas/EmailTemplateRow"
                                 }
                             }
                         },
                         "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid email template."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "api_v1_admin_makerspace_email_templates_destroy",
+                "summary": "Retrieve, update, or reset an email template",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/email-templates/{key}/preview": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_email_templates_preview_create",
+                "summary": "Preview an email template",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailPreviewRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailPreviewRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailPreviewRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailRendered"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
                     }
                 }
             }
@@ -3494,6 +4065,99 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/inventory/export": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_inventory_export_retrieve",
+                "summary": "Export inventory products as CSV or XLSX",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "archived",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "format",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "csv",
+                                "xlsx"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "ids",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "low_stock",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "q",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "text/csv": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/inventory/import/apply": {
             "post": {
                 "operationId": "api_v1_admin_makerspace_inventory_import_apply_create",
@@ -3557,6 +4221,106 @@
                 "responses": {
                     "200": {
                         "description": "Import application result."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/inventory/import/jobs": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_inventory_import_jobs_create",
+                "summary": "Create an async inventory bulk import job",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Bulk import"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BulkImportJobCreate"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BulkImportJobCreate"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BulkImportJobCreate"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BulkImportJob"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/inventory/import/jobs/{job_id}": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_inventory_import_jobs_retrieve",
+                "summary": "Get async inventory bulk import job status",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "job_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Bulk import"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BulkImportJob"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -4197,6 +4961,14 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "format",
                         "schema": {
                             "type": "string",
@@ -4233,6 +5005,14 @@
                             ]
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
                     }
                 ],
                 "tags": [
@@ -4606,6 +5386,74 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/Stocktake"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/warranties": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_warranties_list",
+                "summary": "List warranty records for a makerspace",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "page_size",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return per page.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "active",
+                                "expired",
+                                "expiring_soon",
+                                "unknown"
+                            ]
+                        },
+                        "description": "Filter rows by computed warranty status."
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedWarrantyReportRowList"
                                 }
                             }
                         },
@@ -5062,6 +5910,98 @@
                             }
                         },
                         "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/printing/printers/{id}/warranty": {
+            "get": {
+                "operationId": "api_v1_admin_printing_printers_warranty_retrieve",
+                "summary": "Retrieve warranty details for a 3D printer",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Warranty"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "api_v1_admin_printing_printers_warranty_update",
+                "summary": "Create or update warranty details for a 3D printer",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyUpsert"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyUpsert"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyUpsert"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Warranty"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid warranty details."
                     }
                 }
             }
@@ -5645,6 +6585,14 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "format",
                         "schema": {
                             "type": "string",
@@ -5673,6 +6621,14 @@
                             ]
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
                     }
                 ],
                 "tags": [
@@ -6995,6 +7951,198 @@
                 }
             }
         },
+        "/api/v1/admin/warranty/{id}/documents": {
+            "post": {
+                "operationId": "api_v1_admin_warranty_documents_create",
+                "summary": "Finalize an uploaded warranty document",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyDocumentFinalize"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyDocumentFinalize"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyDocumentFinalize"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WarrantyDocument"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid or duplicate warranty document."
+                    },
+                    "503": {
+                        "description": "Warranty document storage is unavailable."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/warranty/{id}/documents/presign": {
+            "post": {
+                "operationId": "api_v1_admin_warranty_documents_presign_create",
+                "summary": "Create a warranty document upload URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyDocumentPresign"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyDocumentPresign"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyDocumentPresign"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WarrantyDocumentUploadResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid document upload request."
+                    },
+                    "503": {
+                        "description": "Warranty document storage is unavailable."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/warranty/documents/{id}": {
+            "delete": {
+                "operationId": "api_v1_admin_warranty_documents_destroy",
+                "summary": "Delete a warranty document",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/warranty/documents/{id}/url": {
+            "get": {
+                "operationId": "api_v1_admin_warranty_documents_url_retrieve",
+                "summary": "Create a signed warranty document view URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WarrantyDocumentUrl"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "description": "Warranty document storage is unavailable."
+                    }
+                }
+            }
+        },
         "/api/v1/auth/change-password": {
             "post": {
                 "operationId": "api_v1_auth_change_password_create",
@@ -7290,13 +8438,6 @@
                 ],
                 "responses": {
                     "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantBootstrap"
-                                }
-                            }
-                        },
                         "description": "Frontend-safe tenant bootstrap payload."
                     },
                     "404": {
@@ -7658,12 +8799,28 @@
                 "summary": "Retrieve makerspace printing report",
                 "parameters": [
                     {
+                        "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
                         "in": "path",
                         "name": "makerspace_id",
                         "schema": {
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
                     }
                 ],
                 "tags": [
@@ -7711,6 +8868,24 @@
             "get": {
                 "operationId": "api_v1_printing_admin_printing_reports_retrieve",
                 "summary": "Retrieve aggregate printing report",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
                 "tags": [
                     "Printing reports"
                 ],
@@ -7835,43 +9010,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/PrintFileUrlResponse"
-                                }
-                            }
-                        },
-                        "description": ""
-                    },
-                    "503": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "description": "Storage is unavailable."
-                    },
-                    "400": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "description": "Invalid request."
-                    },
-                    "401": {
-                        "description": "Authentication credentials were not provided."
-                    },
-                    "403": {
-                        "description": "Permission denied."
-                    },
-                    "404": {
-                        "description": "Not found."
+                        "description": "No response body"
                     }
                 }
             }
@@ -8733,6 +9872,25 @@
                 "tags": [
                     "Printing"
                 ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CompletePrint"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CompletePrint"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CompletePrint"
+                            }
+                        }
+                    }
+                },
                 "security": [
                     {
                         "jwtAuth": []
@@ -9941,6 +11099,18 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "kind",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "hardware",
+                                "printing"
+                            ]
+                        },
+                        "description": "Filter the list/export to one visible procurement stream."
+                    },
+                    {
+                        "in": "query",
                         "name": "limit",
                         "schema": {
                             "type": "integer"
@@ -9953,6 +11123,18 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "bought",
+                                "pending"
+                            ]
+                        },
+                        "description": "Filter by procurement item status."
                     }
                 ],
                 "tags": [
@@ -9976,6 +11158,25 @@
                             }
                         },
                         "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
                     }
                 }
             },
@@ -10042,6 +11243,25 @@
                             }
                         },
                         "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
                     }
                 }
             }
@@ -10049,8 +11269,31 @@
         "/api/v1/procurement/makerspace/{makerspace_id}/to-buy/export": {
             "get": {
                 "operationId": "api_v1_procurement_makerspace_to_buy_export_retrieve",
-                "summary": "Export to-buy items as CSV",
+                "summary": "Export to-buy items as CSV or XLSX",
                 "parameters": [
+                    {
+                        "in": "query",
+                        "name": "format",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "csv",
+                                "xlsx"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "kind",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "hardware",
+                                "printing"
+                            ]
+                        },
+                        "description": "Filter the list/export to one visible procurement stream."
+                    },
                     {
                         "in": "path",
                         "name": "makerspace_id",
@@ -10058,6 +11301,18 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "bought",
+                                "pending"
+                            ]
+                        },
+                        "description": "Filter by procurement item status."
                     }
                 ],
                 "tags": [
@@ -10075,9 +11330,34 @@
                                 "schema": {
                                     "type": "string"
                                 }
+                            },
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
                             }
                         },
                         "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
                     }
                 }
             }
@@ -10114,6 +11394,25 @@
                             }
                         },
                         "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
                     }
                 }
             },
@@ -10167,6 +11466,25 @@
                             }
                         },
                         "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
                     }
                 }
             },
@@ -10194,6 +11512,25 @@
                 "responses": {
                     "204": {
                         "description": "No response body"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
                     }
                 }
             }
@@ -11222,14 +12559,6 @@
                 "type": "string",
                 "description": "* `active` - Active\n* `restricted` - Restricted\n* `suspended` - Suspended"
             },
-            "ActionEnum": {
-                "enum": [
-                    "repair",
-                    "scrap"
-                ],
-                "type": "string",
-                "description": "* `repair` - repair\n* `scrap` - scrap"
-            },
             "AdminRequest": {
                 "type": "object",
                 "properties": {
@@ -11841,6 +13170,24 @@
                     "print_batch_id"
                 ]
             },
+            "AssetQrHistory": {
+                "type": "object",
+                "properties": {
+                    "asset": {
+                        "type": "integer"
+                    },
+                    "scans": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/QrHistoryItem"
+                        }
+                    }
+                },
+                "required": [
+                    "asset",
+                    "scans"
+                ]
+            },
             "AssignBox": {
                 "type": "object",
                 "properties": {
@@ -11990,6 +13337,128 @@
                     "updated_at"
                 ]
             },
+            "BulkImportJob": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "mode": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ModeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/BulkImportJobStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "result": {
+                        "readOnly": true
+                    },
+                    "error": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "total_rows": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "processed_rows": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "created_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "updated_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "error_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "warning_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "completed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "completed_at",
+                    "created_at",
+                    "created_count",
+                    "error",
+                    "error_count",
+                    "id",
+                    "mode",
+                    "processed_rows",
+                    "result",
+                    "status",
+                    "total_rows",
+                    "updated_at",
+                    "updated_count",
+                    "warning_count"
+                ]
+            },
+            "BulkImportJobCreate": {
+                "type": "object",
+                "properties": {
+                    "mode": {
+                        "$ref": "#/components/schemas/ModeEnum"
+                    },
+                    "file": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        },
+                        "maxItems": 5000
+                    },
+                    "mapping": {}
+                },
+                "required": [
+                    "mode"
+                ]
+            },
+            "BulkImportJobStatusEnum": {
+                "enum": [
+                    "pending",
+                    "running",
+                    "completed",
+                    "failed"
+                ],
+                "type": "string",
+                "description": "* `pending` - Pending\n* `running` - Running\n* `completed` - Completed\n* `failed` - Failed"
+            },
             "BulkImportPreview": {
                 "type": "object",
                 "properties": {
@@ -12005,12 +13474,7 @@
                         },
                         "maxItems": 5000
                     },
-                    "mapping": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "string"
-                        }
-                    }
+                    "mapping": {}
                 }
             },
             "CategoryAdmin": {
@@ -12123,6 +13587,17 @@
                 ],
                 "type": "string",
                 "description": "* `browser` - Browser\n* `server` - Server"
+            },
+            "CompletePrint": {
+                "type": "object",
+                "properties": {
+                    "actual_filament_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    }
+                }
             },
             "ConditionEnum": {
                 "enum": [
@@ -12364,7 +13839,6 @@
                     },
                     "container_label": {
                         "type": "string",
-                        "nullable": true,
                         "readOnly": true
                     },
                     "due_at": {
@@ -12516,6 +13990,26 @@
                 "type": "string",
                 "description": "* `needs_fix` - needs_fix\n* `remove` - remove"
             },
+            "EmailLayout": {
+                "type": "object",
+                "properties": {
+                    "html": {
+                        "type": "string"
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "default": true
+                    },
+                    "is_default": {
+                        "type": "boolean",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "html",
+                    "is_default"
+                ]
+            },
             "EmailLog": {
                 "type": "object",
                 "properties": {
@@ -12569,11 +14063,16 @@
                         "format": "date-time",
                         "readOnly": true,
                         "nullable": true
+                    },
+                    "can_retry": {
+                        "type": "boolean",
+                        "readOnly": true
                     }
                 },
                 "required": [
                     "attempts",
                     "audience",
+                    "can_retry",
                     "created_at",
                     "error",
                     "event",
@@ -12588,185 +14087,140 @@
             "EmailLogStatusEnum": {
                 "enum": [
                     "pending",
-                    "sending",
                     "sent",
                     "failed"
                 ],
                 "type": "string",
-                "description": "* `pending` - Pending\n* `sending` - Sending\n* `sent` - Sent\n* `failed` - Failed"
+                "description": "* `pending` - Pending\n* `sent` - Sent\n* `failed` - Failed"
             },
-            "EmailTemplateDetail": {
+            "EmailPreviewRequest": {
                 "type": "object",
                 "properties": {
-                    "stream": {
-                        "type": "string",
-                        "readOnly": true
+                    "subject": {
+                        "type": "string"
+                    },
+                    "text_body": {
+                        "type": "string"
+                    },
+                    "html_body": {
+                        "type": "string"
+                    }
+                }
+            },
+            "EmailRendered": {
+                "type": "object",
+                "properties": {
+                    "subject": {
+                        "type": "string"
+                    },
+                    "text_body": {
+                        "type": "string"
+                    },
+                    "html_body": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "html_body",
+                    "subject",
+                    "text_body"
+                ]
+            },
+            "EmailTemplateRow": {
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string"
+                    },
+                    "family": {
+                        "type": "string"
                     },
                     "audience": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "key": {
-                        "type": "string",
-                        "readOnly": true
+                        "type": "string"
                     },
                     "label": {
-                        "type": "string",
-                        "readOnly": true
+                        "type": "string"
                     },
-                    "description": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "fields": {
+                    "variables": {
                         "type": "array",
                         "items": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        },
-                        "readOnly": true
+                            "$ref": "#/components/schemas/EmailVariable"
+                        }
                     },
                     "subject": {
-                        "type": "string",
-                        "readOnly": true
+                        "type": "string"
                     },
                     "text_body": {
-                        "type": "string",
-                        "readOnly": true
+                        "type": "string"
                     },
                     "html_body": {
-                        "type": "string",
-                        "readOnly": true
+                        "type": "string"
                     },
                     "is_active": {
-                        "type": "boolean",
-                        "readOnly": true
+                        "type": "boolean"
                     },
-                    "is_overridden": {
-                        "type": "boolean",
-                        "readOnly": true
-                    },
-                    "default_subject": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "default_text": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "default_html": {
-                        "type": "string",
-                        "readOnly": true
+                    "is_customized": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
                     "audience",
-                    "default_html",
-                    "default_subject",
-                    "default_text",
+                    "family",
+                    "html_body",
+                    "is_active",
+                    "is_customized",
+                    "key",
+                    "label",
+                    "subject",
+                    "text_body",
+                    "variables"
+                ]
+            },
+            "EmailTemplateWrite": {
+                "type": "object",
+                "properties": {
+                    "subject": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "text_body": {
+                        "type": "string"
+                    },
+                    "html_body": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "default": true
+                    }
+                },
+                "required": [
+                    "subject",
+                    "text_body"
+                ]
+            },
+            "EmailVariable": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "sample": {
+                        "type": "string"
+                    },
+                    "trusted_html": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
                     "description",
-                    "fields",
-                    "html_body",
-                    "is_active",
-                    "is_overridden",
-                    "key",
-                    "label",
-                    "stream",
-                    "subject",
-                    "text_body"
-                ]
-            },
-            "EmailTemplateListItem": {
-                "type": "object",
-                "properties": {
-                    "stream": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "audience": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "key": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "label": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "is_active": {
-                        "type": "boolean",
-                        "readOnly": true
-                    },
-                    "is_overridden": {
-                        "type": "boolean",
-                        "readOnly": true
-                    }
-                },
-                "required": [
-                    "audience",
-                    "is_active",
-                    "is_overridden",
-                    "key",
-                    "label",
-                    "stream"
-                ]
-            },
-            "EmailTemplatePreviewRequest": {
-                "type": "object",
-                "properties": {
-                    "stream": {
-                        "type": "string"
-                    },
-                    "audience": {
-                        "type": "string"
-                    },
-                    "key": {
-                        "type": "string"
-                    },
-                    "subject": {
-                        "type": "string",
-                        "maxLength": 200
-                    },
-                    "text_body": {
-                        "type": "string"
-                    },
-                    "html_body": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "audience",
-                    "html_body",
-                    "key",
-                    "stream",
-                    "subject",
-                    "text_body"
-                ]
-            },
-            "EmailTemplatePreviewResponse": {
-                "type": "object",
-                "properties": {
-                    "subject": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "text_body": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "html_body": {
-                        "type": "string",
-                        "readOnly": true
-                    }
-                },
-                "required": [
-                    "html_body",
-                    "subject",
-                    "text_body"
+                    "name",
+                    "sample",
+                    "trusted_html"
                 ]
             },
             "Error": {
@@ -12804,6 +14258,11 @@
                     },
                     "content_type": {
                         "type": "string"
+                    },
+                    "size_bytes": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -13042,6 +14501,117 @@
                 "required": [
                     "status"
                 ]
+            },
+            "InventoryAssetAdmin": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "makerspace": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "product": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "product_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "box": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "box_label": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "asset_tag": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "serial_number": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/InventoryAssetAdminStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "qr_code_id": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "qr_payload": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "notes": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "asset_tag",
+                    "box",
+                    "box_label",
+                    "id",
+                    "makerspace",
+                    "notes",
+                    "product",
+                    "product_name",
+                    "qr_code_id",
+                    "qr_payload",
+                    "serial_number",
+                    "status",
+                    "updated_at"
+                ]
+            },
+            "InventoryAssetAdminStatusEnum": {
+                "enum": [
+                    "available",
+                    "reserved",
+                    "issued",
+                    "damaged",
+                    "lost",
+                    "retired",
+                    "maintenance"
+                ],
+                "type": "string",
+                "description": "* `available` - Available\n* `reserved` - Reserved\n* `issued` - Issued\n* `damaged` - Damaged\n* `lost` - Lost\n* `retired` - Retired\n* `maintenance` - Maintenance"
+            },
+            "InventoryAssetStatusAction": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "$ref": "#/components/schemas/InventoryAssetStatusActionActionEnum"
+                    }
+                },
+                "required": [
+                    "action"
+                ]
+            },
+            "InventoryAssetStatusActionActionEnum": {
+                "enum": [
+                    "shelve",
+                    "repair"
+                ],
+                "type": "string",
+                "description": "* `shelve` - shelve\n* `repair` - repair"
             },
             "InventoryProductAdmin": {
                 "type": "object",
@@ -13459,6 +15029,17 @@
                     "evidence_id"
                 ]
             },
+            "LedgerContainer": {
+                "type": "object",
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "label"
+                ]
+            },
             "LedgerResponse": {
                 "type": "object",
                 "properties": {
@@ -13486,10 +15067,6 @@
                     "item_name": {
                         "type": "string"
                     },
-                    "container": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "holder": {
                         "type": "string"
                     },
@@ -13501,6 +15078,14 @@
                         "items": {
                             "$ref": "#/components/schemas/LedgerUnit"
                         }
+                    },
+                    "container": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LedgerContainer"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "target_label": {
                         "type": "string",
@@ -13705,16 +15290,30 @@
                         "type": "string",
                         "maxLength": 200
                     },
+                    "latitude": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
+                        "nullable": true
+                    },
+                    "longitude": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
+                        "nullable": true
+                    },
                     "map_url": {
                         "type": "string",
-                        "format": "uri",
-                        "maxLength": 200
+                        "readOnly": true
                     },
                     "public_inventory_enabled": {
                         "type": "boolean"
                     },
                     "public_stats_enabled": {
                         "type": "boolean"
+                    },
+                    "public_print_status_lookup_policy": {
+                        "$ref": "#/components/schemas/PublicPrintStatusLookupPolicyEnum"
                     },
                     "superadmin_access_enabled": {
                         "type": "boolean"
@@ -13825,6 +15424,7 @@
                     "id",
                     "logo_key",
                     "logo_url",
+                    "map_url",
                     "name",
                     "public_api_key",
                     "slug",
@@ -13927,16 +15527,13 @@
                         "readOnly": true
                     },
                     "files": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/PrintRequestFileSummary"
-                        },
+                        "type": "string",
                         "readOnly": true
                     },
                     "status": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/PrintRequestStatusEnum"
+                                "$ref": "#/components/schemas/Status073Enum"
                             }
                         ],
                         "readOnly": true
@@ -14156,7 +15753,6 @@
                     },
                     "spool_label": {
                         "type": "string",
-                        "nullable": true,
                         "readOnly": true
                     },
                     "logged_by_username": {
@@ -14178,11 +15774,19 @@
                     "title"
                 ]
             },
+            "ModeEnum": {
+                "enum": [
+                    "preview",
+                    "apply"
+                ],
+                "type": "string",
+                "description": "* `preview` - Preview\n* `apply` - Apply"
+            },
             "NeedsFixAction": {
                 "type": "object",
                 "properties": {
                     "action": {
-                        "$ref": "#/components/schemas/ActionEnum"
+                        "$ref": "#/components/schemas/NeedsFixActionActionEnum"
                     },
                     "quantity": {
                         "type": "integer",
@@ -14193,6 +15797,15 @@
                     "action",
                     "quantity"
                 ]
+            },
+            "NeedsFixActionActionEnum": {
+                "enum": [
+                    "repair",
+                    "scrap",
+                    "shelve"
+                ],
+                "type": "string",
+                "description": "* `repair` - repair\n* `scrap` - scrap\n* `shelve` - shelve"
             },
             "NotificationRecipient": {
                 "type": "object",
@@ -14629,6 +16242,37 @@
                     }
                 }
             },
+            "PaginatedInventoryAssetAdminList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/InventoryAssetAdmin"
+                        }
+                    }
+                }
+            },
             "PaginatedInventoryProductAdminList": {
                 "type": "object",
                 "required": [
@@ -14939,6 +16583,37 @@
                     }
                 }
             },
+            "PaginatedWarrantyReportRowList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WarrantyReportRow"
+                        }
+                    }
+                }
+            },
             "PatchedApiClient": {
                 "type": "object",
                 "properties": {
@@ -15167,24 +16842,6 @@
                     }
                 }
             },
-            "PatchedEmailTemplateUpdate": {
-                "type": "object",
-                "properties": {
-                    "subject": {
-                        "type": "string",
-                        "maxLength": 200
-                    },
-                    "text_body": {
-                        "type": "string"
-                    },
-                    "html_body": {
-                        "type": "string"
-                    },
-                    "is_active": {
-                        "type": "boolean"
-                    }
-                }
-            },
             "PatchedFilamentSpool": {
                 "type": "object",
                 "properties": {
@@ -15372,16 +17029,30 @@
                         "type": "string",
                         "maxLength": 200
                     },
+                    "latitude": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
+                        "nullable": true
+                    },
+                    "longitude": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
+                        "nullable": true
+                    },
                     "map_url": {
                         "type": "string",
-                        "format": "uri",
-                        "maxLength": 200
+                        "readOnly": true
                     },
                     "public_inventory_enabled": {
                         "type": "boolean"
                     },
                     "public_stats_enabled": {
                         "type": "boolean"
+                    },
+                    "public_print_status_lookup_policy": {
+                        "$ref": "#/components/schemas/PublicPrintStatusLookupPolicyEnum"
                     },
                     "superadmin_access_enabled": {
                         "type": "boolean"
@@ -15838,18 +17509,6 @@
                     "username"
                 ]
             },
-            "PrintFileUrlResponse": {
-                "type": "object",
-                "properties": {
-                    "url": {
-                        "type": "string",
-                        "format": "uri"
-                    }
-                },
-                "required": [
-                    "url"
-                ]
-            },
             "PrintPresignRequest": {
                 "type": "object",
                 "properties": {
@@ -16084,16 +17743,13 @@
                         "readOnly": true
                     },
                     "files": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/PrintRequestFileSummary"
-                        },
+                        "type": "string",
                         "readOnly": true
                     },
                     "status": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/PrintRequestStatusEnum"
+                                "$ref": "#/components/schemas/Status073Enum"
                             }
                         ],
                         "readOnly": true
@@ -16279,42 +17935,6 @@
                     "bucket",
                     "title"
                 ]
-            },
-            "PrintRequestFileSummary": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "integer"
-                    },
-                    "kind": {
-                        "type": "string"
-                    },
-                    "content_type": {
-                        "type": "string"
-                    },
-                    "size_bytes": {
-                        "type": "integer"
-                    }
-                },
-                "required": [
-                    "content_type",
-                    "id",
-                    "kind",
-                    "size_bytes"
-                ]
-            },
-            "PrintRequestStatusEnum": {
-                "enum": [
-                    "pending",
-                    "accepted",
-                    "printing",
-                    "completed",
-                    "collected",
-                    "rejected",
-                    "failed"
-                ],
-                "type": "string",
-                "description": "* `pending` - Pending\n* `accepted` - Accepted\n* `printing` - Printing\n* `completed` - Completed\n* `collected` - Collected\n* `rejected` - Rejected\n* `failed` - Failed"
             },
             "PrintRequestSubmit": {
                 "type": "object",
@@ -16626,6 +18246,9 @@
                     "printer_name": {
                         "type": "string"
                     },
+                    "printer_model": {
+                        "type": "string"
+                    },
                     "image_url": {
                         "type": "string",
                         "format": "uri",
@@ -16656,6 +18279,9 @@
                         "type": "integer"
                     },
                     "printer_name": {
+                        "type": "string"
+                    },
+                    "printer_model": {
                         "type": "string"
                     },
                     "image_url": {
@@ -16758,6 +18384,24 @@
                     "printing",
                     "rejected",
                     "total_requests"
+                ]
+            },
+            "ProductQrHistory": {
+                "type": "object",
+                "properties": {
+                    "product": {
+                        "type": "integer"
+                    },
+                    "scans": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/QrHistoryItem"
+                        }
+                    }
+                },
+                "required": [
+                    "product",
+                    "scans"
                 ]
             },
             "PublicAvailabilityModeEnum": {
@@ -17049,6 +18693,15 @@
                     "results"
                 ]
             },
+            "PublicPrintStatusLookupPolicyEnum": {
+                "enum": [
+                    "token_only",
+                    "email_unverified",
+                    "checkin_verified"
+                ],
+                "type": "string",
+                "description": "* `token_only` - Token only\n* `email_unverified` - Email unverified\n* `checkin_verified` - Check-In verified"
+            },
             "PublicProduct": {
                 "type": "object",
                 "properties": {
@@ -17286,6 +18939,10 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "model": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "hours": {
                         "type": "number",
                         "format": "double",
@@ -17306,6 +18963,7 @@
                     "completed",
                     "hours",
                     "image_url",
+                    "model",
                     "name"
                 ]
             },
@@ -17479,6 +19137,10 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "model": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "jobs": {
                         "type": "integer",
                         "readOnly": true
@@ -17505,6 +19167,7 @@
                     "hours",
                     "image_url",
                     "jobs",
+                    "model",
                     "name"
                 ]
             },
@@ -17721,6 +19384,11 @@
                     },
                     "content_type": {
                         "type": "string"
+                    },
+                    "size_bytes": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -17880,6 +19548,35 @@
                 "type": "string",
                 "description": "* `box` - Box\n* `product` - Product\n* `asset` - Asset"
             },
+            "QrHistoryItem": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "context": {
+                        "type": "string"
+                    },
+                    "actor": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "actor",
+                    "context",
+                    "created_at",
+                    "id",
+                    "source"
+                ]
+            },
             "QrPrintBatch": {
                 "type": "object",
                 "properties": {
@@ -17895,7 +19592,7 @@
                         "maxLength": 200
                     },
                     "status": {
-                        "$ref": "#/components/schemas/QrPrintBatchStatusEnum"
+                        "$ref": "#/components/schemas/Status438Enum"
                     },
                     "created_by": {
                         "type": "integer",
@@ -17945,7 +19642,7 @@
                         "maxLength": 200
                     },
                     "status": {
-                        "$ref": "#/components/schemas/QrPrintBatchStatusEnum"
+                        "$ref": "#/components/schemas/Status438Enum"
                     },
                     "created_by": {
                         "type": "integer",
@@ -18048,15 +19745,6 @@
                     "id"
                 ]
             },
-            "QrPrintBatchStatusEnum": {
-                "enum": [
-                    "draft",
-                    "printed",
-                    "archived"
-                ],
-                "type": "string",
-                "description": "* `draft` - Draft\n* `printed` - Printed\n* `archived` - Archived"
-            },
             "QrRebindResult": {
                 "type": "object",
                 "properties": {
@@ -18082,17 +19770,15 @@
                     "target_id": {
                         "type": "integer"
                     },
-                    "destination_makerspace_id": {
-                        "type": "integer",
-                        "nullable": true
-                    },
-                    "destination_product_id": {
-                        "type": "integer",
-                        "nullable": true
-                    },
                     "new_name": {
                         "type": "string",
                         "maxLength": 100
+                    },
+                    "destination_makerspace_id": {
+                        "type": "integer"
+                    },
+                    "destination_product_id": {
+                        "type": "integer"
                     }
                 },
                 "required": [
@@ -18575,6 +20261,28 @@
                 "type": "string",
                 "description": "* `space_manager` - Space Manager\n* `guest_admin` - Guest Admin\n* `inventory_manager` - Inventory Manager\n* `print_manager` - Print Manager"
             },
+            "Status073Enum": {
+                "enum": [
+                    "pending",
+                    "accepted",
+                    "printing",
+                    "completed",
+                    "collected",
+                    "rejected",
+                    "failed"
+                ],
+                "type": "string",
+                "description": "* `pending` - Pending\n* `accepted` - Accepted\n* `printing` - Printing\n* `completed` - Completed\n* `collected` - Collected\n* `rejected` - Rejected\n* `failed` - Failed"
+            },
+            "Status438Enum": {
+                "enum": [
+                    "draft",
+                    "printed",
+                    "archived"
+                ],
+                "type": "string",
+                "description": "* `draft` - Draft\n* `printed` - Printed\n* `archived` - Archived"
+            },
             "StockTransfer": {
                 "type": "object",
                 "properties": {
@@ -18904,7 +20612,7 @@
                     },
                     "message": {
                         "type": "string",
-                        "default": "OSMM test alert."
+                        "default": "Kanakku Pusthakam test alert."
                     }
                 },
                 "required": [
@@ -18922,134 +20630,6 @@
                         "additionalProperties": {}
                     }
                 }
-            },
-            "TenantBootstrap": {
-                "type": "object",
-                "properties": {
-                    "makerspace": {
-                        "$ref": "#/components/schemas/TenantBootstrapMakerspace"
-                    },
-                    "frontend": {
-                        "$ref": "#/components/schemas/TenantBootstrapFrontend"
-                    },
-                    "modules": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-                    "workflows": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-                    "theme": {},
-                    "branding": {},
-                    "email_enabled": {
-                        "type": "boolean"
-                    },
-                    "public_api": {
-                        "$ref": "#/components/schemas/TenantBootstrapPublicApi"
-                    }
-                },
-                "required": [
-                    "branding",
-                    "email_enabled",
-                    "frontend",
-                    "makerspace",
-                    "modules",
-                    "public_api",
-                    "theme",
-                    "workflows"
-                ]
-            },
-            "TenantBootstrapFrontend": {
-                "type": "object",
-                "properties": {
-                    "type": {
-                        "type": "string"
-                    },
-                    "hostname": {
-                        "type": "string"
-                    },
-                    "allowed_origins": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "required": [
-                    "allowed_origins",
-                    "hostname",
-                    "type"
-                ]
-            },
-            "TenantBootstrapMakerspace": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "integer"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "public_code": {
-                        "type": "string"
-                    },
-                    "location": {
-                        "type": "string"
-                    },
-                    "map_url": {
-                        "type": "string",
-                        "format": "uri"
-                    },
-                    "logo_url": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "cover_image_url": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "public_stats_enabled": {
-                        "type": "boolean"
-                    }
-                },
-                "required": [
-                    "cover_image_url",
-                    "id",
-                    "location",
-                    "logo_url",
-                    "map_url",
-                    "name",
-                    "public_code",
-                    "public_stats_enabled",
-                    "slug"
-                ]
-            },
-            "TenantBootstrapPublicApi": {
-                "type": "object",
-                "properties": {
-                    "base_url": {
-                        "type": "string"
-                    },
-                    "publishable_key": {
-                        "type": "string"
-                    },
-                    "inventory_path": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "base_url",
-                    "inventory_path",
-                    "publishable_key"
-                ]
             },
             "ToBuyItem": {
                 "type": "object",
@@ -19212,6 +20792,272 @@
                 ],
                 "type": "string",
                 "description": "* `superadmin` - Super Admin\n* `space_manager` - Space Manager\n* `guest_admin` - Guest Admin\n* `requester` - Requester"
+            },
+            "Warranty": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "host_kind": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "host_id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "host_label": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "asset_id": {
+                        "type": "integer",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "asset_tag": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "serial_number": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "printer_id": {
+                        "type": "integer",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "printer_name": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "printer_model": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "purchased_on": {
+                        "type": "string",
+                        "format": "date",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "warranty_expires_on": {
+                        "type": "string",
+                        "format": "date",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "vendor_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "vendor_contact": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "documents": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WarrantyDocument"
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "asset_id",
+                    "asset_tag",
+                    "documents",
+                    "host_id",
+                    "host_kind",
+                    "host_label",
+                    "id",
+                    "printer_id",
+                    "printer_model",
+                    "printer_name",
+                    "purchased_on",
+                    "serial_number",
+                    "status",
+                    "vendor_contact",
+                    "vendor_name",
+                    "warranty_expires_on"
+                ]
+            },
+            "WarrantyDocument": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "original_filename": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "content_type": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "size_bytes": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "content_type",
+                    "created_at",
+                    "id",
+                    "original_filename",
+                    "size_bytes"
+                ]
+            },
+            "WarrantyDocumentFinalize": {
+                "type": "object",
+                "properties": {
+                    "object_key": {
+                        "type": "string",
+                        "maxLength": 300
+                    },
+                    "original_filename": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "object_key",
+                    "original_filename"
+                ]
+            },
+            "WarrantyDocumentPresign": {
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "content_type": {
+                        "type": "string",
+                        "maxLength": 100
+                    }
+                },
+                "required": [
+                    "content_type",
+                    "filename"
+                ]
+            },
+            "WarrantyDocumentUploadResponse": {
+                "type": "object",
+                "properties": {
+                    "object_key": {
+                        "type": "string"
+                    },
+                    "upload": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                },
+                "required": [
+                    "object_key",
+                    "upload"
+                ]
+            },
+            "WarrantyDocumentUrl": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    }
+                },
+                "required": [
+                    "url"
+                ]
+            },
+            "WarrantyReportRow": {
+                "type": "object",
+                "properties": {
+                    "host_kind": {
+                        "type": "string"
+                    },
+                    "host_id": {
+                        "type": "integer"
+                    },
+                    "host_label": {
+                        "type": "string"
+                    },
+                    "serial_number": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "vendor_name": {
+                        "type": "string"
+                    },
+                    "purchased_on": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "warranty_expires_on": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "document_count": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "document_count",
+                    "host_id",
+                    "host_kind",
+                    "host_label",
+                    "purchased_on",
+                    "serial_number",
+                    "status",
+                    "vendor_name",
+                    "warranty_expires_on"
+                ]
+            },
+            "WarrantyUpsert": {
+                "type": "object",
+                "properties": {
+                    "purchased_on": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "warranty_expires_on": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "vendor_name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "vendor_contact": {
+                        "type": "string",
+                        "maxLength": 200
+                    }
+                }
             }
         },
         "securitySchemes": {
