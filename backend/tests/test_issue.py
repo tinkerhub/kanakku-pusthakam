@@ -12,7 +12,7 @@ from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.boxes.models import Box, BoxScan
 from apps.evidence.models import EvidencePhoto
-from apps.evidence.storage import StorageUnavailable
+from apps.evidence.storage import EvidenceObjectValidationError, StorageUnavailable
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.inventory import availability
 from apps.inventory.availability import InsufficientStock
@@ -260,7 +260,7 @@ def test_issue_without_uploaded_evidence_returns_409(monkeypatch):
     box = make_box(makerspace)
     assign_scanned_box(hardware_request, box, admin)
     evidence = make_issue_evidence(makerspace, admin)
-    monkeypatch.setattr("apps.evidence.storage.object_exists", Mock(return_value=False))
+    monkeypatch.setattr("apps.evidence.storage.validate_evidence_object", Mock(side_effect=EvidenceObjectValidationError("missing", "missing")))
 
     response = authenticated_client(admin).post(
         issue_url(hardware_request),
@@ -281,7 +281,7 @@ def test_issue_storage_unavailable_returns_503(monkeypatch):
     assign_scanned_box(hardware_request, box, admin)
     evidence = make_issue_evidence(makerspace, admin)
     monkeypatch.setattr(
-        "apps.evidence.storage.object_exists",
+        "apps.evidence.storage.validate_evidence_object",
         Mock(side_effect=StorageUnavailable("storage unavailable")),
     )
 

@@ -1,6 +1,7 @@
 import pytest
 
 from apps.evidence import storage as evidence_storage
+from apps.inventory import public_image_storage
 from apps.printing import storage as printing_storage
 
 
@@ -175,6 +176,51 @@ def test_non_put_finalize_reads_final_object_only(
     assert sized == [final_key]
     assert copied == []
     assert deleted == []
+
+
+def test_public_image_post_finalize_retries_transient_missing_object(monkeypatch, settings):
+    settings.STORAGE_PRESIGN_METHOD = "post"
+    attempts = []
+
+    def fake_size(key):
+        attempts.append(key)
+        return None if len(attempts) == 1 else 123
+
+    monkeypatch.setattr(public_image_storage, "object_size", fake_size)
+    monkeypatch.setattr(public_image_storage.time, "sleep", lambda delay: None)
+
+    result = public_image_storage.finalize_upload("printers/1/photo.png")
+
+    assert result.status == "ok"
+    assert result.size == 123
+    assert attempts == ["printers/1/photo.png", "printers/1/photo.png"]
+
+
+def test_public_image_finalize_uses_size_not_exists(monkeypatch, settings):
+    settings.STORAGE_PRESIGN_METHOD = "put"
+    settings.PUBLIC_IMAGE_MAX_BYTES = 500
+    final_key = "printers/1/photo.png"
+    staging_key = public_image_storage.staging_key(final_key)
+    sized = []
+    copied = []
+
+    def fake_size(key):
+        sized.append(key)
+        if key == final_key and sized.count(final_key) == 1:
+            return None
+        return 123
+
+    monkeypatch.setattr(public_image_storage, "object_size", fake_size)
+    monkeypatch.setattr(public_image_storage, "object_exists", lambda key: pytest.fail("unexpected object_exists call"), raising=False)
+    monkeypatch.setattr(public_image_storage, "copy_object", lambda source, dest: copied.append((source, dest)))
+    monkeypatch.setattr(public_image_storage, "delete_object", lambda key: None)
+
+    result = public_image_storage.finalize_upload(final_key)
+
+    assert result.status == "ok"
+    assert result.size == 123
+    assert sized == [final_key, staging_key, final_key]
+    assert copied == [(staging_key, final_key)]
 
 
 def test_evidence_presigned_upload_put_mode_signs_staging_key(monkeypatch, settings):

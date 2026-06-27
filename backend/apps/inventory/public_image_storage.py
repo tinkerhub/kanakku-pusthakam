@@ -1,4 +1,6 @@
+from dataclasses import dataclass
 import logging
+import time
 import uuid
 
 import boto3
@@ -8,9 +10,16 @@ from django.conf import settings
 from rest_framework.exceptions import ValidationError
 
 from apps.evidence.storage import StorageUnavailable
+from apps.inventory.public_image_sniff import sniff_is_valid_image
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class FinalizeResult:
+    status: str
+    size: int | None
 
 
 def _s3_client(endpoint_url):
@@ -43,6 +52,12 @@ def build_object_key(kind, makerspace_id, ext):
 
 def staging_key(final_key):
     return f"staging/{final_key}"
+
+
+def is_safe_object_key(object_key):
+    if object_key.startswith("/") or "\\" in object_key or ".." in object_key:
+        return False
+    return not any(ord(char) < 32 or ord(char) == 127 for char in object_key)
 
 
 def delete_object(object_key):
@@ -83,21 +98,6 @@ def copy_object(source_key, dest_key):
         raise StorageUnavailable from exc
 
 
-def object_exists(object_key):
-    try:
-        _client().head_object(
-            Bucket=settings.PUBLIC_IMAGE_BUCKET,
-            Key=object_key,
-        )
-    except ClientError as exc:
-        status = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
-        code = exc.response.get("Error", {}).get("Code")
-        if status == 404 or code in {"404", "NoSuchKey", "NotFound"}:
-            return False
-        raise StorageUnavailable from exc
-    except BotoCoreError as exc:
-        raise StorageUnavailable from exc
-    return True
 
 
 def object_size(object_key):
@@ -118,9 +118,98 @@ def object_size(object_key):
     return int(response["ContentLength"])
 
 
+def object_size_after_upload(object_key, attempts=10, delay_seconds=0.2):
+    for attempt in range(attempts):
+        size = object_size(object_key)
+        if size is not None or attempt == attempts - 1:
+            return size
+        time.sleep(delay_seconds)
+    return None
+
+
+def _finalize_result(object_key, size):
+    max_bytes = settings.PUBLIC_IMAGE_MAX_BYTES
+    if size is None:
+        result = FinalizeResult("missing", None)
+    elif size == 0:
+        result = FinalizeResult("empty", size)
+    elif size > max_bytes:
+        result = FinalizeResult("too_large", size)
+    else:
+        result = FinalizeResult("ok", size)
+
+    if result.status != "ok":
+        logger.warning(
+            "Invalid public image upload: status=%s object_key=%s bucket=%s "
+            "endpoint=%s storage_presign_method=%s max_bytes=%s observed_size=%s",
+            result.status,
+            object_key,
+            settings.PUBLIC_IMAGE_BUCKET,
+            settings.AWS_S3_ENDPOINT_URL,
+            settings.STORAGE_PRESIGN_METHOD,
+            max_bytes,
+            result.size,
+        )
+    return result
+
+
+def finalize_error_message(result):
+    if result.status == "missing":
+        return "Uploaded image was not found in storage."
+    if result.status == "empty":
+        return "Uploaded image is empty (0 bytes)."
+    if result.status == "too_large":
+        max_mb = settings.PUBLIC_IMAGE_MAX_BYTES // (1024 * 1024)
+        return f"Uploaded image exceeds the {max_mb} MB limit."
+    return ""
+
+
+def public_image_key_in_use(
+    makerspace_id,
+    object_key,
+    *,
+    product_id=None,
+    printer_id=None,
+    makerspace_field="",
+):
+    from django.db.models import Q
+
+    from apps.inventory.models import InventoryProduct
+    from apps.makerspaces.models import Makerspace
+    from apps.printing.models import PrintPrinter
+
+    products = InventoryProduct.objects.filter(
+        makerspace_id=makerspace_id,
+        image_key=object_key,
+    )
+    if product_id is not None:
+        products = products.exclude(pk=product_id)
+    if products.exists():
+        return True
+
+    printers = PrintPrinter.objects.filter(
+        makerspace_id=makerspace_id,
+        image_key=object_key,
+    )
+    if printer_id is not None:
+        printers = printers.exclude(pk=printer_id)
+    if printers.exists():
+        return True
+
+    makerspace_query = Makerspace.objects.filter(pk=makerspace_id)
+    if makerspace_field == "logo_key":
+        return makerspace_query.filter(cover_image_key=object_key).exists()
+    if makerspace_field == "cover_image_key":
+        return makerspace_query.filter(logo_key=object_key).exists()
+    return makerspace_query.filter(
+        Q(logo_key=object_key) | Q(cover_image_key=object_key)
+    ).exists()
+
+
 def presigned_upload(object_key, content_type):
     try:
         if settings.STORAGE_PRESIGN_METHOD == "put":
+            # Presigned PUT cannot enforce content-length at upload time; finalize HEADs staging.
             url = _public_client().generate_presigned_url(
                 "put_object",
                 Params={
@@ -152,25 +241,26 @@ def presigned_upload(object_key, content_type):
 def finalize_upload(object_key):
     max_bytes = settings.PUBLIC_IMAGE_MAX_BYTES
     if settings.STORAGE_PRESIGN_METHOD != "put":
-        return object_size(object_key)
+        return _finalize_result(object_key, object_size_after_upload(object_key))
 
-    if object_exists(object_key):
+    final_size = object_size(object_key)
+    if final_size is not None:
         delete_object(staging_key(object_key))
-        return object_size(object_key)
+        return _finalize_result(object_key, final_size)
 
     upload_staging_key = staging_key(object_key)
     size = object_size(upload_staging_key)
     if size is None:
-        return None
+        return _finalize_result(object_key, None)
     if not (1 <= size <= max_bytes):
-        return size
+        return _finalize_result(object_key, size)
 
     copy_object(upload_staging_key, object_key)
     delete_object(upload_staging_key)
     final_size = object_size(object_key)
     if final_size is None or not (1 <= final_size <= max_bytes):
         delete_object(object_key)
-    return final_size
+    return _finalize_result(object_key, final_size)
 
 
 def public_url(object_key):

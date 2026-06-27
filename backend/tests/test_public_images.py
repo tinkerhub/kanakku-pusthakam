@@ -5,6 +5,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.audit.models import AuditLog
+from apps.inventory import public_image_storage
 from apps.inventory.models import InventoryProduct
 from apps.makerspaces import lifecycle
 from tests.return_helpers import authenticated_client, make_member, make_product, make_space, make_user
@@ -32,11 +33,15 @@ def mock_public_storage(monkeypatch, *, size=123):
             "fields": {"key": object_key, "Content-Type": content_type},
         },
     )
-    monkeypatch.setattr("apps.inventory.public_image_storage.finalize_upload", lambda object_key: size)
+    status = "missing" if size is None else "empty" if size == 0 else "ok"
+    monkeypatch.setattr(
+        "apps.inventory.public_image_storage.finalize_upload",
+        lambda object_key: public_image_storage.FinalizeResult(status, size),
+    )
+    monkeypatch.setattr("apps.inventory.public_image_storage.sniff_is_valid_image", lambda object_key: True)
     delete = Mock()
     monkeypatch.setattr("apps.inventory.public_image_storage.delete_object", delete)
     return delete
-
 
 def test_inventory_image_upload_attach_and_public_serializer(monkeypatch, settings):
     settings.PUBLIC_IMAGE_BASE_URL = "http://cdn.test/public-images"

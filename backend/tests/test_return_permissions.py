@@ -3,6 +3,7 @@ from unittest.mock import Mock
 import pytest
 
 from apps.accounts.models import User
+from apps.evidence import storage
 from apps.hardware_requests.models import HardwareRequest
 from apps.makerspaces.models import MakerspaceMembership
 from tests.return_helpers import (
@@ -20,6 +21,10 @@ from tests.return_helpers import (
 pytestmark = pytest.mark.django_db
 
 
+def _valid_evidence_result():
+    return storage.EvidenceValidationResult(size=1, content_type="image/png")
+
+
 def test_guest_admin_can_return_and_cross_tenant_returns_404(monkeypatch):
     makerspace = make_space("return-perms")
     other_space = make_space("return-perms-other")
@@ -34,8 +39,8 @@ def test_guest_admin_can_return_and_cross_tenant_returns_404(monkeypatch):
     product = make_product(makerspace)
     hardware_request = make_issued_request(makerspace, owner_admin, [(product, 1)])
     evidence = make_return_evidence(makerspace, owner_admin)
-    object_exists = Mock(return_value=True)
-    monkeypatch.setattr("apps.evidence.storage.object_exists", object_exists)
+    validate_evidence = Mock(return_value=_valid_evidence_result())
+    monkeypatch.setattr(storage, "validate_evidence_object", validate_evidence)
 
     guest = authenticated_client(guest_admin).post(
         return_url(hardware_request),
@@ -50,7 +55,7 @@ def test_guest_admin_can_return_and_cross_tenant_returns_404(monkeypatch):
 
     assert guest.status_code == 200
     assert cross_tenant.status_code == 404
-    assert object_exists.call_count == 1
+    assert validate_evidence.call_count == 1
 
 
 def test_superadmin_can_return_without_membership(monkeypatch):
@@ -64,7 +69,11 @@ def test_superadmin_can_return_without_membership(monkeypatch):
     product = make_product(makerspace)
     hardware_request = make_issued_request(makerspace, admin, [(product, 1)])
     evidence = make_return_evidence(makerspace, admin)
-    monkeypatch.setattr("apps.evidence.storage.object_exists", Mock(return_value=True))
+    monkeypatch.setattr(
+        storage,
+        "validate_evidence_object",
+        Mock(return_value=_valid_evidence_result()),
+    )
 
     response = authenticated_client(superadmin).post(
         return_url(hardware_request),

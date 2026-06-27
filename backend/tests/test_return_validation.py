@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pytest
 
 from apps.boxes.models import BoxScan
-from apps.evidence.storage import StorageUnavailable
+from apps.evidence.storage import EvidenceObjectValidationError, StorageUnavailable
 from apps.hardware_requests.models import HardwareRequest, ReturnEvent
 from tests.return_helpers import (
     authenticated_client,
@@ -45,7 +45,7 @@ def test_return_without_uploaded_photo_returns_409(monkeypatch):
     product = make_product(makerspace)
     hardware_request = make_issued_request(makerspace, admin, [(product, 1)])
     evidence = make_return_evidence(makerspace, admin)
-    monkeypatch.setattr("apps.evidence.storage.object_exists", Mock(return_value=False))
+    monkeypatch.setattr("apps.evidence.storage.validate_evidence_object", Mock(side_effect=EvidenceObjectValidationError("missing", "missing")))
 
     response = authenticated_client(admin).post(
         return_url(hardware_request),
@@ -65,7 +65,7 @@ def test_return_storage_unavailable_returns_503(monkeypatch):
     hardware_request = make_issued_request(makerspace, admin, [(product, 1)])
     evidence = make_return_evidence(makerspace, admin)
     monkeypatch.setattr(
-        "apps.evidence.storage.object_exists",
+        "apps.evidence.storage.validate_evidence_object",
         Mock(side_effect=StorageUnavailable("storage unavailable")),
     )
 

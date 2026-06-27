@@ -8,6 +8,7 @@ from apps.audit.models import AuditLog
 from apps.makerspaces import lifecycle
 from apps.printing.models import ManualPrintLog, PrintPrinter, PrintRequest
 from apps.printing.reports import build_printing_report
+from apps.inventory import public_image_storage
 from apps.inventory.public_stats import build_public_stats
 from tests.test_printing import (
     authenticated_client,
@@ -38,11 +39,15 @@ def mock_public_storage(monkeypatch, *, size=123):
             "fields": {"key": object_key, "Content-Type": content_type},
         },
     )
-    monkeypatch.setattr("apps.inventory.public_image_storage.finalize_upload", lambda object_key: size)
+    status = "missing" if size is None else "empty" if size == 0 else "ok"
+    monkeypatch.setattr(
+        "apps.inventory.public_image_storage.finalize_upload",
+        lambda object_key: public_image_storage.FinalizeResult(status, size),
+    )
+    monkeypatch.setattr("apps.inventory.public_image_storage.sniff_is_valid_image", lambda object_key: True)
     delete = Mock()
     monkeypatch.setattr("apps.inventory.public_image_storage.delete_object", delete)
     return delete
-
 
 def test_printer_image_upload_attach_clear(monkeypatch, settings):
     settings.PUBLIC_IMAGE_BASE_URL = "http://cdn.test/public-images"

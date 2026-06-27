@@ -107,8 +107,8 @@ def issue_request(actor, request, evidence_id, remark="", asset_qr_payloads=None
         # concurrent issues can't both promote the staging upload to the immutable final
         # key (the loser fails the status check before reaching here) — closes the
         # concurrent-finalizer overwrite race (Codex Stage-4 P2). PUT mode (Supabase/R2)
-        # promotes staging->final + validates size; POST mode (MinIO) checks existence
-        # only (its presign policy already bounded size).
+        # promotes staging->final + validates size; both PUT and POST then HEAD
+        # size and sniff bytes to prove the immutable final object is an image.
         if settings.STORAGE_PRESIGN_METHOD == "put":
             size = storage.finalize_upload(evidence.object_key, settings.EVIDENCE_MAX_BYTES)
             if size is None:
@@ -117,8 +117,14 @@ def issue_request(actor, request, evidence_id, remark="", asset_qr_payloads=None
                 raise RequestValidationError(
                     "Issue evidence is invalid or exceeds the size limit."
                 )
-        elif not storage.object_exists(evidence.object_key):
-            raise EvidenceNotUploaded("Issue evidence has not been uploaded.")
+        try:
+            storage.validate_evidence_object(evidence.object_key)
+        except storage.EvidenceObjectValidationError as exc:
+            if exc.code == "missing":
+                raise EvidenceNotUploaded("Issue evidence has not been uploaded.") from exc
+            raise RequestValidationError(
+                "Issue evidence is invalid or exceeds the size limit."
+            ) from exc
         if not locked.assigned_box_id or not BoxScan.objects.filter(
             request=locked,
             box_id=locked.assigned_box_id,

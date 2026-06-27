@@ -38,4 +38,11 @@ def _reset_axes_state(request):
 
 @pytest.fixture(autouse=True)
 def evidence_objects_exist_by_default(monkeypatch):
-    monkeypatch.setattr("apps.evidence.storage.object_exists", lambda key: True)
+    from apps.evidence import storage
+
+    monkeypatch.setattr(storage, "object_exists", lambda key: True)
+    monkeypatch.setattr(
+        storage,
+        "validate_evidence_object",
+        lambda key: storage.EvidenceValidationResult(size=1, content_type="image/png"),
+    )

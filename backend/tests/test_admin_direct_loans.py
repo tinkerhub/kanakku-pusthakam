@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import Mock
 
 import pytest
 from django.test import override_settings
@@ -7,6 +8,7 @@ from rest_framework.test import APIClient
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.boxes.models import Box, QrCode
+from apps.evidence import storage
 from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests import direct_loan_workflow
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
@@ -31,8 +33,19 @@ def valid_looking_return_body():
 
 def allow_uploaded(monkeypatch, exists=True):
     # Test settings use STORAGE_PRESIGN_METHOD="post", so the direct-return
-    # workflow validates the upload via storage.object_exists.
-    monkeypatch.setattr("apps.evidence.storage.object_exists", lambda key: exists)
+    # workflow validates the uploaded object through storage.validate_evidence_object.
+    if exists:
+        monkeypatch.setattr(
+            storage,
+            "validate_evidence_object",
+            lambda key: storage.EvidenceValidationResult(size=1, content_type="image/png"),
+        )
+    else:
+        monkeypatch.setattr(
+            storage,
+            "validate_evidence_object",
+            Mock(side_effect=storage.EvidenceObjectValidationError("missing", "missing")),
+        )
 
 
 def make_space(slug="direct-loan-space"):
